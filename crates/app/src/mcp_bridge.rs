@@ -108,6 +108,16 @@ fn load_or_create_token() -> Result<String> {
     Ok(token)
 }
 
+/// Replaces the token; the running server keeps the old one until restart.
+pub fn regenerate_token() -> Result<()> {
+    if let Some(path) = token_path()
+        && path.exists()
+    {
+        fs::remove_file(path)?;
+    }
+    load_or_create_token().map(|_| ())
+}
+
 pub fn start(cx: &mut App) {
     let config = cx.global::<AppConfig>().0.clone();
     if !config.mcp_enabled {
@@ -198,8 +208,8 @@ fn dispatch(call: Call, cx: &mut App) {
                 }),
                 window,
                 cx,
-            )
-        })
+            );
+        });
     });
     if result.is_err() {
         send(Err("project window was closed".into()));
