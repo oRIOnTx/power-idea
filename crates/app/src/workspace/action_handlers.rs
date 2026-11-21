@@ -76,6 +76,7 @@ impl Workspace {
             this.toggle_left_panel(LeftPanel::Database, cx);
         }))
         .on_action(cx.listener(|this, _: &NavigateForward, w, cx| this.navigate(true, w, cx)))
+        .on_action(cx.listener(|this, _: &TogglePreview, w, cx| this.toggle_preview(w, cx)))
         .on_action(cx.listener(|this, _: &CloseWindow, w, cx| {
             if this.can_close_window(w, cx) {
                 w.remove_window();

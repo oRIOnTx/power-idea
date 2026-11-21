@@ -7,6 +7,7 @@ mod inbox;
 mod language;
 mod mcp_bridge;
 mod palette;
+mod preview;
 mod project_tree;
 mod projects;
 mod settings;

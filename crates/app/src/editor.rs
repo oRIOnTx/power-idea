@@ -19,6 +19,8 @@ pub struct EditorTab {
     pub saved_text: SharedString,
     /// Set once a language server has opened this document.
     pub lsp: Option<crate::language::TabLsp>,
+    /// Live preview for Markdown and SVG.
+    pub preview: Option<crate::preview::Preview>,
     pub _subscriptions: Vec<Subscription>,
 }
 
@@ -42,8 +44,18 @@ pub struct DiffTab {
     pub state: Entity<DiffState>,
 }
 
+/// Raster image viewer.
+pub struct ImageTab {
+    pub path: PathBuf,
+    /// Path relative to the project root.
+    pub rel: String,
+    /// Shows the image at 100% instead of fitting it into the tab.
+    pub actual_size: bool,
+}
+
 pub enum CenterTab {
     Editor(EditorTab),
+    Image(ImageTab),
     Diff(DiffTab),
     Settings,
     Console {
@@ -56,6 +68,15 @@ impl CenterTab {
     pub fn editor(&self) -> Option<&EditorTab> {
         match self {
             Self::Editor(tab) => Some(tab),
+            Self::Image(_) | Self::Diff(_) | Self::Settings | Self::Console { .. } => None,
+        }
+    }
+
+    /// Project-relative path of a file tab (editor or image).
+    pub fn file_rel(&self) -> Option<&str> {
+        match self {
+            Self::Editor(tab) => Some(&tab.rel),
+            Self::Image(tab) => Some(&tab.rel),
             Self::Diff(_) | Self::Settings | Self::Console { .. } => None,
         }
     }
@@ -63,6 +84,7 @@ impl CenterTab {
     pub fn title(&self) -> String {
         match self {
             Self::Editor(tab) => tab.title(),
+            Self::Image(tab) => tab.rel.rsplit('/').next().unwrap_or(&tab.rel).to_string(),
             Self::Diff(tab) => tab.title.clone(),
             Self::Settings => "Settings".into(),
             Self::Console { title, .. } => title.clone(),

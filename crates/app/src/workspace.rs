@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui_kit::component::diff::Diff;
-use gpui_kit::component::input::Editor;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::tree::{TreeEvent, TreeState};
 use gpui_kit::component::{
@@ -31,6 +30,7 @@ mod git_log;
 mod git_panel;
 mod mcp_tools;
 mod navigation;
+mod preview_view;
 mod sidebar;
 mod terminal_panel;
 mod unsaved;
@@ -305,6 +305,7 @@ impl Render for Workspace {
             notice.show(window, cx);
         }
         let (background, foreground) = (cx.theme().background, cx.theme().foreground);
+        let svg = self.active_svg_image(cx);
         let content = match self.active_tab.and_then(|ix| self.tabs.get(ix)) {
             Some(CenterTab::Editor(tab)) => Some(
                 v_flex()
@@ -312,13 +313,13 @@ impl Render for Workspace {
                     .children(self.render_language_hint(tab, cx))
                     .child(
                         div()
-                            .key_context(CODE_EDITOR_CONTEXT)
                             .flex_1()
                             .overflow_hidden()
-                            .child(Editor::new(&tab.state).bordered(false).size_full()),
+                            .child(self.render_editor_area(tab, svg, cx)),
                     )
                     .into_any_element(),
             ),
+            Some(CenterTab::Image(tab)) => Some(self.render_image_tab(tab, cx)),
             Some(CenterTab::Diff(tab)) => Some(
                 v_flex()
                     .size_full()

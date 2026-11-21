@@ -16,6 +16,7 @@ use super::{MAX_RECENT_FILES, Workspace};
 use crate::actions::*;
 use crate::config::{AppConfig, LanguageServerConfig};
 use crate::editor::{self, CenterTab, EditorTab, LineEdit};
+use crate::preview::{self, Preview};
 use crate::{file_icons, style};
 
 impl Workspace {
@@ -38,6 +39,9 @@ impl Workspace {
         let path = self.root.join(rel);
         if path.is_dir() {
             return;
+        }
+        if preview::is_image(&path) {
+            return self.open_image(rel, path, window, cx);
         }
 
         let ix = match self
@@ -73,6 +77,7 @@ impl Workspace {
                     }),
                     cx.observe(&state, |_, _, cx| cx.notify()),
                 ];
+                let preview = preview::preview_kind(&path).map(Preview::new);
                 self.tabs.push(CenterTab::Editor(EditorTab {
                     path,
                     rel: rel.to_string(),
@@ -80,6 +85,7 @@ impl Workspace {
                     language,
                     saved_text: text.into(),
                     lsp: None,
+                    preview,
                     _subscriptions: subscriptions,
                 }));
                 let ix = self.tabs.len() - 1;
@@ -107,7 +113,7 @@ impl Workspace {
                 self.recent_files.truncate(MAX_RECENT_FILES);
             }
             CenterTab::Diff(tab) => tab.state.read(cx).focus_handle(cx).focus(window, cx),
-            CenterTab::Settings => self.focus_handle.focus(window, cx),
+            CenterTab::Settings | CenterTab::Image(_) => self.focus_handle.focus(window, cx),
             CenterTab::Console { console, .. } => console.update(cx, |console, cx| console.focus(window, cx)),
         }
         cx.notify();
@@ -216,8 +222,8 @@ impl Workspace {
             };
             // The underline variant has no inner padding, so the label brings its own.
             let icon = tab
-                .editor()
-                .map(|e| file_icons::icon_for_file(&e.title(), cx).with_size(px(14.)));
+                .file_rel()
+                .map(|_| file_icons::icon_for_file(&tab.title(), cx).with_size(px(14.)));
             let label = h_flex()
                 .id(("tab-label", ix))
                 .gap_1p5()
@@ -225,7 +231,7 @@ impl Workspace {
                 .pr_1()
                 .children(icon)
                 .child(title);
-            let label = match tab.editor().map(|e| e.rel.clone()) {
+            let label = match tab.file_rel().map(str::to_string) {
                 Some(rel) => {
                     let workspace = cx.entity().downgrade();
                     label
