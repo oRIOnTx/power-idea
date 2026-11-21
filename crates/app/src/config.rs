@@ -1,6 +1,7 @@
 //! User configuration persisted as TOML in the platform config dir
 //! (`~/Library/Application Support/power-idea/config.toml` on macOS).
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -28,7 +29,91 @@ pub struct Config {
     /// Local MCP server for Claude Code and other agents.
     pub mcp_enabled: bool,
     pub mcp_port: u16,
+    /// Shell for integrated terminals; empty means `$SHELL`.
+    pub terminal_shell: String,
+    /// Language servers keyed by id (e.g. "ruby"), merged over the built-in list.
+    pub language_servers: BTreeMap<String, LanguageServerConfig>,
     pub recent_projects: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LanguageServerConfig {
+    pub enabled: bool,
+    pub command: String,
+    pub args: Vec<String>,
+    /// Editor languages (as returned by `editor::canonical_language`) it serves.
+    pub languages: Vec<String>,
+    /// Shown in Settings when the command is not installed.
+    pub install_hint: String,
+}
+
+impl Default for LanguageServerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            command: String::new(),
+            args: Vec::new(),
+            languages: Vec::new(),
+            install_hint: String::new(),
+        }
+    }
+}
+
+fn server(command: &str, args: &[&str], languages: &[&str], install_hint: &str) -> LanguageServerConfig {
+    LanguageServerConfig {
+        enabled: true,
+        command: command.into(),
+        args: args.iter().map(|a| a.to_string()).collect(),
+        languages: languages.iter().map(|l| l.to_string()).collect(),
+        install_hint: install_hint.into(),
+    }
+}
+
+/// Built-in language servers; users can override or add more in config.toml.
+pub fn default_language_servers() -> BTreeMap<String, LanguageServerConfig> {
+    BTreeMap::from([
+        (
+            "ruby".into(),
+            server("ruby-lsp", &[], &["ruby"], "gem install ruby-lsp"),
+        ),
+        (
+            "rust".into(),
+            server(
+                "rust-analyzer",
+                &[],
+                &["rust"],
+                "rustup component add rust-analyzer",
+            ),
+        ),
+        (
+            "typescript".into(),
+            server(
+                "typescript-language-server",
+                &["--stdio"],
+                &["typescript", "javascript", "tsx"],
+                "npm install -g typescript-language-server typescript",
+            ),
+        ),
+        (
+            "python".into(),
+            server(
+                "pyright-langserver",
+                &["--stdio"],
+                &["python"],
+                "npm install -g pyright",
+            ),
+        ),
+        (
+            "go".into(),
+            server(
+                "gopls",
+                &[],
+                &["go"],
+                "go install golang.org/x/tools/gopls@latest",
+            ),
+        ),
+    ])
 }
 
 impl Default for Config {
@@ -41,6 +126,8 @@ impl Default for Config {
             tab_size: 4,
             mcp_enabled: true,
             mcp_port: 7419,
+            terminal_shell: String::new(),
+            language_servers: default_language_servers(),
             recent_projects: Vec::new(),
         }
     }
@@ -57,10 +144,15 @@ impl Config {
 
     /// Loads the config, falling back to defaults when missing or invalid.
     pub fn load() -> Self {
-        Self::path()
+        let mut config: Self = Self::path()
             .and_then(|path| fs::read_to_string(path).ok())
             .and_then(|text| toml::from_str(&text).ok())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        // A user table replaces the whole map, so bring back missing built-ins.
+        for (id, server) in default_language_servers() {
+            config.language_servers.entry(id).or_insert(server);
+        }
+        config
     }
 
     pub fn save(&self) -> Result<()> {
@@ -74,6 +166,35 @@ impl Config {
         self.recent_projects.retain(|p| p != project);
         self.recent_projects.insert(0, project.to_path_buf());
         self.recent_projects.truncate(MAX_RECENT_PROJECTS);
+    }
+}
+
+/// Per-project settings in `<project>/.power-idea/settings.toml`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ProjectSettings {
+    /// Overrides the global tab size for this project.
+    pub tab_size: Option<usize>,
+    /// Paths relative to the project root hidden from search and Go to File.
+    pub exclude: Vec<String>,
+}
+
+impl ProjectSettings {
+    fn path(root: &Path) -> PathBuf {
+        root.join(".power-idea").join("settings.toml")
+    }
+
+    pub fn load(root: &Path) -> Self {
+        fs::read_to_string(Self::path(root))
+            .ok()
+            .and_then(|text| toml::from_str(&text).ok())
+            .unwrap_or_default()
+    }
+
+    pub fn save(&self, root: &Path) -> Result<()> {
+        let path = Self::path(root);
+        fs::create_dir_all(path.parent().unwrap())?;
+        fs::write(&path, toml::to_string_pretty(self)?).with_context(|| format!("writing {}", path.display()))
     }
 }
 
@@ -93,6 +214,19 @@ mod tests {
         config.touch_recent_project(Path::new("/b"));
         config.touch_recent_project(Path::new("/a"));
         assert_eq!(config.recent_projects, [PathBuf::from("/a"), PathBuf::from("/b")]);
+    }
+
+    #[test]
+    fn user_language_servers_merge_with_builtins() {
+        let text =
+            "[language_servers.ruby]\ncommand = \"solargraph\"\nargs = [\"stdio\"]\nlanguages = [\"ruby\"]\n";
+        let mut config: Config = toml::from_str(text).unwrap();
+        for (id, server) in default_language_servers() {
+            config.language_servers.entry(id).or_insert(server);
+        }
+        assert_eq!(config.language_servers["ruby"].command, "solargraph");
+        assert!(config.language_servers["ruby"].enabled);
+        assert!(config.language_servers.contains_key("rust"));
     }
 
     #[test]

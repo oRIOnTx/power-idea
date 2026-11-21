@@ -15,7 +15,15 @@ const MAX_SEARCH_FILE_SIZE: u64 = 4 * 1024 * 1024;
 /// Bytes inspected to decide whether a file is binary.
 const BINARY_SNIFF_LEN: usize = 8 * 1024;
 
-fn walker(root: &Path) -> WalkBuilder {
+/// Walks `root` honoring git ignores, skipping `.git` and the `exclude`
+/// paths (relative to `root`, e.g. `"tmp"` or `"public/packs"`).
+fn walker(root: &Path, exclude: &[String]) -> WalkBuilder {
+    let excluded: Vec<PathBuf> = exclude
+        .iter()
+        .map(|p| p.trim().trim_matches('/'))
+        .filter(|p| !p.is_empty())
+        .map(|p| root.join(p))
+        .collect();
     let mut builder = WalkBuilder::new(root);
     builder
         .hidden(false)
@@ -23,7 +31,9 @@ fn walker(root: &Path) -> WalkBuilder {
         .git_global(true)
         .git_exclude(true)
         .require_git(false)
-        .filter_entry(|entry| entry.file_name() != ".git");
+        .filter_entry(move |entry| {
+            entry.file_name() != ".git" && !excluded.iter().any(|ex| entry.path() == ex)
+        });
     builder
 }
 
@@ -43,10 +53,14 @@ pub struct FileMatch {
 
 impl FileIndex {
     pub fn build(root: impl Into<PathBuf>) -> Self {
+        Self::build_excluding(root, &[])
+    }
+
+    pub fn build_excluding(root: impl Into<PathBuf>, exclude: &[String]) -> Self {
         let root = root.into();
         let files = Mutex::new(Vec::new());
 
-        walker(&root).build_parallel().run(|| {
+        walker(&root, exclude).build_parallel().run(|| {
             let root = &root;
             let files = &files;
             Box::new(move |entry| {
@@ -174,7 +188,12 @@ pub struct TextMatch {
 }
 
 /// Plain-text "Find in Files" across a project, respecting `.gitignore`.
-pub fn find_in_files(root: &Path, query: &str, options: TextSearchOptions) -> Vec<TextMatch> {
+pub fn find_in_files(
+    root: &Path,
+    query: &str,
+    options: TextSearchOptions,
+    exclude: &[String],
+) -> Vec<TextMatch> {
     if query.is_empty() {
         return Vec::new();
     }
@@ -191,7 +210,7 @@ pub fn find_in_files(root: &Path, query: &str, options: TextSearchOptions) -> Ve
     let found = AtomicUsize::new(0);
     let results = Mutex::new(Vec::new());
 
-    walker(root).build_parallel().run(|| {
+    walker(root, exclude).build_parallel().run(|| {
         let (needle, found, results) = (&needle, &found, &results);
         Box::new(move |entry| {
             if found.load(Ordering::Relaxed) >= limit {
@@ -294,6 +313,19 @@ mod tests {
     }
 
     #[test]
+    fn excludes_configured_paths() {
+        let dir = fixture();
+        let index = FileIndex::build_excluding(dir.path(), &["src/".into()]);
+        assert!(!index.files().iter().any(|f| f.starts_with("src/")));
+        assert!(index.files().contains(&"README.md".to_string()));
+        let hits = find_in_files(dir.path(), "hello", TextSearchOptions::default(), &["src".into()]);
+        assert_eq!(
+            hits.iter().map(|m| m.path.as_str()).collect::<Vec<_>>(),
+            ["README.md"]
+        );
+    }
+
+    #[test]
     fn fuzzy_prefers_file_name() {
         let dir = fixture();
         let index = FileIndex::build(dir.path());
@@ -315,7 +347,7 @@ mod tests {
     fn find_in_files_case_and_word() {
         let dir = fixture();
         let opts = TextSearchOptions::default();
-        let hits = find_in_files(dir.path(), "hello", opts);
+        let hits = find_in_files(dir.path(), "hello", opts, &[]);
         let paths: Vec<_> = hits.iter().map(|m| m.path.as_str()).collect();
         assert_eq!(paths, ["README.md", "src/main.rs", "src/user_controller.rb"]);
         assert_eq!((hits[1].line, hits[1].column), (2, 15));
@@ -324,13 +356,13 @@ mod tests {
             case_sensitive: true,
             ..opts
         };
-        assert_eq!(find_in_files(dir.path(), "Hello", sensitive).len(), 1);
+        assert_eq!(find_in_files(dir.path(), "Hello", sensitive, &[]).len(), 1);
 
         let word = TextSearchOptions {
             whole_word: true,
             ..opts
         };
-        let hits = find_in_files(dir.path(), "hello", word);
+        let hits = find_in_files(dir.path(), "hello", word, &[]);
         assert!(hits.iter().all(|m| m.path != "src/user_controller.rb"));
     }
 

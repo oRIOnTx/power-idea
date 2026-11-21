@@ -7,3 +7,6 @@ license.workspace = true
 [dependencies]
 ignore.workspace = true
 nucleo-matcher.workspace = true
+
+[lints]
+workspace = true
