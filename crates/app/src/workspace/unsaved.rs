@@ -50,6 +50,7 @@ impl Workspace {
     /// Returns true if the window can close now; otherwise asks about unsaved
     /// files and closes the window after the user decides.
     pub(crate) fn can_close_window(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        self.save_session_now(cx);
         let dirty = self.tabs.iter().filter(|t| t.is_dirty(cx)).count();
         if dirty == 0 {
             return true;

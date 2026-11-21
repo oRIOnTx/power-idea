@@ -31,6 +31,7 @@ mod git_panel;
 mod mcp_tools;
 mod navigation;
 mod preview_view;
+mod session_state;
 mod sidebar;
 mod terminal_panel;
 mod unsaved;
@@ -131,6 +132,8 @@ pub struct Workspace {
     nav: navigation::NavHistory,
     /// Suppresses history recording while navigating programmatically.
     nav_paused: bool,
+    /// Workspace state as last written to `.power-idea/workspace.toml`.
+    saved_session: Option<crate::session::Session>,
     databases: crate::database::DatabaseStore,
     /// Notifications raised outside of a window context, shown on next render.
     pending_notices: Vec<Notice>,
@@ -169,6 +172,7 @@ impl Workspace {
             pending_notices: Vec::new(),
             nav: navigation::NavHistory::default(),
             nav_paused: false,
+            saved_session: None,
             focus_handle: cx.focus_handle(),
             tree,
             expanded,
@@ -193,6 +197,10 @@ impl Workspace {
         workspace.start_lsp_event_loop(cx);
         workspace.preload_language_servers(cx);
         Workspaces::register(window.window_handle(), cx.entity().downgrade(), cx);
+        let this = cx.entity().downgrade();
+        window.defer(cx, move |window, cx| {
+            this.update(cx, |ws, cx| ws.restore_session(window, cx)).ok();
+        });
         workspace
     }
 

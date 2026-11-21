@@ -10,6 +10,7 @@ mod palette;
 mod preview;
 mod project_tree;
 mod projects;
+mod session;
 mod settings;
 mod style;
 mod terminal;
