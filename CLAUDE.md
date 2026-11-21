@@ -4,6 +4,9 @@ A fast, language-agnostic desktop IDE in Rust (GPU UI via `gpui-kit`) with
 JetBrains ergonomics: keymap, Search Everywhere, Commit tool window, terminal,
 and an MCP server for AI agents.
 
+Progress, backlog and known gaps live in `PROGRESS.md` — read it first and
+update it when a feature lands.
+
 ## Commands
 
 ```sh
@@ -24,11 +27,18 @@ crates/
   search/  file index, fuzzy matching, find-in-files        (no UI)
   vcs/     git via the system `git` CLI                        (no UI)
   mcp/     MCP server: JSON-RPC over local HTTP               (no UI)
+  lsp/     LSP client over stdio (live test: cargo test -p lsp -- --ignored)
+  db/      PostgreSQL/MySQL/SQLite (sqlx) and Redis; passwords in macOS Keychain
   app/     the gpui application; the only crate that depends on gpui-kit
     workspace.rs        Workspace entity: state + layout composition only
     workspace/*.rs      one concern per module (editors, files, git, git_panel,
                         sidebar, chrome, terminal_panel, unsaved, mcp_tools,
-                        action_handlers)
+                        navigation, action_handlers)
+    language.rs         language servers per project + editor LSP providers
+    database/           Database tool window: data sources, consoles, results grid
+    projects.rs         opening projects (windows grouped as native tabs)
+    file_icons.rs       file-type icon + tint mapping
+    inbox.rs            background-thread → UI event queue
     terminal/           session (PTY), input (keys→bytes), colors, view
     palette.rs          modal pickers (Search Everywhere, Go to File, …)
     settings.rs         Settings tab (Cmd+,)
