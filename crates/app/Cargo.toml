@@ -1,0 +1,17 @@
+[package]
+name = "power-idea"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+search = { path = "../search" }
+vcs = { path = "../vcs" }
+mcp = { path = "../mcp" }
+gpui-kit.workspace = true
+anyhow.workspace = true
+alacritty_terminal.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+dirs.workspace = true

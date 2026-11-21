@@ -1,0 +1,199 @@
+//! IDE actions and the default JetBrains (macOS) keymap.
+//!
+//! Users can override or extend bindings in `keymap.toml` next to `config.toml`:
+//!
+//! ```toml
+//! [[binding]]
+//! keys = "cmd-p"
+//! action = "ide::GotoFile"
+//! context = "Workspace"   # optional
+//! ```
+
+use std::fs;
+use std::rc::Rc;
+
+use gpui_kit::*;
+use serde::Deserialize;
+
+use crate::config::Config;
+
+pub const WORKSPACE_CONTEXT: &str = "Workspace";
+pub const CODE_EDITOR_CONTEXT: &str = "CodeEditor";
+pub const PALETTE_CONTEXT: &str = "Palette";
+pub const TERMINAL_CONTEXT: &str = "Terminal";
+
+actions!(
+    ide,
+    [
+        SearchEverywhere,
+        GotoFile,
+        RecentFiles,
+        FindInFiles,
+        FindAction,
+        GotoLine,
+        SaveFile,
+        CloseTab,
+        NextTab,
+        PrevTab,
+        ToggleProjectView,
+        OpenProject,
+        RecentProjects,
+        ToggleTheme,
+        CloseWindow,
+        Quit,
+        ToggleLineComment,
+        DuplicateLine,
+        DeleteLine,
+        MoveLineUp,
+        MoveLineDown,
+        ToggleTerminal,
+        NewTerminal,
+        CloseTerminal,
+        ToggleCommitView,
+        CommitChanges,
+        Push,
+        UpdateProject,
+        ShowGitLog,
+        Branches,
+        CopyMcpCommand,
+    ]
+);
+
+actions!(palette, [SelectNext, SelectPrev]);
+
+/// Actions listed in "Find Action" (Cmd+Shift+A), in display order.
+pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
+    vec![
+        ("Search Everywhere", Box::new(SearchEverywhere)),
+        ("Go to File…", Box::new(GotoFile)),
+        ("Recent Files", Box::new(RecentFiles)),
+        ("Find in Files…", Box::new(FindInFiles)),
+        ("Go to Line…", Box::new(GotoLine)),
+        ("Save", Box::new(SaveFile)),
+        ("Close Tab", Box::new(CloseTab)),
+        ("Next Tab", Box::new(NextTab)),
+        ("Previous Tab", Box::new(PrevTab)),
+        ("Toggle Project View", Box::new(ToggleProjectView)),
+        ("Open Project…", Box::new(OpenProject)),
+        ("Recent Projects…", Box::new(RecentProjects)),
+        ("Toggle Light/Dark Theme", Box::new(ToggleTheme)),
+        ("Comment Line", Box::new(ToggleLineComment)),
+        ("Duplicate Line", Box::new(DuplicateLine)),
+        ("Delete Line", Box::new(DeleteLine)),
+        ("Move Line Up", Box::new(MoveLineUp)),
+        ("Move Line Down", Box::new(MoveLineDown)),
+        ("Terminal", Box::new(ToggleTerminal)),
+        ("New Terminal Tab", Box::new(NewTerminal)),
+        ("Commit…", Box::new(CommitChanges)),
+        ("Push…", Box::new(Push)),
+        ("Update Project (Pull)", Box::new(UpdateProject)),
+        ("Git Log", Box::new(ShowGitLog)),
+        ("Branches…", Box::new(Branches)),
+        ("Toggle Commit View", Box::new(ToggleCommitView)),
+        ("Copy Claude MCP Command", Box::new(CopyMcpCommand)),
+        ("Close Window", Box::new(CloseWindow)),
+        ("Quit", Box::new(Quit)),
+    ]
+}
+
+fn default_keymap() -> Vec<KeyBinding> {
+    let ws = Some(WORKSPACE_CONTEXT);
+    // Editor bindings must out-rank the generic "Input" bindings of the editor widget.
+    let ed = Some("CodeEditor > Input");
+    vec![
+        KeyBinding::new("shift shift", SearchEverywhere, ws),
+        KeyBinding::new("cmd-shift-o", GotoFile, ws),
+        KeyBinding::new("cmd-e", RecentFiles, ws),
+        KeyBinding::new("cmd-shift-f", FindInFiles, ws),
+        KeyBinding::new("cmd-shift-f", FindInFiles, ed),
+        KeyBinding::new("cmd-shift-a", FindAction, ws),
+        KeyBinding::new("cmd-l", GotoLine, ws),
+        KeyBinding::new("cmd-s", SaveFile, ws),
+        KeyBinding::new("cmd-w", CloseTab, ws),
+        KeyBinding::new("ctrl-tab", NextTab, ws),
+        KeyBinding::new("cmd-shift-]", NextTab, ws),
+        KeyBinding::new("ctrl-shift-tab", PrevTab, ws),
+        KeyBinding::new("cmd-shift-[", PrevTab, ws),
+        KeyBinding::new("cmd-1", ToggleProjectView, ws),
+        KeyBinding::new("cmd-o", OpenProject, ws),
+        KeyBinding::new("cmd-shift-w", CloseWindow, ws),
+        KeyBinding::new("cmd-q", Quit, None),
+        KeyBinding::new("cmd-/", ToggleLineComment, ed),
+        KeyBinding::new("cmd-d", DuplicateLine, ed),
+        KeyBinding::new("cmd-backspace", DeleteLine, ed),
+        KeyBinding::new("alt-shift-up", MoveLineUp, ed),
+        KeyBinding::new("alt-shift-down", MoveLineDown, ed),
+        KeyBinding::new("cmd-r", gpui_kit::component::input::Replace, ed),
+        KeyBinding::new("alt-f12", ToggleTerminal, ws),
+        KeyBinding::new("cmd-0", ToggleCommitView, ws),
+        KeyBinding::new("cmd-k", CommitChanges, ws),
+        KeyBinding::new("cmd-shift-k", Push, ws),
+        KeyBinding::new("cmd-t", UpdateProject, ws),
+        KeyBinding::new("cmd-9", ShowGitLog, ws),
+        KeyBinding::new("cmd-t", NewTerminal, Some(TERMINAL_CONTEXT)),
+        KeyBinding::new("cmd-w", CloseTerminal, Some(TERMINAL_CONTEXT)),
+        KeyBinding::new("cmd-c", crate::terminal::Copy, Some(TERMINAL_CONTEXT)),
+        KeyBinding::new("cmd-v", crate::terminal::Paste, Some(TERMINAL_CONTEXT)),
+        KeyBinding::new("cmd-k", crate::terminal::Clear, Some(TERMINAL_CONTEXT)),
+        KeyBinding::new("up", SelectPrev, Some("Palette > Input")),
+        KeyBinding::new("down", SelectNext, Some("Palette > Input")),
+    ]
+}
+
+#[derive(Deserialize, Default)]
+struct UserKeymap {
+    #[serde(default)]
+    binding: Vec<UserBinding>,
+}
+
+#[derive(Deserialize)]
+struct UserBinding {
+    keys: String,
+    action: String,
+    context: Option<String>,
+}
+
+/// Loads user overrides; invalid entries are reported and skipped.
+fn user_keymap(cx: &App) -> Vec<KeyBinding> {
+    let Some(path) = Config::dir().map(|dir| dir.join("keymap.toml")) else {
+        return Vec::new();
+    };
+    let Ok(text) = fs::read_to_string(&path) else {
+        return Vec::new();
+    };
+    let keymap: UserKeymap = match toml::from_str(&text) {
+        Ok(keymap) => keymap,
+        Err(err) => {
+            eprintln!("{}: {err}", path.display());
+            return Vec::new();
+        }
+    };
+
+    keymap
+        .binding
+        .into_iter()
+        .filter_map(|b| {
+            let action = cx
+                .build_action(&b.action, None)
+                .map_err(|err| eprintln!("keymap: unknown action {}: {err}", b.action))
+                .ok()?;
+            let context = match b.context.as_deref().map(KeyBindingContextPredicate::parse) {
+                Some(Ok(predicate)) => Some(Rc::new(predicate)),
+                Some(Err(err)) => {
+                    eprintln!("keymap: bad context for {}: {err}", b.keys);
+                    return None;
+                }
+                None => None,
+            };
+            KeyBinding::load(&b.keys, action, context, false, None, cx)
+                .map_err(|err| eprintln!("keymap: bad keys {}: {err}", b.keys))
+                .ok()
+        })
+        .collect()
+}
+
+pub fn bind_keys(cx: &mut App) {
+    cx.bind_keys(default_keymap());
+    let user = user_keymap(cx);
+    cx.bind_keys(user);
+}
