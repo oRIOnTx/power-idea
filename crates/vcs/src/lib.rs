@@ -3,10 +3,16 @@
 //! Using the CLI (like JetBrains IDEs do) means the user's credentials, SSH
 //! agent, hooks and `.gitconfig` all work without extra configuration.
 
+mod graph;
+mod history;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use anyhow::{Context as _, Result, bail};
+
+pub use graph::{Anchor, GraphRow, Segment, layout as graph_layout};
+pub use history::{CommitDetails, CommitFile, LogEntry, Operation, RefKind, RefLabel, ResetMode};
 
 #[derive(Debug, Clone)]
 pub struct Repo {
