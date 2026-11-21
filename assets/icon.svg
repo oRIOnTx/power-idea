@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151b2a"/>
+      <stop offset="1" stop-color="#07090e"/>
+    </linearGradient>
+    <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#86e6f2"/>
+      <stop offset="1" stop-color="#4fd6e8"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.45" r="0.5">
+      <stop offset="0" stop-color="#4fd6e8" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#4fd6e8" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="tile">
+      <rect x="100" y="100" width="824" height="824" rx="185"/>
+    </clipPath>
+  </defs>
+
+  <!-- Tile -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <g clip-path="url(#tile)">
+    <circle cx="512" cy="470" r="420" fill="url(#halo)"/>
+    <!-- Faint grid -->
+    <g stroke="#4fd6e8" stroke-opacity="0.06" stroke-width="2">
+      <path d="M100 300H924M100 400H924M100 500H924M100 600H924M100 700H924M100 800H924"/>
+      <path d="M300 100V924M400 100V924M500 100V924M600 100V924M700 100V924M800 100V924"/>
+    </g>
+  </g>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="184" fill="none" stroke="#4fd6e8" stroke-opacity="0.22" stroke-width="3"/>
+
+  <!-- Monoline "P" that doubles as a prompt + cursor; layered strokes fake the glow
+       so the icon renders the same in rasterizers without filter support. -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="160"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="154"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="148"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="142"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="136"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="130"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="124"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="118"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="112"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="106"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="100"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="94"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="88"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="82"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="76"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="#4fd6e8" stroke-opacity="0.03" stroke-width="70"/>
+    <path d="M380 760V290H545C630 290 690 350 690 430C690 510 630 570 545 570H380" stroke="url(#stroke)" stroke-width="64"/>
+  </g>
+  <!-- Cursor block -->
+  <rect x="530" y="660" width="210" height="116" rx="42" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="533" y="663" width="204" height="110" rx="39" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="536" y="666" width="198" height="104" rx="36" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="539" y="669" width="192" height="98" rx="33" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="542" y="672" width="186" height="92" rx="30" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="545" y="675" width="180" height="86" rx="27" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="548" y="678" width="174" height="80" rx="24" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="551" y="681" width="168" height="74" rx="21" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="554" y="684" width="162" height="68" rx="18" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="557" y="687" width="156" height="62" rx="15" fill="#b69cff" fill-opacity="0.035"/>
+  <rect x="560" y="690" width="150" height="56" rx="12" fill="#b69cff"/>
+</svg>
