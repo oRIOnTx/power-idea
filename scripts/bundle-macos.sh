@@ -41,8 +41,25 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>${VERSION}</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSDocumentsFolderUsageDescription</key><string>Power IDEA opens and edits projects stored in your Documents folder.</string>
+  <key>NSDesktopFolderUsageDescription</key><string>Power IDEA opens and edits projects stored on your Desktop.</string>
+  <key>NSDownloadsFolderUsageDescription</key><string>Power IDEA opens and edits projects stored in Downloads.</string>
+  <key>NSRemovableVolumesUsageDescription</key><string>Power IDEA opens projects stored on external drives.</string>
+  <key>NSNetworkVolumesUsageDescription</key><string>Power IDEA opens projects stored on network drives.</string>
 </dict>
 </plist>
 PLIST
+
+# Sign the whole bundle so macOS remembers privacy permissions (TCC) for it.
+# A stable certificate keeps them across rebuilds; ad-hoc ("-") only within one build.
+# Override with CODESIGN_IDENTITY=..., create a local one with scripts/create-signing-cert.sh.
+IDENTITY="${CODESIGN_IDENTITY:-}"
+if [[ -z "$IDENTITY" ]] && security find-certificate -c "Power IDEA Local" >/dev/null 2>&1; then
+  IDENTITY="Power IDEA Local"
+fi
+IDENTITY="${IDENTITY:--}"
+codesign --force --sign "$IDENTITY" --identifier "$BUNDLE_ID" --timestamp=none "$OUT"
+codesign --verify --strict "$OUT"
+echo "Signed with: $([[ "$IDENTITY" == "-" ]] && echo "ad-hoc (permissions persist per build)" || echo "$IDENTITY")"
 
 echo "Built: $OUT"
