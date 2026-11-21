@@ -27,6 +27,7 @@ mod database_panel;
 mod editors;
 mod files;
 mod git;
+mod git_log;
 mod git_panel;
 mod mcp_tools;
 mod navigation;
@@ -71,7 +72,10 @@ enum Notice {
         notification: Box<Notification>,
     },
     /// Removes it once the server is running again.
-    ServerRecovered { server_id: String },
+    ServerRecovered {
+        server_id: String,
+    },
+    Error(String),
 }
 
 impl Notice {
@@ -87,8 +91,16 @@ impl Notice {
             Self::ServerRecovered { server_id } => {
                 window.remove_notification1::<ServerFailureNotice>(server_id, cx);
             }
+            Self::Error(message) => window.push_notification(Notification::error(message), cx),
         }
     }
+}
+
+/// Tool window shown below the editor.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BottomPanel {
+    Terminal,
+    GitLog,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -111,6 +123,7 @@ pub struct Workspace {
     show_project_view: bool,
     left_panel: LeftPanel,
     git: Option<git::GitState>,
+    git_log: Option<git_log::GitLogState>,
     project: ProjectSettings,
     /// Languages whose "install a language server" banner was dismissed.
     dismissed_language_hints: HashSet<String>,
@@ -125,7 +138,8 @@ pub struct Workspace {
     pending_console: Option<(String, String, bool)>,
     terminals: Vec<Entity<TerminalView>>,
     active_terminal: usize,
-    show_terminal: bool,
+    show_bottom: bool,
+    bottom_panel: BottomPanel,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -165,9 +179,11 @@ impl Workspace {
             show_project_view: true,
             left_panel: LeftPanel::Project,
             git: None,
+            git_log: None,
             terminals: Vec::new(),
             active_terminal: 0,
-            show_terminal: false,
+            show_bottom: false,
+            bottom_panel: BottomPanel::Terminal,
             _subscriptions: vec![tree_subscription],
         };
         workspace.focus_handle.focus(window, cx);
@@ -255,14 +271,13 @@ impl Workspace {
     }
 
     fn open_palette(&mut self, mode: PaletteMode, window: &mut Window, cx: &mut Context<Self>) {
-        self.open_palette_with(mode, Vec::new(), Vec::new(), window, cx);
+        self.open_palette_with(mode, Vec::new(), window, cx);
     }
 
     fn open_palette_with(
         &mut self,
         mode: PaletteMode,
         branches: Vec<vcs::Branch>,
-        commits: Vec<vcs::Commit>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -278,7 +293,6 @@ impl Workspace {
             recent_files,
             recent_projects: cx.global::<AppConfig>().0.recent_projects.clone(),
             branches,
-            commits,
             exclude: self.project.exclude.clone(),
         };
         Palette::open(mode, source, window, cx);
@@ -347,18 +361,25 @@ impl Render for Workspace {
                     .child(self.render_sidebar(cx)),
             );
         }
-        let center = if self.show_terminal && !self.terminals.is_empty() {
-            v_resizable("center")
+        let bottom = match self.bottom_panel {
+            _ if !self.show_bottom => None,
+            BottomPanel::Terminal if !self.terminals.is_empty() => {
+                Some(self.render_terminal_panel(cx).into_any_element())
+            }
+            BottomPanel::GitLog => self.render_git_log(cx),
+            BottomPanel::Terminal => None,
+        };
+        let center = match bottom {
+            Some(bottom) => v_resizable("center")
                 .child(resizable_panel().child(center))
                 .child(
                     resizable_panel()
                         .size(px(280.))
                         .size_range(px(80.)..px(1600.))
-                        .child(self.render_terminal_panel(cx)),
+                        .child(bottom),
                 )
-                .into_any_element()
-        } else {
-            center
+                .into_any_element(),
+            None => center,
         };
         body = body.child(resizable_panel().child(center));
 

@@ -1,4 +1,4 @@
-//! Left sidebar: Project tree (Cmd+1) and Commit tool window (Cmd+0).
+//! Left sidebar: Project tree (Cmd+1) and Commit tool window (Cmd+0), plus the activity bar.
 
 use gpui_kit::component::list::ListItem;
 use gpui_kit::component::tree::tree;
@@ -31,7 +31,8 @@ impl Workspace {
         let project_open = self.show_project_view && self.left_panel == LeftPanel::Project;
         let commit_open = self.show_project_view && self.left_panel == LeftPanel::Commit;
         let database_open = self.show_project_view && self.left_panel == LeftPanel::Database;
-        let terminal_open = self.show_terminal;
+        let terminal_open = self.terminal_visible();
+        let log_open = self.git_log_visible();
 
         let slot = |id: &'static str,
                     icon: Icon,
@@ -120,6 +121,14 @@ impl Workspace {
                 Box::new(cx.listener(|this, _, _, cx| this.toggle_left_panel(LeftPanel::Database, cx))),
             ))
             .child(div().flex_1())
+            .child(slot(
+                "bar-git-log",
+                style::lucide("git-graph"),
+                "Git Log (⌘9)",
+                log_open,
+                0,
+                Box::new(cx.listener(|this, _, window, cx| this.toggle_git_log(window, cx))),
+            ))
             .child(slot(
                 "bar-terminal",
                 Icon::new(IconName::SquareTerminal),

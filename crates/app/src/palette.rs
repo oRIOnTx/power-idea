@@ -12,7 +12,7 @@ use gpui_kit::component::list::ListItem;
 use gpui_kit::component::{ActiveTheme as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 use search::{FileIndex, TextMatch, TextSearchOptions, find_in_files, fuzzy_filter};
-use vcs::{Branch, Commit};
+use vcs::Branch;
 
 use crate::actions::{self, PALETTE_CONTEXT, SelectNext, SelectPrev, WORKSPACE_CONTEXT};
 use crate::workspace::Workspace;
@@ -30,7 +30,6 @@ pub enum PaletteMode {
     GotoLine,
     RecentProjects,
     Branches,
-    GitLog,
 }
 
 impl PaletteMode {
@@ -44,7 +43,6 @@ impl PaletteMode {
             Self::GotoLine => "Go to line[:column]",
             Self::RecentProjects => "Recent projects",
             Self::Branches => "Checkout branch, or type a name to create one",
-            Self::GitLog => "Search commits",
         }
     }
 }
@@ -57,7 +55,6 @@ pub struct PaletteSource {
     pub recent_files: Vec<String>,
     pub recent_projects: Vec<PathBuf>,
     pub branches: Vec<Branch>,
-    pub commits: Vec<Commit>,
     /// Project paths excluded from search.
     pub exclude: Vec<String>,
 }
@@ -72,7 +69,6 @@ enum PaletteItem {
     Project(PathBuf),
     Branch(Branch),
     NewBranch(String),
-    Commit(Commit),
 }
 
 pub struct Palette {
@@ -181,13 +177,6 @@ impl Palette {
                 }
                 self.items = items;
             }
-            PaletteMode::GitLog => {
-                let commits = self.source.commits.clone();
-                self.items = fuzzy_filter(&query, commits, |c| c.subject.as_str())
-                    .into_iter()
-                    .map(PaletteItem::Commit)
-                    .collect();
-            }
             PaletteMode::FindInFiles => {
                 let root = self.source.root.clone();
                 let exclude = self.source.exclude.clone();
@@ -288,12 +277,6 @@ impl Palette {
                     .update(cx, |ws, cx| ws.create_branch(name, window, cx))
                     .ok();
             }
-            PaletteItem::Commit(commit) => {
-                let commit = commit.clone();
-                workspace
-                    .update(cx, |ws, cx| ws.open_commit(commit, window, cx))
-                    .ok();
-            }
         }
     }
 
@@ -367,32 +350,6 @@ impl Palette {
                 .gap_2()
                 .child(div().text_color(theme.primary).child("+ New branch"))
                 .child(name.clone()),
-            PaletteItem::Commit(commit) => h_flex()
-                .w_full()
-                .gap_3()
-                .child(
-                    div()
-                        .flex_none()
-                        .font_family(theme.mono_font_family.clone())
-                        .text_xs()
-                        .text_color(theme.muted_foreground)
-                        .child(commit.short_hash.clone()),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .overflow_hidden()
-                        .text_ellipsis()
-                        .whitespace_nowrap()
-                        .child(commit.subject.clone()),
-                )
-                .child(
-                    div()
-                        .flex_none()
-                        .text_xs()
-                        .text_color(theme.muted_foreground)
-                        .child(format!("{} · {}", commit.author, commit.date)),
-                ),
         };
         ListItem::new(ix)
             .selected(ix == self.selected)

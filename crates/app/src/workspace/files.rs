@@ -268,7 +268,7 @@ impl Workspace {
     }
 
     /// Asks for a name; `apply` runs on Enter/OK and its error is shown inline.
-    fn prompt_name(
+    pub(super) fn prompt_name(
         &mut self,
         title: &'static str,
         initial: &str,

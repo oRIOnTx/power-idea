@@ -9,14 +9,13 @@ use gpui_kit::component::input::{InputEvent, TextareaState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{ActiveTheme as _, WindowExt as _};
 use gpui_kit::*;
-use vcs::{Branch, ChangeKind, Commit, FileChange, Repo, Status};
+use vcs::{Branch, ChangeKind, FileChange, Repo, Status};
 
 use super::Workspace;
 use crate::editor::{CenterTab, DiffTab};
 use crate::palette::PaletteMode;
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(3);
-const LOG_LIMIT: usize = 500;
 const LOCAL_CHANGES_DIFF: &str = "diff:local";
 
 pub struct GitState {
@@ -162,7 +161,13 @@ impl Workspace {
         }
         git.checked.retain(|p| paths.contains(p));
         git.known = paths;
+        // Commits, checkouts and pulls made outside the IDE show up as a branch or ahead/behind change.
+        let moved = (&git.status.branch, git.status.ahead, git.status.behind)
+            != (&status.branch, status.ahead, status.behind);
         git.status = status;
+        if moved && self.git_log_visible() {
+            self.reload_git_log(cx);
+        }
         cx.notify();
     }
 
@@ -196,6 +201,7 @@ impl Workspace {
                     ),
                 }
                 ws.refresh_git(cx);
+                ws.reload_git_log(cx);
                 cx.notify();
             })
             .ok();
@@ -311,7 +317,7 @@ impl Workspace {
     }
 
     /// Reloads editors without unsaved edits after git changed files on disk.
-    fn reload_clean_editors(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn reload_clean_editors(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         for tab in &mut self.tabs {
             let CenterTab::Editor(tab) = tab else { continue };
             if tab.is_dirty(cx) {
@@ -341,20 +347,7 @@ impl Workspace {
         self.open_patch(key, title, path, move |repo| repo.diff_file(&change), window, cx);
     }
 
-    pub fn open_commit(&mut self, commit: Commit, window: &mut Window, cx: &mut Context<Self>) {
-        let key = format!("commit:{}", commit.hash);
-        let title = format!("{} {}", commit.short_hash, commit.subject);
-        self.open_patch(
-            key,
-            title,
-            None,
-            move |repo| repo.show_commit(&commit.hash),
-            window,
-            cx,
-        );
-    }
-
-    fn open_patch(
+    pub(super) fn open_patch(
         &mut self,
         key: String,
         title: String,
@@ -428,22 +421,7 @@ impl Workspace {
         cx.spawn_in(window, async move |this, cx| {
             let branches = cx.background_spawn(async move { repo.branches() }).await;
             this.update_in(cx, |ws, window, cx| match branches {
-                Ok(branches) => ws.open_palette_with(PaletteMode::Branches, branches, Vec::new(), window, cx),
-                Err(err) => window.push_notification(Notification::error(format!("{err:#}")), cx),
-            })
-            .ok();
-        })
-        .detach();
-    }
-
-    pub(super) fn open_git_log(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(repo) = self.git.as_ref().map(|g| g.repo.clone()) else {
-            return;
-        };
-        cx.spawn_in(window, async move |this, cx| {
-            let log = cx.background_spawn(async move { repo.log(LOG_LIMIT) }).await;
-            this.update_in(cx, |ws, window, cx| match log {
-                Ok(log) => ws.open_palette_with(PaletteMode::GitLog, Vec::new(), log, window, cx),
+                Ok(branches) => ws.open_palette_with(PaletteMode::Branches, branches, window, cx),
                 Err(err) => window.push_notification(Notification::error(format!("{err:#}")), cx),
             })
             .ok();

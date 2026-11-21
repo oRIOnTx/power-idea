@@ -11,11 +11,7 @@ use super::Workspace;
 use crate::actions::{DatabaseAction, DatabaseOp};
 use crate::database::{self, ConnState, QueryConsole};
 use crate::editor::CenterTab;
-use crate::style;
-
-fn lucide(name: &str) -> Icon {
-    Icon::empty().path(format!("icons/{name}.svg"))
-}
+use crate::style::{self, lucide};
 
 /// `SELECT * …` for a table, quoted for the database's dialect.
 pub fn select_table_sql(kind: DbKind, schema: &str, table: &str) -> String {

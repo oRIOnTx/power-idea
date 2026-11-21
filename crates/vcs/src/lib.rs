@@ -5,6 +5,8 @@
 
 mod graph;
 mod history;
+#[cfg(test)]
+mod testing;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -65,6 +67,12 @@ pub struct Branch {
     pub name: String,
     pub is_remote: bool,
     pub is_current: bool,
+    /// Upstream of a local branch, e.g. `origin/main`.
+    pub upstream: Option<String>,
+    pub ahead: u32,
+    pub behind: u32,
+    /// The upstream was deleted on the remote.
+    pub upstream_gone: bool,
 }
 
 impl Repo {
@@ -258,28 +266,11 @@ impl Repo {
     pub fn branches(&self) -> Result<Vec<Branch>> {
         let out = self.run(&[
             "for-each-ref",
-            "--format=%(refname)%09%(HEAD)",
+            "--format=%(refname)%09%(HEAD)%09%(upstream:short)%09%(upstream:track)",
             "refs/heads",
             "refs/remotes",
         ])?;
-        Ok(out
-            .lines()
-            .filter_map(|line| {
-                let (refname, head) = line.split_once('\t')?;
-                let (name, is_remote) = match refname.strip_prefix("refs/heads/") {
-                    Some(name) => (name, false),
-                    None => (refname.strip_prefix("refs/remotes/")?, true),
-                };
-                if is_remote && name.ends_with("/HEAD") {
-                    return None;
-                }
-                Some(Branch {
-                    name: name.to_string(),
-                    is_remote,
-                    is_current: head == "*",
-                })
-            })
-            .collect())
+        Ok(out.lines().filter_map(parse_branch_line).collect())
     }
 
     /// Switches to `branch`; a remote branch gets a local tracking branch.
@@ -325,6 +316,49 @@ fn check(output: Output, args: &[&str]) -> Result<String> {
         "git {} failed: {message}",
         args.first().copied().unwrap_or_default()
     )
+}
+
+/// Parses one `for-each-ref` line: refname, HEAD marker, upstream, track.
+fn parse_branch_line(line: &str) -> Option<Branch> {
+    let mut fields = line.split('\t');
+    let refname = fields.next()?;
+    let head = fields.next().unwrap_or_default();
+    let upstream = fields.next().filter(|u| !u.is_empty()).map(str::to_string);
+    let track = fields.next().unwrap_or_default();
+    let (name, is_remote) = match refname.strip_prefix("refs/heads/") {
+        Some(name) => (name, false),
+        None => (refname.strip_prefix("refs/remotes/")?, true),
+    };
+    if is_remote && name.ends_with("/HEAD") {
+        return None;
+    }
+    let (ahead, behind, upstream_gone) = parse_track(track);
+    Some(Branch {
+        name: name.to_string(),
+        is_remote,
+        is_current: head == "*",
+        upstream,
+        ahead,
+        behind,
+        upstream_gone,
+    })
+}
+
+/// Parses `%(upstream:track)`: `[ahead 2, behind 1]`, `[gone]` or empty.
+fn parse_track(track: &str) -> (u32, u32, bool) {
+    let inner = track.trim().trim_start_matches('[').trim_end_matches(']');
+    if inner == "gone" {
+        return (0, 0, true);
+    }
+    let (mut ahead, mut behind) = (0, 0);
+    for part in inner.split(", ") {
+        if let Some(n) = part.strip_prefix("ahead ") {
+            ahead = n.parse().unwrap_or(0);
+        } else if let Some(n) = part.strip_prefix("behind ") {
+            behind = n.parse().unwrap_or(0);
+        }
+    }
+    (ahead, behind, false)
 }
 
 fn parse_status(out: &str) -> Status {
@@ -409,43 +443,9 @@ fn ordinary_change(xy: &str, path: &str, orig_path: Option<String>) -> FileChang
 
 #[cfg(test)]
 mod tests {
+    use super::testing::TempRepo;
     use super::*;
     use std::fs;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
-    struct TempRepo(Repo);
-
-    impl TempRepo {
-        fn new() -> Self {
-            static N: AtomicUsize = AtomicUsize::new(0);
-            let dir = std::env::temp_dir().join(format!(
-                "power-idea-vcs-{}-{}",
-                std::process::id(),
-                N.fetch_add(1, Ordering::Relaxed)
-            ));
-            fs::create_dir_all(&dir).unwrap();
-            let repo = Repo {
-                root: dir.canonicalize().unwrap(),
-            };
-            repo.run(&["init", "-q", "-b", "main"]).unwrap();
-            repo.run(&["config", "user.name", "Test"]).unwrap();
-            repo.run(&["config", "user.email", "test@example.com"]).unwrap();
-            repo.run(&["config", "commit.gpgsign", "false"]).unwrap();
-            Self(repo)
-        }
-
-        fn write(&self, path: &str, text: &str) {
-            let path = self.0.root.join(path);
-            fs::create_dir_all(path.parent().unwrap()).unwrap();
-            fs::write(path, text).unwrap();
-        }
-    }
-
-    impl Drop for TempRepo {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.0.root);
-        }
-    }
 
     fn kinds(status: &Status) -> Vec<(&str, ChangeKind, bool)> {
         status
@@ -475,6 +475,23 @@ mod tests {
             ]
         );
         assert_eq!(status.changes[0].orig_path.as_deref(), Some("b.rs"));
+    }
+
+    #[test]
+    fn parses_branch_tracking() {
+        let local = parse_branch_line("refs/heads/main\t*\torigin/main\t[ahead 2, behind 1]").unwrap();
+        assert_eq!(
+            (local.name.as_str(), local.is_current, local.upstream.as_deref()),
+            ("main", true, Some("origin/main"))
+        );
+        assert_eq!((local.ahead, local.behind, local.upstream_gone), (2, 1, false));
+
+        let gone = parse_branch_line("refs/heads/old\t \torigin/old\t[gone]").unwrap();
+        assert!(gone.upstream_gone && !gone.is_current);
+
+        let remote = parse_branch_line("refs/remotes/origin/main\t \t\t").unwrap();
+        assert!(remote.is_remote && remote.upstream.is_none());
+        assert!(parse_branch_line("refs/remotes/origin/HEAD\t \t\t").is_none());
     }
 
     #[test]

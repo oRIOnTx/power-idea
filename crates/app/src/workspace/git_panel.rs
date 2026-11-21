@@ -133,7 +133,7 @@ impl Workspace {
                             .xsmall()
                             .label("Log")
                             .tooltip("Git Log (⌘9)")
-                            .on_click(cx.listener(|ws, _, window, cx| ws.open_git_log(window, cx))),
+                            .on_click(cx.listener(|ws, _, window, cx| ws.show_git_log(window, cx))),
                     ),
             )
             .children(git.busy.map(|label| {

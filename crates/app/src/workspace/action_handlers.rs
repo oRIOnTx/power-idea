@@ -60,7 +60,10 @@ impl Workspace {
         }))
         .on_action(cx.listener(|this, _: &Push, w, cx| this.push(w, cx)))
         .on_action(cx.listener(|this, _: &UpdateProject, w, cx| this.pull(w, cx)))
-        .on_action(cx.listener(|this, _: &ShowGitLog, w, cx| this.open_git_log(w, cx)))
+        .on_action(cx.listener(|this, _: &ShowGitLog, w, cx| this.toggle_git_log(w, cx)))
+        .on_action(
+            cx.listener(|this, action: &GitLogAction, w, cx| this.handle_git_log_action(action, w, cx)),
+        )
         .on_action(cx.listener(|this, _: &Branches, w, cx| this.open_branches(w, cx)))
         .on_action(cx.listener(|_, _: &CopyMcpCommand, w, cx| crate::mcp_bridge::copy_claude_command(w, cx)))
         .on_action(cx.listener(|this, _: &OpenSettings, w, cx| this.open_settings(w, cx)))

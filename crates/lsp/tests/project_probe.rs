@@ -15,8 +15,8 @@ fn probe_ruby_project() {
     };
     let root = std::path::PathBuf::from(root).canonicalize().unwrap();
     let started = Instant::now();
-    let env: Vec<(String, String)> = std::env::var("LSP_PROBE_GEMFILE")
-        .map_or_default(|g| vec![("BUNDLE_GEMFILE".to_string(), g)]);
+    let env: Vec<(String, String)> =
+        std::env::var("LSP_PROBE_GEMFILE").map_or_default(|g| vec![("BUNDLE_GEMFILE".to_string(), g)]);
     let server = LanguageServer::start(
         "ruby",
         "ruby-lsp",

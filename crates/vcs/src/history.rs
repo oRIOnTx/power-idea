@@ -328,6 +328,127 @@ impl Repo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::TempRepo;
+
+    fn subjects(repo: &TempRepo, revision: &str) -> Vec<String> {
+        repo.0
+            .history(Some(revision), 50)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.subject)
+            .collect()
+    }
+
+    #[test]
+    fn history_has_parents_refs_and_details() {
+        let repo = TempRepo::new();
+        let first = repo.commit_file("a.txt", "one\n", "first");
+        repo.0.create_tag("v1", &first).unwrap();
+        repo.commit_file("a.txt", "two\n", "second");
+
+        let log = repo.0.history(None, 10).unwrap();
+        assert_eq!(log.len(), 2);
+        assert_eq!(log[0].parents, std::slice::from_ref(&first));
+        assert!(log[0].refs.iter().any(|r| r.kind == RefKind::Head));
+        assert!(
+            log[0]
+                .refs
+                .iter()
+                .any(|r| r.name == "main" && r.kind == RefKind::Local)
+        );
+        assert!(
+            log[1]
+                .refs
+                .iter()
+                .any(|r| r.name == "v1" && r.kind == RefKind::Tag)
+        );
+
+        let details = repo.0.commit_details(&log[0].hash).unwrap();
+        assert_eq!(details.message, "second");
+        assert_eq!(details.files[0].path, "a.txt");
+        assert!(
+            repo.0
+                .commit_file_diff(&log[0].hash, "a.txt")
+                .unwrap()
+                .contains("+two")
+        );
+        // The root commit lists its files too.
+        assert_eq!(repo.0.commit_details(&first).unwrap().files[0].status, 'A');
+    }
+
+    #[test]
+    fn cherry_pick_revert_and_reset() {
+        let repo = TempRepo::new();
+        repo.commit_file("a.txt", "one\n", "base");
+        repo.0.create_branch_at("feature", "main", true).unwrap();
+        let feature = repo.commit_file("b.txt", "feature\n", "feature work");
+        repo.git(&["switch", "-q", "main"]);
+
+        repo.0.cherry_pick(&feature).unwrap();
+        assert_eq!(subjects(&repo, "main"), ["feature work", "base"]);
+
+        let head = repo.git(&["rev-parse", "HEAD"]).trim().to_string();
+        repo.0.revert(&head).unwrap();
+        assert!(!repo.0.root().join("b.txt").exists());
+
+        repo.0.reset("HEAD~2", ResetMode::Hard).unwrap();
+        assert_eq!(subjects(&repo, "main"), ["base"]);
+
+        // Soft reset keeps the changes staged.
+        repo.commit_file("a.txt", "two\n", "change");
+        repo.0.reset("HEAD~1", ResetMode::Soft).unwrap();
+        assert_eq!(repo.read("a.txt"), "two\n");
+        assert!(repo.0.status().unwrap().changes[0].staged);
+    }
+
+    #[test]
+    fn branches_tags_merge_and_rebase() {
+        let repo = TempRepo::new();
+        let base = repo.commit_file("a.txt", "one\n", "base");
+        repo.0.create_branch_at("topic", &base, false).unwrap();
+        repo.commit_file("main.txt", "m\n", "on main");
+        repo.git(&["switch", "-q", "topic"]);
+        repo.commit_file("topic.txt", "t\n", "on topic");
+
+        repo.0.rebase("main").unwrap();
+        assert_eq!(subjects(&repo, "topic"), ["on topic", "on main", "base"]);
+
+        repo.git(&["switch", "-q", "main"]);
+        repo.0.merge("topic").unwrap();
+        assert!(repo.0.root().join("topic.txt").exists());
+
+        repo.0.rename_branch("topic", "done").unwrap();
+        repo.0.delete_branch("done", false).unwrap();
+        assert!(repo.0.branches().unwrap().iter().all(|b| b.name != "done"));
+
+        repo.0.checkout_revision(&base).unwrap();
+        assert_eq!(repo.0.status().unwrap().branch, None);
+    }
+
+    #[test]
+    fn conflicts_are_detected_and_aborted() {
+        let repo = TempRepo::new();
+        repo.commit_file("a.txt", "base\n", "base");
+        repo.0.create_branch_at("other", "main", false).unwrap();
+        repo.commit_file("a.txt", "main\n", "main change");
+        repo.git(&["switch", "-q", "other"]);
+        repo.commit_file("a.txt", "other\n", "other change");
+
+        assert!(repo.0.merge("main").is_err());
+        assert_eq!(repo.0.operation_in_progress(), Some(Operation::Merge));
+        repo.0.abort_operation(Operation::Merge).unwrap();
+        assert_eq!(repo.0.operation_in_progress(), None);
+        assert_eq!(repo.read("a.txt"), "other\n");
+
+        // Resolve a rebase conflict and continue without an editor.
+        assert!(repo.0.rebase("main").is_err());
+        assert_eq!(repo.0.operation_in_progress(), Some(Operation::Rebase));
+        repo.write("a.txt", "resolved\n");
+        repo.git(&["add", "a.txt"]);
+        repo.0.continue_operation(Operation::Rebase).unwrap();
+        assert_eq!(repo.0.operation_in_progress(), None);
+        assert_eq!(subjects(&repo, "other"), ["other change", "main change", "base"]);
+    }
 
     #[test]
     fn parses_decorations() {

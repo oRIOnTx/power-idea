@@ -6,7 +6,7 @@ use gpui_kit::component::{ActiveTheme as _, IconName, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
-use super::Workspace;
+use super::{BottomPanel, Workspace};
 use crate::config::AppConfig;
 use crate::style;
 use crate::terminal::{Session, TerminalEvent, TerminalView};
@@ -16,6 +16,15 @@ impl Workspace {
         self.terminals
             .iter()
             .any(|t| t.read(cx).focus_handle().is_focused(window))
+    }
+
+    pub(super) fn terminal_visible(&self) -> bool {
+        self.show_bottom && self.bottom_panel == BottomPanel::Terminal
+    }
+
+    fn show_terminal_panel(&mut self) {
+        self.show_bottom = true;
+        self.bottom_panel = BottomPanel::Terminal;
     }
 
     pub(super) fn focus_terminal(&self, window: &mut Window, cx: &mut Context<Self>) {
@@ -65,7 +74,7 @@ impl Workspace {
         self._subscriptions.push(subscription);
         self.terminals.push(terminal);
         self.active_terminal = self.terminals.len() - 1;
-        self.show_terminal = true;
+        self.show_terminal_panel();
         self.focus_terminal(window, cx);
         cx.notify();
     }
@@ -77,7 +86,9 @@ impl Workspace {
         let had_focus = self.terminal_focused(window, cx);
         self.terminals.remove(ix);
         if self.terminals.is_empty() {
-            self.show_terminal = false;
+            if self.bottom_panel == BottomPanel::Terminal {
+                self.show_bottom = false;
+            }
             self.active_terminal = 0;
             self.focus_editor(window, cx);
         } else {
@@ -94,11 +105,11 @@ impl Workspace {
         if self.terminals.is_empty() {
             return self.new_terminal(window, cx);
         }
-        if self.show_terminal && self.terminal_focused(window, cx) {
-            self.show_terminal = false;
+        if self.terminal_visible() && self.terminal_focused(window, cx) {
+            self.show_bottom = false;
             self.focus_editor(window, cx);
         } else {
-            self.show_terminal = true;
+            self.show_terminal_panel();
             self.focus_terminal(window, cx);
         }
         cx.notify();
@@ -169,7 +180,7 @@ impl Workspace {
                     .child(
                         style::icon_button("hide-terminal", IconName::Minus, "Hide (⌥F12)").on_click(
                             cx.listener(|this, _, window, cx| {
-                                this.show_terminal = false;
+                                this.show_bottom = false;
                                 this.focus_editor(window, cx);
                                 cx.notify();
                             }),

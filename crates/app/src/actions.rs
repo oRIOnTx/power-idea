@@ -21,6 +21,8 @@ pub const WORKSPACE_CONTEXT: &str = "Workspace";
 pub const CODE_EDITOR_CONTEXT: &str = "CodeEditor";
 pub const PALETTE_CONTEXT: &str = "Palette";
 pub const TERMINAL_CONTEXT: &str = "Terminal";
+/// The Git Log commit list (arrow keys move the selection).
+pub const GIT_LOG_CONTEXT: &str = "GitLog";
 
 actions!(
     ide,
@@ -90,6 +92,46 @@ impl DatabaseAction {
     }
 }
 
+/// Operations from the Git Log tool window on a commit, branch or the repository.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GitLogOp {
+    CopyRevision,
+    NewBranchAt,
+    NewTagAt,
+    CheckoutRevision,
+    CherryPick,
+    Revert,
+    ResetSoft,
+    ResetMixed,
+    ResetHard,
+    CheckoutBranch,
+    MergeIntoCurrent,
+    RebaseCurrentOnto,
+    RenameBranch,
+    DeleteBranch,
+    PushBranch,
+    ContinueOperation,
+    AbortOperation,
+    Refresh,
+}
+
+/// Runs `op` on `target`: a commit hash or a branch name (ignored by repository ops).
+#[derive(Clone, Debug, PartialEq, Eq, Action)]
+#[action(namespace = git, no_json)]
+pub struct GitLogAction {
+    pub op: GitLogOp,
+    pub target: SharedString,
+}
+
+impl GitLogAction {
+    pub fn boxed(op: GitLogOp, target: impl Into<SharedString>) -> Box<dyn Action> {
+        Box::new(Self {
+            op,
+            target: target.into(),
+        })
+    }
+}
+
 /// File operations from the project tree and tab context menus.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileOp {
@@ -151,6 +193,7 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Push…", Box::new(Push)),
         ("Update Project (Pull)", Box::new(UpdateProject)),
         ("Git Log", Box::new(ShowGitLog)),
+        ("Refresh Git Log", GitLogAction::boxed(GitLogOp::Refresh, "")),
         ("Branches…", Box::new(Branches)),
         ("Toggle Commit View", Box::new(ToggleCommitView)),
         ("Settings…", Box::new(OpenSettings)),
@@ -224,6 +267,8 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-c", crate::terminal::Copy, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-v", crate::terminal::Paste, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-k", crate::terminal::Clear, Some(TERMINAL_CONTEXT)),
+        KeyBinding::new("up", SelectPrev, Some(GIT_LOG_CONTEXT)),
+        KeyBinding::new("down", SelectNext, Some(GIT_LOG_CONTEXT)),
         KeyBinding::new("up", SelectPrev, Some("Palette > Input")),
         KeyBinding::new("down", SelectNext, Some("Palette > Input")),
     ]

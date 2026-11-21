@@ -33,7 +33,7 @@ crates/
     workspace.rs        Workspace entity: state + layout composition only
     workspace/*.rs      one concern per module (editors, files, git, git_panel,
                         sidebar, chrome, terminal_panel, unsaved, mcp_tools,
-                        navigation, action_handlers)
+                        navigation, action_handlers, git_log/)
     language.rs         language servers per project + editor LSP providers
     database/           Database tool window: data sources, consoles, results grid
     projects.rs         opening projects (windows grouped as native tabs)

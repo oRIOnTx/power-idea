@@ -49,6 +49,11 @@ pub const BUTTON_ACTIVITY_BAR: Pixels = px(34.);
 pub const TREE_ICON: Pixels = px(18.);
 pub const TREE_CHEVRON: Pixels = px(14.);
 
+/// An icon from the bundled Lucide set, by file name (e.g. `"git-branch"`).
+pub fn lucide(name: &str) -> Icon {
+    Icon::empty().path(format!("icons/{name}.svg"))
+}
+
 /// Borderless icon button; `size` is one of the `BUTTON_*` constants.
 pub fn icon_button_sized(
     id: impl Into<ElementId>,
