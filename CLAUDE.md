@@ -1,0 +1,98 @@
+# Power IDEA — project rules
+
+A fast, language-agnostic desktop IDE in Rust (GPU UI via `gpui-kit`) with
+JetBrains ergonomics: keymap, Search Everywhere, Commit tool window, terminal,
+and an MCP server for AI agents.
+
+## Commands
+
+```sh
+export PATH=/opt/homebrew/opt/rustup/bin:$PATH   # rustup from Homebrew is keg-only
+cargo run -- <project-dir>                        # run the IDE on a project
+cargo fmt && cargo clippy --all-targets && cargo test   # must be clean before a change is done
+scripts/bundle-macos.sh                           # release "Power IDEA.app" with icon
+```
+
+User config lives in `~/Library/Application Support/power-idea/`
+(`config.toml`, `keymap.toml`, `mcp-token`). Project config lives in
+`<project>/.power-idea/settings.toml`.
+
+## Architecture
+
+```
+crates/
+  search/  file index, fuzzy matching, find-in-files        (no UI)
+  vcs/     git via the system `git` CLI                        (no UI)
+  mcp/     MCP server: JSON-RPC over local HTTP               (no UI)
+  app/     the gpui application; the only crate that depends on gpui-kit
+    workspace.rs        Workspace entity: state + layout composition only
+    workspace/*.rs      one concern per module (editors, files, git, git_panel,
+                        sidebar, chrome, terminal_panel, unsaved, mcp_tools,
+                        action_handlers)
+    terminal/           session (PTY), input (keys→bytes), colors, view
+    palette.rs          modal pickers (Search Everywhere, Go to File, …)
+    settings.rs         Settings tab (Cmd+,)
+    actions.rs          every action + the default JetBrains keymap
+    mcp_bridge.rs       MCP server thread ⇄ UI thread
+    style.rs            shared visual helpers (glow, icon_button, …)
+    themes/neo.json     the only place for UI and syntax colors
+```
+
+Rules:
+- **Logic lives in UI-free crates or pure functions** and has unit tests. The
+  `app` crate wires state to views; if a piece of `app` logic can be a pure
+  function (e.g. `editor::toggle_line_comment`), make it one and test it.
+- **Keep files focused.** When a file passes ~500 lines or mixes concerns,
+  split it into submodules (`impl Workspace` blocks can live in any child
+  module of `workspace`). Use `pub(super)` for cross-module internals; keep
+  `pub` for the crate API.
+- **No new dependencies without the owner's approval.** Pin versions with `=`
+  in `[workspace.dependencies]`, prefer crates already in `Cargo.lock`.
+
+## Patterns
+
+- **Entities + actions.** UI state is a gpui `Entity`; user intents are
+  `actions!` routed through `workspace/action_handlers.rs`. Context menus
+  dispatch typed actions (`FileAction { op, path }`) with
+  `PopupMenu::action_context(workspace.focus_handle)`.
+- **Never block the UI thread.** Disk walks, git, search and network run in
+  `cx.background_spawn`; results come back via `this.update(cx, …)`. Keep the
+  returned `Task` or `.detach()` it deliberately.
+- **Errors:** `anyhow::Result` with `.context(..)` in crates; in the UI,
+  surface failures with `window.push_notification(Notification::error(..))`.
+  Don't `unwrap` on I/O or user input. `eprintln!` is for startup/logging only.
+- **Destructive actions ask first** (rollback, delete → moves to Trash,
+  closing unsaved tabs/windows).
+- **Composition over copy-paste:** extract a helper (`style::icon_button`,
+  `settings::server_field`, `Workspace::run_git`) once a pattern repeats.
+- **Paths:** tools and menus use paths relative to the project root; validate
+  that user/agent-supplied paths stay inside the project.
+
+## Code style
+
+- Code, comments, identifiers, commits: English. `rustfmt.toml` sets
+  `max_width = 110`; workspace lints are in the root `Cargo.toml`.
+- Comments explain *why*, not *what*. Module docs (`//!`) state the module's
+  responsibility in one or two lines.
+- Small functions with one job; early returns (`let … else`) over nesting.
+- `unsafe` is denied; the one exception must carry a `// SAFETY:` comment.
+
+## UI and design ("Neo")
+
+- Colors come from `cx.theme()` only; add or change colors in
+  `crates/app/themes/neo.json` (dark + light). Hard-coded colors are allowed
+  only for the terminal ANSI palette.
+- One accent (`theme.primary`), used sparingly: active indicators, focus,
+  primary buttons. Glow via `style::glow`, never stronger than ~0.8 in chrome.
+- Keyboard first: every feature gets an action, a JetBrains-compatible
+  default binding where one exists, and an entry in Find Action
+  (`actions::palette_actions`).
+
+## Security
+
+- The MCP server binds to 127.0.0.1, requires the bearer token, rejects
+  non-local `Origin`s, and exposes read-only tools plus UI navigation. Never
+  add tools that write files, run commands, or leak the token.
+- Never read, print or commit secrets (`mcp-token`, `.env*`, keys).
+- Git runs with `GIT_TERMINAL_PROMPT=0`; never force-push or rewrite history
+  from the IDE without an explicit user action.

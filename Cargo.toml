@@ -18,6 +18,25 @@ serde_json = "1"
 toml = "1"
 dirs = "7"
 
+[workspace.lints.rust]
+unsafe_code = "deny"
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+unimplemented = "warn"
+undocumented_unsafe_blocks = "warn"
+redundant_clone = "warn"
+manual_let_else = "warn"
+semicolon_if_nothing_returned = "warn"
+cloned_instead_of_copied = "warn"
+needless_collect = "warn"
+implicit_clone = "warn"
+large_types_passed_by_value = "warn"
+inefficient_to_string = "warn"
+map_unwrap_or = "warn"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
