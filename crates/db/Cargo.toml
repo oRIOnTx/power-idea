@@ -1,0 +1,16 @@
+[package]
+name = "db"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+sqlx.workspace = true
+redis.workspace = true
+tokio.workspace = true
+futures-core.workspace = true
+
+[lints]
+workspace = true
