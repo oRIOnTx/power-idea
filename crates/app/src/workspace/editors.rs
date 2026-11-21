@@ -16,7 +16,7 @@ use super::{MAX_RECENT_FILES, Workspace};
 use crate::actions::*;
 use crate::config::{AppConfig, LanguageServerConfig};
 use crate::editor::{self, CenterTab, EditorTab, LineEdit};
-use crate::style;
+use crate::{file_icons, style};
 
 impl Workspace {
     /// The active tab if it is a text editor.
@@ -65,7 +65,12 @@ impl Workspace {
                     .unwrap_or(cx.global::<AppConfig>().0.tab_size);
                 let state = editor::new_editor_state(text.clone(), &language, tab_size, window, cx);
                 let subscriptions = vec![
-                    cx.subscribe(&state, |_, _, _: &InputEvent, cx| cx.notify()),
+                    cx.subscribe(&state, |this, state, event: &InputEvent, cx| {
+                        if let InputEvent::Change = event {
+                            this.lsp_did_change(&state, cx);
+                        }
+                        cx.notify();
+                    }),
                     cx.observe(&state, |_, _, cx| cx.notify()),
                 ];
                 self.tabs.push(CenterTab::Editor(EditorTab {
@@ -74,12 +79,16 @@ impl Workspace {
                     state,
                     language,
                     saved_text: text.into(),
+                    lsp: None,
                     _subscriptions: subscriptions,
                 }));
-                self.tabs.len() - 1
+                let ix = self.tabs.len() - 1;
+                self.attach_language_server(ix, cx);
+                ix
             }
         };
 
+        self.record_location_if_leaving(rel, position.is_some(), cx);
         self.activate_tab(ix, window, cx);
         if let Some((line, column)) = position {
             self.goto_line(line as u32, column as u32, window, cx);
@@ -99,6 +108,7 @@ impl Workspace {
             }
             CenterTab::Diff(tab) => tab.state.read(cx).focus_handle(cx).focus(window, cx),
             CenterTab::Settings => self.focus_handle.focus(window, cx),
+            CenterTab::Console { console, .. } => console.update(cx, |console, cx| console.focus(window, cx)),
         }
         cx.notify();
     }
@@ -116,7 +126,9 @@ impl Workspace {
         if ix >= self.tabs.len() {
             return;
         }
-        self.tabs.remove(ix);
+        if let CenterTab::Editor(tab) = self.tabs.remove(ix) {
+            Self::lsp_did_close(&tab);
+        }
         self.active_tab = match self.active_tab {
             _ if self.tabs.is_empty() => None,
             Some(active) if active > ix => Some(active - 1),
@@ -152,6 +164,7 @@ impl Workspace {
         match fs::write(&tab.path, text.as_bytes()) {
             Ok(()) => {
                 tab.saved_text = text;
+                Self::lsp_did_save(tab);
                 self.refresh_git(cx);
                 cx.notify();
                 true
@@ -201,7 +214,17 @@ impl Workspace {
             } else {
                 tab.title()
             };
-            let label = div().id(("tab-label", ix)).child(title);
+            // The underline variant has no inner padding, so the label brings its own.
+            let icon = tab
+                .editor()
+                .map(|e| file_icons::icon_for_file(&e.title(), cx).with_size(px(14.)));
+            let label = h_flex()
+                .id(("tab-label", ix))
+                .gap_1p5()
+                .pl_3()
+                .pr_1()
+                .children(icon)
+                .child(title);
             let label = match tab.editor().map(|e| e.rel.clone()) {
                 Some(rel) => {
                     let workspace = cx.entity().downgrade();
@@ -214,17 +237,18 @@ impl Workspace {
                 }
                 None => label.into_any_element(),
             };
-            Tab::new().child(label).suffix(
+            Tab::new().child(label).suffix(div().pr_1p5().child(
                 style::icon_button(("close-tab", ix), IconName::Close, "Close (⌘W)").on_click(cx.listener(
                     move |this, _, window, cx| {
                         cx.stop_propagation();
                         this.close_tab(ix, window, cx);
                     },
                 )),
-            )
+            ))
         });
         TabBar::new("editor-tabs")
             .underline()
+            .pl_1()
             .children(tabs)
             .selected_index(self.active_tab.unwrap_or(0))
             .on_click(cx.listener(|this, ix: &usize, window, cx| this.activate_tab(*ix, window, cx)))

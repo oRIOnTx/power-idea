@@ -17,6 +17,8 @@ pub struct EditorTab {
     pub language: String,
     /// Text as last read from / written to disk.
     pub saved_text: SharedString,
+    /// Set once a language server has opened this document.
+    pub lsp: Option<crate::language::TabLsp>,
     pub _subscriptions: Vec<Subscription>,
 }
 
@@ -44,13 +46,17 @@ pub enum CenterTab {
     Editor(EditorTab),
     Diff(DiffTab),
     Settings,
+    Console {
+        title: String,
+        console: Entity<crate::database::QueryConsole>,
+    },
 }
 
 impl CenterTab {
     pub fn editor(&self) -> Option<&EditorTab> {
         match self {
             Self::Editor(tab) => Some(tab),
-            Self::Diff(_) | Self::Settings => None,
+            Self::Diff(_) | Self::Settings | Self::Console { .. } => None,
         }
     }
 
@@ -59,6 +65,7 @@ impl CenterTab {
             Self::Editor(tab) => tab.title(),
             Self::Diff(tab) => tab.title.clone(),
             Self::Settings => "Settings".into(),
+            Self::Console { title, .. } => title.clone(),
         }
     }
 

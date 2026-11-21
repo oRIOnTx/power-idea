@@ -7,7 +7,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use super::{LeftPanel, Workspace, git};
-use crate::style;
+use crate::{file_icons, style};
 
 /// Click callback for an activity bar slot.
 type ClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
@@ -30,10 +30,11 @@ impl Workspace {
         let changes = self.git.as_ref().map_or(0, |g| g.status.changes.len());
         let project_open = self.show_project_view && self.left_panel == LeftPanel::Project;
         let commit_open = self.show_project_view && self.left_panel == LeftPanel::Commit;
+        let database_open = self.show_project_view && self.left_panel == LeftPanel::Database;
         let terminal_open = self.show_terminal;
 
         let slot = |id: &'static str,
-                    icon: IconName,
+                    icon: Icon,
                     tooltip: &'static str,
                     active: bool,
                     badge: usize,
@@ -57,8 +58,7 @@ impl Workspace {
                         .when(active, |el| el.bg(accent).shadow(style::glow(accent, 0.8))),
                 )
                 .child(
-                    style::icon_button(id, icon, tooltip)
-                        .small()
+                    style::icon_button_sized(id, icon, tooltip, style::BUTTON_ACTIVITY_BAR)
                         .selected(active)
                         .on_click(move |event, window, cx| on_click(event, window, cx)),
                 )
@@ -89,7 +89,7 @@ impl Workspace {
 
         v_flex()
             .h_full()
-            .w(px(44.))
+            .w(px(52.))
             .flex_none()
             .py_1()
             .bg(theme.title_bar)
@@ -97,7 +97,7 @@ impl Workspace {
             .border_color(theme.border)
             .child(slot(
                 "bar-project",
-                IconName::Folder,
+                Icon::new(IconName::Folder),
                 "Project (⌘1)",
                 project_open,
                 0,
@@ -105,16 +105,24 @@ impl Workspace {
             ))
             .child(slot(
                 "bar-commit",
-                IconName::CircleCheck,
+                Icon::new(IconName::CircleCheck),
                 "Commit (⌘0)",
                 commit_open,
                 changes,
                 Box::new(cx.listener(|this, _, _, cx| this.toggle_left_panel(LeftPanel::Commit, cx))),
             ))
+            .child(slot(
+                "bar-database",
+                Icon::empty().path("icons/database.svg"),
+                "Database",
+                database_open,
+                0,
+                Box::new(cx.listener(|this, _, _, cx| this.toggle_left_panel(LeftPanel::Database, cx))),
+            ))
             .child(div().flex_1())
             .child(slot(
                 "bar-terminal",
-                IconName::SquareTerminal,
+                Icon::new(IconName::SquareTerminal),
                 "Terminal (⌥F12)",
                 terminal_open,
                 0,
@@ -122,7 +130,7 @@ impl Workspace {
             ))
             .child(slot(
                 "bar-settings",
-                IconName::Settings,
+                Icon::new(IconName::Settings),
                 "Settings (⌘,)",
                 false,
                 0,
@@ -135,6 +143,7 @@ impl Workspace {
         let title = match self.left_panel {
             LeftPanel::Project => self.project_name(),
             LeftPanel::Commit => "Commit".to_string(),
+            LeftPanel::Database => "Database".to_string(),
         };
         let header = h_flex()
             .h(px(34.))
@@ -148,6 +157,7 @@ impl Workspace {
         let body = match self.left_panel {
             LeftPanel::Project => self.render_project_view(cx).into_any_element(),
             LeftPanel::Commit => self.render_commit_panel(cx),
+            LeftPanel::Database => self.render_database_panel(cx),
         };
         v_flex()
             .size_full()
@@ -168,21 +178,29 @@ impl Workspace {
                     let item = entry.item();
                     let id = item.id.to_string();
                     let is_folder = entry.is_folder();
-                    let icon = match (is_folder, entry.is_expanded()) {
-                        (true, true) => IconName::FolderOpen,
-                        (true, false) => IconName::Folder,
-                        _ => IconName::File,
+                    let icon = if is_folder {
+                        let glyph = if entry.is_expanded() {
+                            IconName::FolderOpen
+                        } else {
+                            IconName::Folder
+                        };
+                        Icon::new(glyph).text_color(file_icons::folder_tint(&item.label).color(cx))
+                    } else {
+                        file_icons::icon_for_file(&item.label, cx)
                     };
+                    // Fixed-size slot so long names never squeeze the indentation.
+                    let chevron_slot = div().flex_none().w(style::TREE_CHEVRON).flex().items_center();
                     let chevron = match (is_folder, entry.is_expanded()) {
-                        (true, true) => Icon::new(IconName::ChevronDown)
-                            .xsmall()
-                            .text_color(cx.theme().muted_foreground)
-                            .into_any_element(),
-                        (true, false) => Icon::new(IconName::ChevronRight)
-                            .xsmall()
-                            .text_color(cx.theme().muted_foreground)
-                            .into_any_element(),
-                        _ => div().w(px(12.)).into_any_element(),
+                        (true, expanded) => chevron_slot.child(
+                            Icon::new(if expanded {
+                                IconName::ChevronDown
+                            } else {
+                                IconName::ChevronRight
+                            })
+                            .with_size(style::TREE_CHEVRON)
+                            .text_color(cx.theme().muted_foreground),
+                        ),
+                        (false, _) => chevron_slot,
                     };
                     let is_active = active_rel.as_deref() == Some(id.as_str());
                     let label_color = workspace
@@ -196,11 +214,21 @@ impl Workspace {
                         .pl(px(6.) + px(14.) * entry.depth() as f32)
                         .child(
                             h_flex()
+                                .w_full()
+                                .min_w_0()
                                 .gap_1p5()
                                 .text_sm()
                                 .child(chevron)
-                                .child(Icon::new(icon).small().text_color(cx.theme().muted_foreground))
-                                .child(div().text_color(label_color).child(item.label.clone())),
+                                .child(div().flex_none().child(icon.with_size(style::TREE_ICON)))
+                                .child(
+                                    div()
+                                        .min_w_0()
+                                        .overflow_hidden()
+                                        .text_ellipsis()
+                                        .whitespace_nowrap()
+                                        .text_color(label_color)
+                                        .child(item.label.clone()),
+                                ),
                         )
                         .on_click(move |_, window, cx| {
                             if !is_folder {

@@ -8,6 +8,8 @@ license.workspace = true
 search = { path = "../search" }
 vcs = { path = "../vcs" }
 mcp = { path = "../mcp" }
+lsp = { path = "../lsp" }
+db = { path = "../db" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 alacritty_terminal.workspace = true

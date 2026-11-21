@@ -29,6 +29,8 @@ pub struct Config {
     /// Local MCP server for Claude Code and other agents.
     pub mcp_enabled: bool,
     pub mcp_port: u16,
+    /// Where newly opened projects go when a project window is open.
+    pub open_project_mode: crate::projects::OpenProjectMode,
     /// Shell for integrated terminals; empty means `$SHELL`.
     pub terminal_shell: String,
     /// Language servers keyed by id (e.g. "ruby"), merged over the built-in list.
@@ -126,6 +128,7 @@ impl Default for Config {
             tab_size: 4,
             mcp_enabled: true,
             mcp_port: 7419,
+            open_project_mode: Default::default(),
             terminal_shell: String::new(),
             language_servers: default_language_servers(),
             recent_projects: Vec::new(),

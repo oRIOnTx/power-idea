@@ -23,11 +23,13 @@ use crate::terminal::TerminalView;
 
 mod action_handlers;
 mod chrome;
+mod database_panel;
 mod editors;
 mod files;
 mod git;
 mod git_panel;
 mod mcp_tools;
+mod navigation;
 mod sidebar;
 mod terminal_panel;
 mod unsaved;
@@ -58,10 +60,42 @@ impl Workspaces {
     }
 }
 
+/// Marker type keying one "language server failed" notification per server.
+struct ServerFailureNotice;
+
+/// A notification change queued outside a window context, applied on render.
+enum Notice {
+    /// Replaces the failure notification of a language server.
+    ServerFailed {
+        server_id: String,
+        notification: Box<Notification>,
+    },
+    /// Removes it once the server is running again.
+    ServerRecovered { server_id: String },
+}
+
+impl Notice {
+    fn show(self, window: &mut Window, cx: &mut App) {
+        match self {
+            Self::ServerFailed {
+                server_id,
+                notification,
+            } => {
+                window.remove_notification1::<ServerFailureNotice>(server_id.clone(), cx);
+                window.push_notification((*notification).id1::<ServerFailureNotice>(server_id), cx);
+            }
+            Self::ServerRecovered { server_id } => {
+                window.remove_notification1::<ServerFailureNotice>(server_id, cx);
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum LeftPanel {
     Project,
     Commit,
+    Database,
 }
 
 pub struct Workspace {
@@ -80,6 +114,15 @@ pub struct Workspace {
     project: ProjectSettings,
     /// Languages whose "install a language server" banner was dismissed.
     dismissed_language_hints: HashSet<String>,
+    lsp: crate::language::LspStore,
+    nav: navigation::NavHistory,
+    /// Suppresses history recording while navigating programmatically.
+    nav_paused: bool,
+    databases: crate::database::DatabaseStore,
+    /// Notifications raised outside of a window context, shown on next render.
+    pending_notices: Vec<Notice>,
+    /// Console to open once its data source finishes connecting.
+    pending_console: Option<(String, String, bool)>,
     terminals: Vec<Entity<TerminalView>>,
     active_terminal: usize,
     show_terminal: bool,
@@ -100,10 +143,18 @@ impl Workspace {
         });
 
         let project = ProjectSettings::load(&root);
+        let lsp = crate::language::LspStore::new(root.clone());
+        let databases = crate::database::DatabaseStore::load(&root);
         let mut workspace = Self {
             root,
             project,
             dismissed_language_hints: HashSet::new(),
+            lsp,
+            databases,
+            pending_console: None,
+            pending_notices: Vec::new(),
+            nav: navigation::NavHistory::default(),
+            nav_paused: false,
             focus_handle: cx.focus_handle(),
             tree,
             expanded,
@@ -123,6 +174,8 @@ impl Workspace {
         workspace.reindex(cx);
         workspace.init_git(window, cx);
         workspace.guard_window_close(window, cx);
+        workspace.start_lsp_event_loop(cx);
+        workspace.preload_language_servers(cx);
         Workspaces::register(window.window_handle(), cx.entity().downgrade(), cx);
         workspace
     }
@@ -234,6 +287,9 @@ impl Workspace {
 
 impl Render for Workspace {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        for notice in std::mem::take(&mut self.pending_notices) {
+            notice.show(window, cx);
+        }
         let (background, foreground) = (cx.theme().background, cx.theme().foreground);
         let content = match self.active_tab.and_then(|ix| self.tabs.get(ix)) {
             Some(CenterTab::Editor(tab)) => Some(
@@ -263,6 +319,7 @@ impl Render for Workspace {
                     )
                     .into_any_element(),
             ),
+            Some(CenterTab::Console { console, .. }) => Some(console.clone().into_any_element()),
             Some(CenterTab::Settings) => Some(
                 div()
                     .size_full()
@@ -311,7 +368,7 @@ impl Render for Workspace {
             .size_full()
             .bg(background)
             .text_color(foreground)
-            .child(self.render_title_bar(cx))
+            .child(self.render_title_bar(window, cx))
             .child(
                 h_flex()
                     .flex_1()

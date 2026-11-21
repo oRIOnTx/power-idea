@@ -15,6 +15,7 @@ use gpui_kit::*;
 
 use crate::actions::{self, WORKSPACE_CONTEXT};
 use crate::config::{AppConfig, Appearance, Config, LanguageServerConfig};
+use crate::projects::OpenProjectMode;
 use crate::workspace::Workspace;
 
 /// Applies a change to the global config, saves it and refreshes the UI.
@@ -104,6 +105,34 @@ fn appearance_page() -> SettingPage {
                         .default_value("dark"),
                     )
                     .description("Also toggled from Find Action → Toggle Light/Dark Theme."),
+                )
+                .item(
+                    SettingItem::new(
+                        "Open projects in",
+                        SettingField::dropdown(
+                            vec![
+                                ("ask".into(), "Ask every time".into()),
+                                ("this_window".into(), "This window".into()),
+                                ("new_tab".into(), "New tab".into()),
+                            ],
+                            |cx| match config(cx).open_project_mode {
+                                OpenProjectMode::Ask => "ask".into(),
+                                OpenProjectMode::ThisWindow => "this_window".into(),
+                                OpenProjectMode::NewTab => "new_tab".into(),
+                            },
+                            |value, cx| {
+                                update_config(cx, |c| {
+                                    c.open_project_mode = match value.as_ref() {
+                                        "this_window" => OpenProjectMode::ThisWindow,
+                                        "new_tab" => OpenProjectMode::NewTab,
+                                        _ => OpenProjectMode::Ask,
+                                    };
+                                });
+                            },
+                        )
+                        .default_value("ask"),
+                    )
+                    .description("Projects open as native macOS window tabs."),
                 )
                 .item(SettingItem::new(
                     "Interface font size",

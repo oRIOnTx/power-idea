@@ -57,10 +57,38 @@ actions!(
         Branches,
         CopyMcpCommand,
         OpenSettings,
+        NavigateBack,
+        NavigateForward,
+        ToggleDatabaseView,
     ]
 );
 
 actions!(palette, [SelectNext, SelectPrev]);
+
+/// Operations on a data source in the Database tool window.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DatabaseOp {
+    NewDataSource,
+    OpenConsole,
+    Edit,
+    Refresh,
+    Disconnect,
+    Remove,
+}
+
+/// Runs `op` on the data source `id`.
+#[derive(Clone, Debug, PartialEq, Eq, Action)]
+#[action(namespace = database, no_json)]
+pub struct DatabaseAction {
+    pub op: DatabaseOp,
+    pub id: SharedString,
+}
+
+impl DatabaseAction {
+    pub fn boxed(op: DatabaseOp, id: impl Into<SharedString>) -> Box<dyn Action> {
+        Box::new(Self { op, id: id.into() })
+    }
+}
 
 /// File operations from the project tree and tab context menus.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -126,6 +154,13 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Branches…", Box::new(Branches)),
         ("Toggle Commit View", Box::new(ToggleCommitView)),
         ("Settings…", Box::new(OpenSettings)),
+        ("Database", Box::new(ToggleDatabaseView)),
+        (
+            "New Data Source…",
+            DatabaseAction::boxed(DatabaseOp::NewDataSource, ""),
+        ),
+        ("Back", Box::new(NavigateBack)),
+        ("Forward", Box::new(NavigateForward)),
         ("Copy Claude MCP Command", Box::new(CopyMcpCommand)),
         ("Close Window", Box::new(CloseWindow)),
         ("Quit", Box::new(Quit)),
@@ -155,6 +190,23 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-shift-w", CloseWindow, ws),
         KeyBinding::new("cmd-q", Quit, None),
         KeyBinding::new("cmd-/", ToggleLineComment, ed),
+        KeyBinding::new("cmd-b", gpui_kit::component::input::GoToDefinition, ed),
+        KeyBinding::new(
+            "cmd-enter",
+            crate::database::console::RunQuery,
+            Some("QueryConsole > Input"),
+        ),
+        KeyBinding::new(
+            "cmd-enter",
+            crate::database::console::RunQuery,
+            Some("QueryConsole"),
+        ),
+        KeyBinding::new("cmd-[", NavigateBack, ws),
+        KeyBinding::new("cmd-[", NavigateBack, ed),
+        KeyBinding::new("cmd-]", NavigateForward, ws),
+        KeyBinding::new("cmd-]", NavigateForward, ed),
+        KeyBinding::new("cmd-alt-left", NavigateBack, ws),
+        KeyBinding::new("cmd-alt-right", NavigateForward, ws),
         KeyBinding::new("cmd-d", DuplicateLine, ed),
         KeyBinding::new("cmd-backspace", DeleteLine, ed),
         KeyBinding::new("alt-shift-up", MoveLineUp, ed),

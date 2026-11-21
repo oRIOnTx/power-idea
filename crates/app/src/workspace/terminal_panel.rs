@@ -28,6 +28,19 @@ impl Workspace {
         self.new_terminal_in(self.root.clone(), window, cx);
     }
 
+    /// Opens a terminal in the project root with `command` typed at the prompt.
+    pub(super) fn open_terminal_with_input(
+        &mut self,
+        command: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.new_terminal(window, cx);
+        if let Some(terminal) = self.terminals.last() {
+            terminal.read(cx).type_text(command);
+        }
+    }
+
     /// Opens a new terminal tab whose shell starts in `cwd`.
     pub(super) fn new_terminal_in(&mut self, cwd: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
         let shell =

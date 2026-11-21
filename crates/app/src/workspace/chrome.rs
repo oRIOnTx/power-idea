@@ -2,16 +2,19 @@
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::status_bar::StatusBar;
+use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{ActiveTheme as _, IconName, Sizable as _, TitleBar, h_flex};
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use super::Workspace;
 use crate::actions::*;
+use crate::language::ServerStatus;
 use crate::palette::PaletteMode;
 use crate::style;
 
 impl Workspace {
-    pub(super) fn render_title_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_title_bar(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
         let file = self.active().map(|tab| tab.rel.clone());
         let branch = self
@@ -31,21 +34,24 @@ impl Workspace {
         let focus = self.focus_handle.clone();
         let tool = |id: &'static str, icon: IconName, action: Box<dyn Action>, tooltip: &'static str| {
             let focus = focus.clone();
-            Button::new(id)
-                .ghost()
-                .xsmall()
-                .icon(icon)
-                .tooltip(tooltip)
-                .on_click(move |_, window, cx| {
+            style::icon_button_sized(id, icon, tooltip, style::BUTTON_TITLE_BAR).on_click(
+                move |_, window, cx| {
                     // Actions route along the focus path, so make sure it runs through the workspace.
                     if !focus.contains_focused(window, cx) {
                         focus.focus(window, cx);
                     }
                     window.dispatch_action(action.boxed_clone(), cx);
-                })
+                },
+            )
         };
 
-        TitleBar::new().child(
+        // Traffic lights are hidden in full screen, so drop the space reserved for them.
+        let title_bar = if window.is_fullscreen() {
+            TitleBar::new().pl_3()
+        } else {
+            TitleBar::new()
+        };
+        title_bar.child(
             h_flex()
                 .w_full()
                 .pr_2()
@@ -128,10 +134,64 @@ impl Workspace {
                 .child(tab.language.clone())
                 .child("UTF-8")
         });
+        let servers = h_flex().gap_3().children(
+            self.lsp
+                .statuses()
+                .into_iter()
+                .map(|(id, status, fallback)| self.render_server_status(id, status, fallback, cx)),
+        );
         StatusBar::new()
             .text_xs()
             .text_color(cx.theme().muted_foreground)
             .left(left)
-            .right(right.unwrap_or_else(h_flex).child(mcp))
+            .right(right.unwrap_or_else(h_flex).child(servers).child(mcp))
+    }
+
+    /// Status bar chip for one language server: starting / indexing / ready / failed.
+    fn render_server_status(
+        &self,
+        id: String,
+        status: ServerStatus,
+        fallback: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let theme = cx.theme();
+        let (dot, label) = match &status {
+            ServerStatus::Starting => (
+                div().size(px(6.)).rounded_full().bg(theme.yellow),
+                format!("{id} · starting…"),
+            ),
+            ServerStatus::Working { title, percentage } => (
+                style::signal_dot(theme.yellow),
+                match percentage {
+                    Some(p) => format!("{id} · {} {p}%", title.to_lowercase()),
+                    None => format!("{id} · {}…", title.to_lowercase()),
+                },
+            ),
+            ServerStatus::Ready if fallback => (style::signal_dot(theme.yellow), format!("{id} · fallback")),
+            ServerStatus::Ready => (style::signal_dot(theme.primary), id.clone()),
+            ServerStatus::Failed(_) => (
+                div().size(px(6.)).rounded_full().bg(theme.danger),
+                format!("{id} · failed"),
+            ),
+        };
+        let failed = matches!(status, ServerStatus::Failed(_));
+        h_flex()
+            .id(SharedString::from(format!("lsp-status-{id}")))
+            .gap_1p5()
+            .px_1()
+            .rounded_sm()
+            .when(failed, |el| {
+                el.text_color(theme.danger)
+                    .cursor_pointer()
+                    .hover(|s| s.bg(theme.muted))
+            })
+            .child(dot)
+            .child(label)
+            .when(failed, |el| {
+                el.tooltip(|window, cx| Tooltip::new("Click to restart").build(window, cx))
+                    .on_click(cx.listener(move |ws, _, _, cx| ws.restart_language_server(&id, cx)))
+            })
+            .into_any_element()
     }
 }

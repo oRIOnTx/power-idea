@@ -275,7 +275,7 @@ impl Palette {
                     .update(cx, |ws, cx| ws.dispatch_deferred(action, window, cx))
                     .ok();
             }
-            PaletteItem::Project(path) => crate::open_project(path.clone(), cx),
+            PaletteItem::Project(path) => crate::projects::open_project(path.clone(), cx),
             PaletteItem::Branch(branch) => {
                 let branch = branch.clone();
                 workspace

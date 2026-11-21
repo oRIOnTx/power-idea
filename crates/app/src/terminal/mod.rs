@@ -137,6 +137,11 @@ impl TerminalView {
         true
     }
 
+    /// Types `text` at the prompt without pressing Enter.
+    pub fn type_text(&self, text: &str) {
+        self.write(text.as_bytes().to_vec());
+    }
+
     fn write(&self, bytes: impl Into<Cow<'static, [u8]>>) {
         self.notifier.notify(bytes);
     }

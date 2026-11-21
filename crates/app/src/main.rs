@@ -1,9 +1,14 @@
 mod actions;
 mod config;
+mod database;
 mod editor;
+mod file_icons;
+mod inbox;
+mod language;
 mod mcp_bridge;
 mod palette;
 mod project_tree;
+mod projects;
 mod settings;
 mod style;
 mod terminal;
@@ -11,7 +16,6 @@ mod workspace;
 
 use std::path::PathBuf;
 
-use gpui_kit::component::TitleBar;
 use std::rc::Rc;
 
 use gpui_kit::component::theme::{Theme, ThemeConfig, ThemeMode, ThemeSet};
@@ -19,7 +23,6 @@ use gpui_kit::*;
 
 use crate::actions::{OpenProject, Quit, ToggleTheme};
 use crate::config::{AppConfig, Appearance, Config};
-use crate::workspace::Workspace;
 
 /// Bundled "Neo" theme set (dark + light).
 const NEO_THEME: &str = include_str!("../themes/neo.json");
@@ -72,62 +75,10 @@ pub(crate) fn apply_theme(window: Option<&mut Window>, cx: &mut App) {
     });
 }
 
-fn save_config(cx: &App) {
+pub(crate) fn save_config(cx: &App) {
     if let Err(err) = cx.global::<AppConfig>().0.save() {
         eprintln!("failed to save config: {err:#}");
     }
-}
-
-/// Opens `path` in its own window, or focuses the window that already shows it.
-pub fn open_project(path: PathBuf, cx: &mut App) {
-    let path = path.canonicalize().unwrap_or(path);
-    let existing = workspace::Workspaces::live(cx)
-        .into_iter()
-        .find(|(_, ws)| ws.read(cx).root() == &path);
-    if let Some((handle, _)) = existing {
-        handle.update(cx, |_, window, _| window.activate_window()).ok();
-        return;
-    }
-
-    cx.global_mut::<AppConfig>().0.touch_recent_project(&path);
-    save_config(cx);
-
-    let bounds = Bounds::centered(None, size(px(1440.), px(900.)), cx);
-    let options = WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(bounds)),
-        window_min_size: Some(size(px(640.), px(400.))),
-        ..TitleBar::window_options()
-    };
-    let result = gpui_kit::open_window(options, cx, |window, cx| {
-        window.set_window_title(&path.file_name().unwrap_or_default().to_string_lossy());
-        cx.new(|cx| Workspace::new(path.clone(), window, cx))
-    });
-    if let Err(err) = result {
-        eprintln!("failed to open window: {err:#}");
-    }
-}
-
-fn prompt_open_project(cx: &mut App) {
-    let paths = cx.prompt_for_paths(PathPromptOptions {
-        files: false,
-        directories: true,
-        multiple: false,
-        prompt: Some("Open Project".into()),
-    });
-    cx.spawn(async move |cx| {
-        match paths.await {
-            Ok(Ok(Some(mut paths))) if !paths.is_empty() => {
-                cx.update(|cx| open_project(paths.remove(0), cx));
-            }
-            // Nothing to show if the user cancels on startup.
-            _ => cx.update(|cx| {
-                if cx.windows().is_empty() {
-                    cx.quit();
-                }
-            }),
-        }
-    })
-    .detach();
 }
 
 /// GUI apps started from Finder get a minimal PATH. Ask the user's login
@@ -170,12 +121,43 @@ fn inherit_login_shell_path() {
     }
 }
 
+/// Appends panics (message + source location) to
+/// `~/Library/Logs/Power IDEA/panic.log`. Panics inside AppKit callbacks abort
+/// the process, so this file is the only trace a crash leaves behind.
+fn install_panic_log() {
+    let Some(dir) = dirs::home_dir().map(|home| home.join("Library/Logs/Power IDEA")) else {
+        return;
+    };
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        use std::io::Write as _;
+        let _ = std::fs::create_dir_all(&dir);
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(dir.join("panic.log"))
+        {
+            let thread = std::thread::current();
+            let backtrace = std::backtrace::Backtrace::force_capture();
+            let _ = writeln!(
+                file,
+                "--- {:?} thread '{}' v{}\n{info}\n{backtrace}",
+                std::time::SystemTime::now(),
+                thread.name().unwrap_or("?"),
+                env!("CARGO_PKG_VERSION"),
+            );
+        }
+        default_hook(info);
+    }));
+}
+
 fn main() {
+    install_panic_log();
     inherit_login_shell_path();
     let arg_project = std::env::args().nth(1).map(PathBuf::from);
 
     gpui_kit::application()
-        .with_assets(gpui_kit::assets::Assets)
+        .with_assets(gpui_kit::assets::AllAssets)
         .run(move |cx| {
             gpui_kit::init(cx);
             cx.set_global(AppConfig(Config::load()));
@@ -184,7 +166,7 @@ fn main() {
             mcp_bridge::start(cx);
 
             cx.on_action(|_: &Quit, cx| cx.quit());
-            cx.on_action(|_: &OpenProject, cx| prompt_open_project(cx));
+            cx.on_action(|_: &OpenProject, cx| projects::prompt_open_project(cx));
             cx.on_action(|_: &ToggleTheme, cx| {
                 let config = &mut cx.global_mut::<AppConfig>().0;
                 config.appearance = match config.appearance {
@@ -204,8 +186,8 @@ fn main() {
 
             let last_project = cx.global::<AppConfig>().0.recent_projects.first().cloned();
             match arg_project.or(last_project).filter(|p| p.is_dir()) {
-                Some(path) => open_project(path, cx),
-                None => prompt_open_project(cx),
+                Some(path) => projects::open_project(path, cx),
+                None => projects::prompt_open_project(cx),
             }
             cx.activate(true);
         });

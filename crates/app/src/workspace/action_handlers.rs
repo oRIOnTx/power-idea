@@ -65,6 +65,14 @@ impl Workspace {
         .on_action(cx.listener(|_, _: &CopyMcpCommand, w, cx| crate::mcp_bridge::copy_claude_command(w, cx)))
         .on_action(cx.listener(|this, _: &OpenSettings, w, cx| this.open_settings(w, cx)))
         .on_action(cx.listener(|this, action: &FileAction, w, cx| this.handle_file_action(action, w, cx)))
+        .on_action(cx.listener(|this, _: &NavigateBack, w, cx| this.navigate(false, w, cx)))
+        .on_action(
+            cx.listener(|this, action: &DatabaseAction, w, cx| this.handle_database_action(action, w, cx)),
+        )
+        .on_action(cx.listener(|this, _: &ToggleDatabaseView, _, cx| {
+            this.toggle_left_panel(LeftPanel::Database, cx);
+        }))
+        .on_action(cx.listener(|this, _: &NavigateForward, w, cx| this.navigate(true, w, cx)))
         .on_action(cx.listener(|this, _: &CloseWindow, w, cx| {
             if this.can_close_window(w, cx) {
                 w.remove_window();
