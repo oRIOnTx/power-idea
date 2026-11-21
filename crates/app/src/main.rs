@@ -4,6 +4,7 @@ mod editor;
 mod mcp_bridge;
 mod palette;
 mod project_tree;
+mod settings;
 mod style;
 mod terminal;
 mod workspace;
@@ -42,7 +43,7 @@ fn neo_themes() -> Vec<Rc<ThemeConfig>> {
     }
 }
 
-fn apply_theme(window: Option<&mut Window>, cx: &mut App) {
+pub(crate) fn apply_theme(window: Option<&mut Window>, cx: &mut App) {
     let config = cx.global::<AppConfig>().0.clone();
     let dark = config.appearance == Appearance::Dark;
     let mode = if dark { ThemeMode::Dark } else { ThemeMode::Light };
@@ -129,7 +130,48 @@ fn prompt_open_project(cx: &mut App) {
     .detach();
 }
 
+/// GUI apps started from Finder get a minimal PATH. Ask the user's login
+/// shell for its PATH so git, language servers and tools from Homebrew,
+/// rbenv, nvm, etc. are found, like JetBrains IDEs and VS Code do.
+#[allow(unsafe_code)] // `set_var` is unsafe in edition 2024; see the SAFETY note.
+fn inherit_login_shell_path() {
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
+    let Ok(mut child) = Command::new(shell)
+        .args(["-l", "-c", "printf '%s' \"$PATH\""])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+    else {
+        return;
+    };
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while Instant::now() < deadline {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) => std::thread::sleep(Duration::from_millis(20)),
+            Err(_) => return,
+        }
+    }
+    if !matches!(child.try_wait(), Ok(Some(status)) if status.success()) {
+        let _ = child.kill();
+        return;
+    }
+    let Ok(output) = child.wait_with_output() else {
+        return;
+    };
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if !path.is_empty() {
+        // SAFETY: called at the very start of `main`, before any other thread exists.
+        unsafe { std::env::set_var("PATH", path) };
+    }
+}
+
 fn main() {
+    inherit_login_shell_path();
     let arg_project = std::env::args().nth(1).map(PathBuf::from);
 
     gpui_kit::application()

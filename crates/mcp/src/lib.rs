@@ -100,7 +100,7 @@ fn read_request(stream: &TcpStream) -> io::Result<Request> {
 }
 
 fn write_response(mut stream: &TcpStream, status: &str, body: Option<&Value>) -> io::Result<()> {
-    let body = body.map(Value::to_string).unwrap_or_default();
+    let body = body.map_or_default(Value::to_string);
     let content_type = if body.is_empty() {
         ""
     } else {
@@ -309,9 +309,7 @@ mod tests {
 
     fn post(addr: SocketAddr, token: Option<&str>, body: &str) -> String {
         let mut stream = TcpStream::connect(addr).unwrap();
-        let auth = token
-            .map(|t| format!("Authorization: Bearer {t}\r\n"))
-            .unwrap_or_default();
+        let auth = token.map_or_default(|t| format!("Authorization: Bearer {t}\r\n"));
         write!(
             stream,
             "POST /mcp HTTP/1.1\r\nHost: x\r\n{auth}Content-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",

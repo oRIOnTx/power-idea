@@ -1,80 +1,36 @@
 //! Integrated terminal: `alacritty_terminal` handles the PTY and VT parsing,
 //! this module renders the grid with gpui and translates input.
 
-use std::borrow::Cow;
-use std::future::Future;
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-use std::task::{Poll, Waker};
+mod colors;
+mod input;
+mod session;
 
-use alacritty_terminal::event::{Event as TermEvent, EventListener, Notify, WindowSize};
-use alacritty_terminal::event_loop::{EventLoop, Msg, Notifier};
+use std::borrow::Cow;
+
+use alacritty_terminal::event::{Event as TermEvent, Notify, WindowSize};
+use alacritty_terminal::event_loop::{Msg, Notifier};
 use alacritty_terminal::grid::{Dimensions as _, Scroll};
 use alacritty_terminal::index::{Column, Direction, Line, Point as GridPoint};
 use alacritty_terminal::selection::{Selection, SelectionType};
 use alacritty_terminal::sync::FairMutex;
 use alacritty_terminal::term::cell::Flags;
 use alacritty_terminal::term::test::TermSize;
-use alacritty_terminal::term::{self, Term, TermMode};
-use alacritty_terminal::tty;
-use alacritty_terminal::vte::ansi::{Color as AnsiColor, CursorShape, NamedColor, Rgb};
+use alacritty_terminal::term::{Term, TermMode};
+use alacritty_terminal::vte::ansi::{Color as AnsiColor, CursorShape};
 use gpui_kit::component::ActiveTheme as _;
-use gpui_kit::component::theme::Theme;
 use gpui_kit::*;
+use std::sync::Arc;
 
+use self::colors::{ansi_color, to_rgb};
+use self::input::keystroke_to_bytes;
+use self::session::Listener;
+pub use self::session::Session;
 use crate::actions::TERMINAL_CONTEXT;
 use crate::config::AppConfig;
 
 actions!(terminal, [Copy, Paste, Clear]);
 
-const SCROLLBACK: usize = 10_000;
 const LINE_HEIGHT_FACTOR: f32 = 1.35;
-
-/// Events from the PTY thread, plus a waker for the UI task awaiting them.
-#[derive(Default)]
-struct Mailbox {
-    events: Vec<TermEvent>,
-    waker: Option<Waker>,
-    closed: bool,
-}
-
-#[derive(Clone, Default)]
-struct Listener(Arc<Mutex<Mailbox>>);
-
-impl EventListener for Listener {
-    fn send_event(&self, event: TermEvent) {
-        let mut mailbox = self.0.lock().unwrap();
-        mailbox.events.push(event);
-        if let Some(waker) = mailbox.waker.take() {
-            waker.wake();
-        }
-    }
-}
-
-impl Listener {
-    /// Resolves with all pending events, or `None` once the listener is closed.
-    fn next_batch(&self) -> impl Future<Output = Option<Vec<TermEvent>>> + '_ {
-        std::future::poll_fn(move |cx| {
-            let mut mailbox = self.0.lock().unwrap();
-            if !mailbox.events.is_empty() {
-                return Poll::Ready(Some(std::mem::take(&mut mailbox.events)));
-            }
-            if mailbox.closed {
-                return Poll::Ready(None);
-            }
-            mailbox.waker = Some(cx.waker().clone());
-            Poll::Pending
-        })
-    }
-
-    fn close(&self) {
-        let mut mailbox = self.0.lock().unwrap();
-        mailbox.closed = true;
-        if let Some(waker) = mailbox.waker.take() {
-            waker.wake();
-        }
-    }
-}
 
 pub enum TerminalEvent {
     TitleChanged,
@@ -101,46 +57,6 @@ pub struct TerminalView {
     origin: Point<Pixels>,
     selecting: bool,
     _events_task: Task<()>,
-}
-
-/// A running shell: PTY reader thread plus the shared terminal state.
-pub struct Session {
-    term: Arc<FairMutex<Term<Listener>>>,
-    notifier: Notifier,
-    listener: Listener,
-}
-
-impl Session {
-    pub fn spawn(cwd: PathBuf) -> anyhow::Result<Self> {
-        let size = TermSize::new(80, 24);
-        let window_size = WindowSize {
-            num_lines: 24,
-            num_cols: 80,
-            cell_width: 8,
-            cell_height: 16,
-        };
-        let options = tty::Options {
-            working_directory: Some(cwd),
-            env: [("TERM".to_string(), "xterm-256color".to_string())].into(),
-            ..Default::default()
-        };
-        let pty = tty::new(&options, window_size, 0)?;
-
-        let listener = Listener::default();
-        let config = term::Config {
-            scrolling_history: SCROLLBACK,
-            ..Default::default()
-        };
-        let term = Arc::new(FairMutex::new(Term::new(config, &size, listener.clone())));
-        let event_loop = EventLoop::new(term.clone(), listener.clone(), pty, false, false)?;
-        let notifier = Notifier(event_loop.channel());
-        event_loop.spawn();
-        Ok(Self {
-            term,
-            notifier,
-            listener,
-        })
-    }
 }
 
 impl TerminalView {
@@ -250,8 +166,7 @@ impl TerminalView {
         let font_id = text_system.resolve_font(&font);
         let width = text_system
             .advance(font_id, size, 'm')
-            .map(|s| s.width)
-            .unwrap_or(size * 0.6);
+            .map_or(size * 0.6, |s| s.width);
         CellMetrics {
             width,
             height: (size * LINE_HEIGHT_FACTOR).round(),
@@ -546,214 +461,4 @@ fn same_style(a: &TextRun, b: &TextRun) -> bool {
         && a.background_color == b.background_color
         && a.underline == b.underline
         && a.strikethrough == b.strikethrough
-}
-
-fn to_rgb(color: Hsla) -> Rgb {
-    let rgba = color.to_rgb();
-    Rgb {
-        r: (rgba.r * 255.) as u8,
-        g: (rgba.g * 255.) as u8,
-        b: (rgba.b * 255.) as u8,
-    }
-}
-
-fn rgb(r: u8, g: u8, b: u8) -> Hsla {
-    Rgba {
-        r: r as f32 / 255.,
-        g: g as f32 / 255.,
-        b: b as f32 / 255.,
-        a: 1.,
-    }
-    .into()
-}
-
-/// Maps ANSI colors onto the active theme so the terminal matches the IDE.
-fn ansi_color(color: &AnsiColor, cx: &App) -> Hsla {
-    let theme: &Theme = cx.theme();
-    match color {
-        AnsiColor::Spec(c) => rgb(c.r, c.g, c.b),
-        AnsiColor::Named(named) => match named {
-            NamedColor::Foreground | NamedColor::BrightForeground => theme.foreground,
-            NamedColor::DimForeground => theme.muted_foreground,
-            NamedColor::Background => theme.background,
-            NamedColor::Cursor => theme.caret,
-            other => indexed_color(*other as usize, theme),
-        },
-        AnsiColor::Indexed(ix) => indexed_color(*ix as usize, theme),
-    }
-}
-
-fn indexed_color(ix: usize, theme: &Theme) -> Hsla {
-    let dark = theme.mode.is_dark();
-    match ix {
-        0 => {
-            if dark {
-                rgb(0x3b, 0x3f, 0x45)
-            } else {
-                rgb(0x24, 0x29, 0x2e)
-            }
-        }
-        1 => theme.red,
-        2 => theme.green,
-        3 => theme.yellow,
-        4 => theme.blue,
-        5 => theme.magenta,
-        6 => theme.cyan,
-        7 => {
-            if dark {
-                rgb(0xc9, 0xcd, 0xd3)
-            } else {
-                rgb(0x6a, 0x73, 0x7d)
-            }
-        }
-        8 => theme.muted_foreground,
-        9 => theme.red_light,
-        10 => theme.green_light,
-        11 => theme.yellow_light,
-        12 => theme.blue_light,
-        13 => theme.magenta_light,
-        14 => theme.cyan_light,
-        15 => {
-            if dark {
-                rgb(0xff, 0xff, 0xff)
-            } else {
-                rgb(0x2b, 0x30, 0x36)
-            }
-        }
-        16..=231 => {
-            let ix = ix - 16;
-            let level = |v: usize| if v == 0 { 0 } else { (55 + v * 40) as u8 };
-            rgb(level(ix / 36), level((ix / 6) % 6), level(ix % 6))
-        }
-        232..=255 => {
-            let v = (8 + (ix - 232) * 10) as u8;
-            rgb(v, v, v)
-        }
-        _ => theme.foreground,
-    }
-}
-
-/// Translates a keystroke into bytes for the PTY, or `None` to let the IDE handle it.
-fn keystroke_to_bytes(keystroke: &Keystroke, mode: TermMode) -> Option<Vec<u8>> {
-    let m = &keystroke.modifiers;
-    if m.platform || m.function {
-        return None;
-    }
-    let app_cursor = mode.contains(TermMode::APP_CURSOR);
-    let csi = |app: &str, normal: &str| Some(if app_cursor { app } else { normal }.as_bytes().to_vec());
-
-    let special: Option<Vec<u8>> = match keystroke.key.as_str() {
-        "enter" => Some(b"\r".to_vec()),
-        "backspace" if m.alt => Some(b"\x1b\x7f".to_vec()),
-        "backspace" => Some(b"\x7f".to_vec()),
-        "tab" if m.shift => Some(b"\x1b[Z".to_vec()),
-        "tab" => Some(b"\t".to_vec()),
-        "escape" => Some(b"\x1b".to_vec()),
-        "up" => csi("\x1bOA", "\x1b[A"),
-        "down" => csi("\x1bOB", "\x1b[B"),
-        "right" if m.alt => Some(b"\x1bf".to_vec()),
-        "left" if m.alt => Some(b"\x1bb".to_vec()),
-        "right" => csi("\x1bOC", "\x1b[C"),
-        "left" => csi("\x1bOD", "\x1b[D"),
-        "home" => csi("\x1bOH", "\x1b[H"),
-        "end" => csi("\x1bOF", "\x1b[F"),
-        "pageup" => Some(b"\x1b[5~".to_vec()),
-        "pagedown" => Some(b"\x1b[6~".to_vec()),
-        "delete" => Some(b"\x1b[3~".to_vec()),
-        _ => None,
-    };
-    if special.is_some() {
-        return special;
-    }
-
-    if m.control {
-        let key = keystroke.key.as_bytes();
-        if key.len() == 1 {
-            let byte = match key[0] {
-                b @ b'a'..=b'z' => b - b'a' + 1,
-                b'@' | b' ' | b'2' => 0,
-                b'[' | b'3' => 0x1b,
-                b'\\' | b'4' => 0x1c,
-                b']' | b'5' => 0x1d,
-                b'^' | b'6' => 0x1e,
-                b'_' | b'-' | b'7' => 0x1f,
-                _ => return None,
-            };
-            return Some(vec![byte]);
-        }
-        return None;
-    }
-
-    if m.alt {
-        // Option as Meta: ESC prefix + the unmodified key.
-        let mut bytes = b"\x1b".to_vec();
-        let key = if m.shift {
-            keystroke.key.to_uppercase()
-        } else {
-            keystroke.key.clone()
-        };
-        bytes.extend_from_slice(key.as_bytes());
-        return Some(bytes);
-    }
-
-    keystroke.key_char.as_ref().map(|text| text.as_bytes().to_vec())
-}
-
-#[cfg(test)]
-mod tests {
-    use alacritty_terminal::term::TermMode;
-    use gpui_kit::Keystroke;
-
-    use super::{Session, keystroke_to_bytes};
-
-    fn bytes(key: &'static str) -> Option<Vec<u8>> {
-        keystroke_to_bytes(&Keystroke::parse(key).unwrap(), TermMode::empty())
-    }
-
-    #[test]
-    fn translates_keys() {
-        assert_eq!(bytes("ctrl-c"), Some(vec![3]));
-        assert_eq!(bytes("enter"), Some(b"\r".to_vec()));
-        assert_eq!(bytes("up"), Some(b"\x1b[A".to_vec()));
-        assert_eq!(bytes("alt-b"), Some(b"\x1bb".to_vec()));
-        assert_eq!(bytes("cmd-c"), None);
-        assert_eq!(
-            keystroke_to_bytes(&Keystroke::parse("up").unwrap(), TermMode::APP_CURSOR),
-            Some(b"\x1bOA".to_vec())
-        );
-    }
-
-    #[test]
-    fn runs_a_shell_command() {
-        use alacritty_terminal::event::Notify as _;
-        use alacritty_terminal::grid::Dimensions as _;
-        use alacritty_terminal::index::{Column, Line};
-
-        let session = Session::spawn(std::env::temp_dir()).expect("spawn shell");
-        session.notifier.notify(b"echo power-$((6*7))\r".as_slice());
-
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-        loop {
-            let screen: String = {
-                let term = session.term.lock();
-                let grid = term.grid();
-                (0..term.screen_lines() as i32)
-                    .map(|line| {
-                        (0..term.columns())
-                            .map(|col| grid[Line(line)][Column(col)].c)
-                            .collect::<String>()
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            };
-            if screen.contains("power-42") {
-                break;
-            }
-            assert!(
-                std::time::Instant::now() < deadline,
-                "no output, screen:\n{screen}"
-            );
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-    }
 }

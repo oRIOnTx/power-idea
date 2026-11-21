@@ -56,10 +56,45 @@ actions!(
         ShowGitLog,
         Branches,
         CopyMcpCommand,
+        OpenSettings,
     ]
 );
 
 actions!(palette, [SelectNext, SelectPrev]);
+
+/// File operations from the project tree and tab context menus.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FileOp {
+    NewFile,
+    NewDirectory,
+    Rename,
+    Delete,
+    CopyPath,
+    CopyRelativePath,
+    RevealInFinder,
+    OpenInTerminal,
+    ShowDiff,
+    CloseTab,
+    CloseOtherTabs,
+    CloseAllTabs,
+}
+
+/// Runs `op` on `path` (relative to the project root; `""` is the root).
+#[derive(Clone, Debug, PartialEq, Eq, Action)]
+#[action(namespace = project, no_json)]
+pub struct FileAction {
+    pub op: FileOp,
+    pub path: SharedString,
+}
+
+impl FileAction {
+    pub fn boxed(op: FileOp, path: impl Into<SharedString>) -> Box<dyn Action> {
+        Box::new(Self {
+            op,
+            path: path.into(),
+        })
+    }
+}
 
 /// Actions listed in "Find Action" (Cmd+Shift+A), in display order.
 pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
@@ -90,6 +125,7 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Git Log", Box::new(ShowGitLog)),
         ("Branches…", Box::new(Branches)),
         ("Toggle Commit View", Box::new(ToggleCommitView)),
+        ("Settings…", Box::new(OpenSettings)),
         ("Copy Claude MCP Command", Box::new(CopyMcpCommand)),
         ("Close Window", Box::new(CloseWindow)),
         ("Quit", Box::new(Quit)),
@@ -126,6 +162,7 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-r", gpui_kit::component::input::Replace, ed),
         KeyBinding::new("alt-f12", ToggleTerminal, ws),
         KeyBinding::new("cmd-0", ToggleCommitView, ws),
+        KeyBinding::new("cmd-,", OpenSettings, ws),
         KeyBinding::new("cmd-k", CommitChanges, ws),
         KeyBinding::new("cmd-shift-k", Push, ws),
         KeyBinding::new("cmd-t", UpdateProject, ws),

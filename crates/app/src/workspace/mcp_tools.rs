@@ -176,8 +176,9 @@ impl Workspace {
                     limit: arg_usize(args, "limit").unwrap_or(200).min(2000),
                 };
                 let root = self.root.clone();
+                let exclude = self.project.exclude.clone();
                 cx.background_spawn(async move {
-                    let matches: Vec<Value> = search::find_in_files(&root, &query, options)
+                    let matches: Vec<Value> = search::find_in_files(&root, &query, options, &exclude)
                         .into_iter()
                         .map(|m| json!({ "path": m.path, "line": m.line, "column": m.column, "text": m.line_text }))
                         .collect();
@@ -191,7 +192,7 @@ impl Workspace {
                     Ok(repo) => repo,
                     Err(err) => return Ok(Some((reply, Err(err)))),
                 };
-                let prefix = self.git.as_ref().map(|g| g.prefix.clone()).unwrap_or_default();
+                let prefix = self.git.as_ref().map_or_default(|g| g.prefix.clone());
                 let path = match arg_str(args, "path").map(|p| self.project_rel(p)).transpose() {
                     Ok(path) => path.map(|p| format!("{prefix}{p}")),
                     Err(err) => return Ok(Some((reply, Err(err)))),
@@ -216,9 +217,7 @@ impl Workspace {
                     return Ok(Some((reply, Err(format!("{rel} is not a file")))));
                 }
                 let line = arg_usize(args, "line").map(|l| l.saturating_sub(1));
-                let column = arg_usize(args, "column")
-                    .map(|c| c.saturating_sub(1))
-                    .unwrap_or(0);
+                let column = arg_usize(args, "column").map_or(0, |c| c.saturating_sub(1));
                 self.open_file(&rel, line.map(|l| (l, column)), window, cx);
                 window.activate_window();
                 Ok(format!("Opened {rel}"))

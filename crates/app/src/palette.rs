@@ -58,6 +58,8 @@ pub struct PaletteSource {
     pub recent_projects: Vec<PathBuf>,
     pub branches: Vec<Branch>,
     pub commits: Vec<Commit>,
+    /// Project paths excluded from search.
+    pub exclude: Vec<String>,
 }
 
 enum PaletteItem {
@@ -175,7 +177,7 @@ impl Palette {
                     .map(PaletteItem::Branch)
                     .collect();
                 if !query.is_empty() && !exact && !query.contains(char::is_whitespace) {
-                    items.push(PaletteItem::NewBranch(query.clone()));
+                    items.push(PaletteItem::NewBranch(query));
                 }
                 self.items = items;
             }
@@ -188,6 +190,7 @@ impl Palette {
             }
             PaletteMode::FindInFiles => {
                 let root = self.source.root.clone();
+                let exclude = self.source.exclude.clone();
                 self.search_task = cx.spawn(async move |this, cx| {
                     cx.background_executor().timer(SEARCH_DEBOUNCE).await;
                     let matches = cx
@@ -196,7 +199,7 @@ impl Palette {
                                 limit: MAX_RESULTS,
                                 ..Default::default()
                             };
-                            find_in_files(&root, &query, options)
+                            find_in_files(&root, &query, options, &exclude)
                         })
                         .await;
                     this.update(cx, |this, cx| {
@@ -340,8 +343,7 @@ impl Palette {
             PaletteItem::Project(path) => {
                 let name = path
                     .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_default();
+                    .map_or_default(|n| n.to_string_lossy().into_owned());
                 h_flex().gap_2().child(name).child(
                     div()
                         .text_xs()

@@ -43,13 +43,14 @@ pub struct DiffTab {
 pub enum CenterTab {
     Editor(EditorTab),
     Diff(DiffTab),
+    Settings,
 }
 
 impl CenterTab {
     pub fn editor(&self) -> Option<&EditorTab> {
         match self {
             Self::Editor(tab) => Some(tab),
-            Self::Diff(_) => None,
+            Self::Diff(_) | Self::Settings => None,
         }
     }
 
@@ -57,6 +58,7 @@ impl CenterTab {
         match self {
             Self::Editor(tab) => tab.title(),
             Self::Diff(tab) => tab.title.clone(),
+            Self::Settings => "Settings".into(),
         }
     }
 
@@ -114,6 +116,21 @@ pub fn language_for(path: &Path) -> String {
         other => other,
     }
     .to_string()
+}
+
+/// Normalizes editor language names/aliases to the ids used by language
+/// server configs (`LanguageServerConfig::languages`).
+pub fn canonical_language(language: &str) -> &str {
+    match language {
+        "rb" | "ruby" | "erb" => "ruby",
+        "rs" | "rust" => "rust",
+        "ts" | "mts" | "cts" | "typescript" => "typescript",
+        "tsx" => "tsx",
+        "js" | "jsx" | "mjs" | "cjs" | "javascript" => "javascript",
+        "py" | "pyi" | "python" => "python",
+        "go" => "go",
+        other => other,
+    }
 }
 
 pub fn line_comment_prefix(language: &str) -> Option<&'static str> {
@@ -218,7 +235,9 @@ pub fn move_line(text: &str, line: u32, up: bool) -> Option<LineEdit> {
 mod tests {
     use std::path::Path;
 
-    use super::{delete_line, duplicate_line, language_for, move_line, toggle_line_comment};
+    use super::{
+        canonical_language, delete_line, duplicate_line, language_for, move_line, toggle_line_comment,
+    };
 
     #[test]
     fn detects_languages() {
@@ -226,6 +245,20 @@ mod tests {
         assert_eq!(language_for(Path::new("Gemfile")), "ruby");
         assert_eq!(language_for(Path::new("x/main.rs")), "rs");
         assert_eq!(language_for(Path::new("lib/tasks/db.rake")), "ruby");
+    }
+
+    #[test]
+    fn canonicalizes_languages() {
+        assert_eq!(
+            canonical_language(&language_for(Path::new("app/models/user.rb"))),
+            "ruby"
+        );
+        assert_eq!(canonical_language(&language_for(Path::new("Gemfile"))), "ruby");
+        assert_eq!(
+            canonical_language(&language_for(Path::new("src/main.rs"))),
+            "rust"
+        );
+        assert_eq!(canonical_language("tsx"), "tsx");
     }
 
     #[test]
