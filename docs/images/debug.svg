@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><clipPath id="win"><rect x="0" y="0" width="1280" height="760" rx="12"/></clipPath></defs>
+<g clip-path="url(#win)">
+<rect x="0" y="0" width="1280" height="760" rx="0" fill="#0b0e14"/>
+<rect x="0.5" y="0.5" width="1279" height="759" rx="12" fill="none" stroke="#202838"/>
+<rect x="0" y="0" width="1280" height="38" rx="0" fill="#090c11"/>
+<line x1="0" y1="38" x2="1280" y2="38" stroke="#1a2030" stroke-width="1"/>
+<circle cx="20" cy="19" r="6" fill="#ff5f57"/>
+<circle cx="40" cy="19" r="6" fill="#febc2e"/>
+<circle cx="60" cy="19" r="6" fill="#28c840"/>
+<circle cx="92" cy="19" r="3" fill="#4fd6e8"/>
+<text x="102" y="23" fill="#c9d1e0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-weight="500" xml:space="preserve">power-idea ⌄</text>
+<text x="196" y="23" fill="#c9d1e0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">⎇ main ⌄</text>
+<text x="640.0" y="23" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="middle" xml:space="preserve">app/models/user.rb</text>
+<text x="1030" y="23" fill="#c9d1e0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">RSpec ⌄</text>
+<text x="1044" y="24" fill="#5ee6a0" font-size="13" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">▶</text>
+<text x="1070" y="23" fill="#5ee6a0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">🐞</text>
+<line x1="1100" y1="12" x2="1100" y2="26" stroke="#1a2030" stroke-width="1"/>
+<circle cx="1122" cy="18" r="5" fill="none" stroke="#6b7489" stroke-width="2"/>
+<line x1="1126" y1="22" x2="1130" y2="26" stroke="#6b7489" stroke-width="1.5"/>
+<rect x="1146" y="13" width="12" height="10" rx="2" fill="none" stroke="#6b7489"/>
+<rect x="0" y="734" width="1280" height="26" rx="0" fill="#090c11"/>
+<line x1="0" y1="734" x2="1280" y2="734" stroke="#1a2030" stroke-width="1"/>
+<text x="12" y="751" fill="#4fd6e8" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">⎇ main ↑1</text>
+<text x="92" y="751" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">1,204 files</text>
+<text x="920" y="751" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">11:5    ruby    UTF-8</text>
+<circle cx="1096" cy="747" r="3" fill="#4fd6e8"/>
+<text x="1104" y="751" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">ruby-lsp</text>
+<circle cx="1178" cy="747" r="3" fill="#5ee6a0"/>
+<text x="1186" y="751" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">MCP</text>
+<rect x="0" y="38" width="48" height="696" rx="0" fill="#090c11"/>
+<line x1="48" y1="38" x2="48" y2="734" stroke="#1a2030" stroke-width="1"/>
+<rect x="1" y="52" width="2" height="24" rx="1" fill="#4fd6e8" filter="url(#glow)"/>
+<rect x="12" y="51" width="26" height="26" rx="6" fill="#4fd6e81a"/>
+<path d="M17 58 h6 l2 2 h8 v11 h-16 z" fill="none" stroke="#4fd6e8" stroke-width="1.5" stroke-linecap="round"/>
+<circle cx="25" cy="108" r="4" fill="none" stroke="#6b7489" stroke-width="2"/>
+<line x1="17" y1="108" x2="21" y2="108" stroke="#6b7489" stroke-width="1.5"/>
+<line x1="29" y1="108" x2="33" y2="108" stroke="#6b7489" stroke-width="1.5"/>
+<ellipse cx="25" cy="147" rx="7" ry="3" fill="none" stroke="#6b7489" stroke-width="1.5"/>
+<path d="M18 147 v10 a7 3 0 0 0 14 0 v-10" fill="none" stroke="#6b7489" stroke-width="1.5" stroke-linecap="round"/>
+<rect x="16" y="702" width="18" height="14" rx="3" fill="none" stroke="#6b7489"/>
+<rect x="16" y="662" width="18" height="14" rx="3" fill="none" stroke="#6b7489"/>
+<rect x="16" y="622" width="18" height="14" rx="3" fill="none" stroke="#6b7489"/>
+<rect x="49" y="39" width="1231" height="34" rx="0" fill="#090c11"/>
+<line x1="49" y1="73" x2="1280" y2="73" stroke="#1a2030" stroke-width="1"/>
+<rect x="49" y="39" width="101" height="34" rx="0" fill="#0b0e14"/>
+<rect x="49" y="71" width="101" height="2" fill="#4fd6e8" filter="url(#glow)"/>
+<rect x="61" y="50" width="10" height="12" rx="2" fill="none" stroke="#ff6b81"/>
+<text x="77" y="61" fill="#c9d1e0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">user.rb</text>
+<rect x="162" y="50" width="10" height="12" rx="2" fill="none" stroke="#ff6b81"/>
+<text x="178" y="61" fill="#6b7489" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">user_spec.rb</text>
+<rect x="49" y="74" width="1231" height="300" rx="0" fill="#0b0e14"/>
+<text x="89" y="96" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">1</text>
+<text x="107.0" y="96" fill="#4e5870" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve"># User account with roles and a login audit trail</text>
+<text x="89" y="117" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">2</text>
+<text x="107.0" y="117" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">class </text>
+<text x="154.0" y="117" fill="#7fb4ff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">User</text>
+<text x="193.1" y="117" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">&lt; </text>
+<text x="208.8" y="117" fill="#7fb4ff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">ApplicationRecord</text>
+<text x="89" y="138" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">3</text>
+<text x="122.7" y="138" fill="#5fd7f0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">has_many </text>
+<text x="193.1" y="138" fill="#f5b97a" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">:sessions</text>
+<text x="263.6" y="138" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">, </text>
+<text x="279.3" y="138" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">dependent: </text>
+<text x="365.4" y="138" fill="#f5b97a" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">:destroy</text>
+<text x="89" y="159" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">4</text>
+<text x="122.7" y="159" fill="#5fd7f0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">validates </text>
+<text x="201.0" y="159" fill="#f5b97a" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">:email</text>
+<text x="247.9" y="159" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">, </text>
+<text x="263.6" y="159" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">presence: </text>
+<text x="341.9" y="159" fill="#f5b97a" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">true</text>
+<text x="89" y="180" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">5</text>
+<text x="89" y="201" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">6</text>
+<text x="122.7" y="201" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">def </text>
+<text x="154.0" y="201" fill="#5fd7f0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">full_name</text>
+<text x="89" y="222" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">7</text>
+<text x="138.3" y="222" fill="#9fe3a9" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">&quot;</text>
+<text x="146.2" y="222" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">#{</text>
+<text x="161.8" y="222" fill="#c9d1e0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">first_name</text>
+<text x="240.1" y="222" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">} #{</text>
+<text x="271.4" y="222" fill="#c9d1e0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">last_name</text>
+<text x="341.9" y="222" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">}</text>
+<text x="349.7" y="222" fill="#9fe3a9" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">&quot;</text>
+<text x="357.6" y="222" fill="#5fd7f0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">.strip</text>
+<text x="89" y="243" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">8</text>
+<text x="122.7" y="243" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">end</text>
+<text x="89" y="264" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">9</text>
+<text x="89" y="285" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">10</text>
+<text x="122.7" y="285" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">def </text>
+<text x="154.0" y="285" fill="#5fd7f0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">record_login!</text>
+<text x="255.8" y="285" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">(ip)</text>
+<rect x="49" y="291" width="1231" height="21" rx="0" fill="#4fd6e8" fill-opacity="0.14"/>
+<rect x="53" y="292" width="5" height="19" rx="2" fill="#ff6b81"/>
+<circle cx="73" cy="302" r="5" fill="#ff6b81"/>
+<text x="138.3" y="306" fill="#c9d1e0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">sessions</text>
+<text x="201.0" y="306" fill="#5fd7f0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">.create!(</text>
+<text x="271.4" y="306" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">ip: </text>
+<text x="302.8" y="306" fill="#c9d1e0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">ip</text>
+<text x="318.4" y="306" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">, </text>
+<text x="334.1" y="306" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">at: </text>
+<text x="365.4" y="306" fill="#7fb4ff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">Time</text>
+<text x="396.7" y="306" fill="#5fd7f0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">.current</text>
+<text x="459.4" y="306" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">)</text>
+<text x="89" y="327" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">12</text>
+<text x="138.3" y="327" fill="#5fd7f0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">update!(</text>
+<text x="201.0" y="327" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">last_login_at: </text>
+<text x="318.4" y="327" fill="#7fb4ff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">Time</text>
+<text x="349.7" y="327" fill="#5fd7f0" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">.current</text>
+<text x="412.4" y="327" fill="#6b7489" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">)</text>
+<text x="89" y="348" fill="#6b7489" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" xml:space="preserve">13</text>
+<text x="122.7" y="348" fill="#9d8cff" font-size="13" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">end</text>
+<text x="1250" y="306" fill="#6b7489" font-size="11" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" text-anchor="end" font-style="italic" xml:space="preserve">ip = &quot;127.0.0.1&quot;</text>
+<line x1="49" y1="380" x2="1280" y2="380" stroke="#1a2030" stroke-width="1"/>
+<rect x="49" y="380" width="1231" height="354" rx="0" fill="#0b0e14"/>
+<text x="60" y="400" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">Debug</text>
+<text x="104" y="400" fill="#c9d1e0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-weight="600" xml:space="preserve">RSpec</text>
+<text x="152" y="400" fill="#4fd6e8" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">Paused (breakpoint)</text>
+<text x="290" y="401" fill="#c9d1e0" font-size="13" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="middle" xml:space="preserve">▶</text>
+<text x="320" y="401" fill="#6b7489" font-size="13" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="middle" xml:space="preserve">❚❚</text>
+<text x="350" y="401" fill="#c9d1e0" font-size="13" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="middle" xml:space="preserve">↷</text>
+<text x="380" y="401" fill="#c9d1e0" font-size="13" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="middle" xml:space="preserve">↓</text>
+<text x="410" y="401" fill="#c9d1e0" font-size="13" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="middle" xml:space="preserve">↑</text>
+<text x="440" y="401" fill="#ff6b81" font-size="13" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="middle" xml:space="preserve">■</text>
+<line x1="49" y1="411" x2="1280" y2="411" stroke="#1a2030" stroke-width="1"/>
+<line x1="330" y1="411" x2="330" y2="734" stroke="#1a2030" stroke-width="1"/>
+<text x="60" y="432" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-weight="600" xml:space="preserve">Frames</text>
+<rect x="53" y="442" width="273" height="22" rx="4" fill="#4fd6e81a"/>
+<text x="62" y="457" fill="#c9d1e0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">User#record_login!</text>
+<text x="322" y="457" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">user.rb:11</text>
+<text x="62" y="481" fill="#c9d1e0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">SessionsController#create</text>
+<text x="322" y="481" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">sessions_controller.rb:9</text>
+<text x="62" y="505" fill="#c9d1e0" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">block in &lt;top (required)&gt;</text>
+<text x="322" y="505" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">user_spec.rb:14</text>
+<text x="62" y="529" fill="#6b7489" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">RSpec::Core::Example#run</text>
+<text x="322" y="529" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">example.rb:263</text>
+<line x1="760" y1="411" x2="760" y2="734" stroke="#1a2030" stroke-width="1"/>
+<text x="342" y="432" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-weight="600" xml:space="preserve">Variables</text>
+<text x="346" y="456" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">⌄</text>
+<text x="360" y="456" fill="#6b7489" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-weight="600" xml:space="preserve">Locals</text>
+<text x="360" y="478" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve"></text>
+<text x="374" y="478" fill="#6ca8ff" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">ip</text>
+<text x="396.8" y="478" fill="#c9d1e0" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">= &quot;127.0.0.1&quot;</text>
+<text x="752" y="478" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">String</text>
+<text x="360" y="500" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">›</text>
+<text x="374" y="500" fill="#6ca8ff" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">self</text>
+<text x="411.6" y="500" fill="#c9d1e0" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">= #&lt;User id: 7, email: &quot;ann@example.com&quot;&gt;</text>
+<text x="752" y="500" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">User</text>
+<text x="360" y="522" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">⌄</text>
+<text x="374" y="522" fill="#6ca8ff" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">sessions</text>
+<text x="441.2" y="522" fill="#c9d1e0" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">= #&lt;CollectionProxy [3 sessions]&gt;</text>
+<text x="752" y="522" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">Relation</text>
+<text x="374" y="544" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve"></text>
+<text x="388" y="544" fill="#6ca8ff" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">size</text>
+<text x="425.6" y="544" fill="#c9d1e0" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">= 3</text>
+<text x="752" y="544" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">Integer</text>
+<text x="374" y="566" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">›</text>
+<text x="388" y="566" fill="#6ca8ff" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">last</text>
+<text x="425.6" y="566" fill="#c9d1e0" font-size="12" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">= #&lt;Session id: 41, ip: &quot;10.0.0.4&quot;&gt;</text>
+<text x="752" y="566" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" text-anchor="end" xml:space="preserve">Session</text>
+<text x="346" y="588" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">›</text>
+<text x="360" y="588" fill="#6b7489" font-size="12" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-weight="600" xml:space="preserve">Instance variables</text>
+<text x="772" y="432" fill="#6b7489" font-size="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-weight="600" xml:space="preserve">Console</text>
+<text x="772" y="456" fill="#6b7489" font-size="11" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">DEBUGGER: Connected.</text>
+<text x="772" y="476" fill="#c9d1e0" font-size="11" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">Run options: include {focus: true}</text>
+<text x="772" y="496" fill="#4fd6e8" font-size="11" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">› sessions.count</text>
+<text x="772" y="516" fill="#c9d1e0" font-size="11" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">3</text>
+<text x="772" y="536" fill="#4fd6e8" font-size="11" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">› ip.start_with?(&quot;127&quot;)</text>
+<text x="772" y="556" fill="#c9d1e0" font-size="11" font-family="Menlo, JetBrains Mono, Consolas, DejaVu Sans Mono, monospace" xml:space="preserve">true</text>
+<rect x="768" y="692" width="500" height="24" rx="5" fill="#141925" stroke="#1a2030"/>
+<text x="778" y="708" fill="#6b7489" font-size="11" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" xml:space="preserve">Evaluate expression (Enter)</text>
+</g>
+</svg>

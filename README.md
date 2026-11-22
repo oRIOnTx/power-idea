@@ -18,15 +18,15 @@ so Claude Code can see what you see.
 
 ---
 
-## Screenshots
+## A look inside
 
-| Editor, project tree and Find Usages | Git Log with commit graph |
+<p align="center"><img src="docs/images/overview.svg" alt="Editor with LSP completion, project tree and the Git Log with its commit graph"></p>
+
+| Debugging any language (here: Ruby with rdbg) | Database console: completion, editing, export |
 |---|---|
-| ![Editor](docs/screenshots/editor.png) | ![Git Log](docs/screenshots/git-log.png) |
-| **Debugging (rdbg, lldb-dap, debugpy, dlv)** | **Database consoles** |
-| ![Debug](docs/screenshots/debug.png) | ![Database](docs/screenshots/database.png) |
+| ![Debugger paused at a breakpoint with frames, variables and console](docs/images/debug.svg) | ![SQL console with alias completion and pending row edits](docs/images/database.svg) |
 
-<p align="center"><img src="docs/screenshots/welcome.png" width="70%" alt="Welcome screen"></p>
+<p align="center"><sub>Illustrations of the real UI in the Neo dark theme.</sub></p>
 
 ## Features
 
