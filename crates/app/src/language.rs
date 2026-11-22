@@ -1,6 +1,7 @@
 //! Language server integration: starts servers per language on demand and
 //! adapts them to the editor's completion, hover and definition hooks.
 
+mod hover;
 mod ruby_version;
 
 use std::collections::HashMap;
@@ -541,10 +542,11 @@ impl HoverProvider for DocumentLsp {
     ) -> Task<Result<Option<lsp_types::Hover>>> {
         let (server, params) = (self.server.clone(), position_params(&self.uri, text, offset));
         cx.background_spawn(async move {
-            server.request::<request::HoverRequest>(lsp_types::HoverParams {
+            let hover = server.request::<request::HoverRequest>(lsp_types::HoverParams {
                 text_document_position_params: params,
                 work_done_progress_params: Default::default(),
-            })
+            })?;
+            Ok(hover.map(hover::tidy))
         })
     }
 }

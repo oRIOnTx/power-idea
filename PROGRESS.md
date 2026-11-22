@@ -19,6 +19,7 @@ is in the working tree only.
 
 ### Committed 2026-11-22 (`f2fb67a`…`bda932c`)
 - [x] LSP client (`crates/lsp`): completion, hover, diagnostics, ⌘+Click / ⌘B go to definition, ⌘[ / ⌘] history
+- [x] Hover popover: one-line code blocks shown as inline code, language labels dropped (gpui-kit draws them over the code)
 - [x] LSP status chips (starting / indexing % / ready / fallback / failed), preload on project open, failure notifications with cause
 - [x] Ruby fallback mode (minimal bundle) + "Fix in Terminal"
 - [x] File-type icons and folder tints; tree indentation fix
