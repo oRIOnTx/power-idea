@@ -28,14 +28,18 @@ else
   echo "Installing ${APP_NAME} $NEW"
 fi
 
+# `ps`, not `pgrep`: pgrep sees no processes in some sandboxed shells, and then the old
+# app kept running and `open` only brought it to the front instead of restarting it.
+running() { ps -axo command= | grep -F "${TARGET}/Contents/MacOS/" >/dev/null; }
+
 # Quit gracefully so unsaved work is handled by the app's own prompt.
-if pgrep -f "${TARGET}/Contents/MacOS/" >/dev/null; then
+if running; then
   osascript -e "tell application \"${APP_NAME}\" to quit" >/dev/null 2>&1 || true
   for _ in $(seq 1 60); do
-    pgrep -f "${TARGET}/Contents/MacOS/" >/dev/null || break
+    running || break
     sleep 0.5
   done
-  if pgrep -f "${TARGET}/Contents/MacOS/" >/dev/null; then
+  if running; then
     echo "${APP_NAME} is still running (unsaved changes?). Quit it and run again." >&2
     exit 1
   fi
