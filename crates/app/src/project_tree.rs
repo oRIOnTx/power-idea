@@ -11,9 +11,26 @@ const PLACEHOLDER: &str = "\u{0}placeholder";
 
 const HIDDEN_NAMES: &[&str] = &[".git", ".DS_Store"];
 
+/// The IDE's own per-project folder; hidden unless the user asks to see it.
+const POWER_IDEA_DIR: &str = ".power-idea";
+
+/// What the Project tree leaves out.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct TreeFilter {
+    pub show_power_idea_dir: bool,
+}
+
+impl TreeFilter {
+    /// Whether the entry `name` directly inside `rel` is hidden.
+    fn hides(self, rel: &str, name: &str) -> bool {
+        HIDDEN_NAMES.contains(&name)
+            || (rel.is_empty() && name == POWER_IDEA_DIR && !self.show_power_idea_dir)
+    }
+}
+
 /// Builds tree items for `dir` (relative path `rel`, empty for the root).
 /// Item ids are paths relative to the project root.
-pub fn build_items(root: &Path, rel: &str, expanded: &HashSet<String>) -> Vec<TreeItem> {
+pub fn build_items(root: &Path, rel: &str, expanded: &HashSet<String>, filter: TreeFilter) -> Vec<TreeItem> {
     let dir = if rel.is_empty() {
         root.to_path_buf()
     } else {
@@ -27,7 +44,7 @@ pub fn build_items(root: &Path, rel: &str, expanded: &HashSet<String>) -> Vec<Tr
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().to_string_lossy().into_owned();
-            if HIDDEN_NAMES.contains(&name.as_str()) {
+            if filter.hides(rel, &name) {
                 return None;
             }
             let is_dir = entry.file_type().ok()?.is_dir();
@@ -52,11 +69,29 @@ pub fn build_items(root: &Path, rel: &str, expanded: &HashSet<String>) -> Vec<Tr
             }
             let is_expanded = expanded.contains(&id);
             let children = if is_expanded {
-                build_items(root, &id, expanded)
+                build_items(root, &id, expanded, filter)
             } else {
                 vec![TreeItem::new(format!("{id}/{PLACEHOLDER}"), "")]
             };
             TreeItem::new(id, name).expanded(is_expanded).children(children)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hides_power_idea_dir_at_root_unless_shown() {
+        let hidden = TreeFilter::default();
+        let shown = TreeFilter {
+            show_power_idea_dir: true,
+        };
+        assert!(hidden.hides("", ".power-idea"));
+        assert!(!shown.hides("", ".power-idea"));
+        assert!(!hidden.hides("docs", ".power-idea"));
+        assert!(shown.hides("", ".git"));
+        assert!(!hidden.hides("", "src"));
+    }
 }

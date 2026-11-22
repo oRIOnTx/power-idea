@@ -201,6 +201,19 @@ fn appearance_page() -> SettingPage {
                     .description("Ask before ⇧⌘W, the close button or a project tab closes a project."),
                 ),
         )
+        .group(
+            SettingGroup::new().title("Project tree").item(
+                SettingItem::new(
+                    "Show .power-idea folder",
+                    SettingField::switch(
+                        |cx| config(cx).show_power_idea_dir,
+                        |value, cx| update_config(cx, |c| c.show_power_idea_dir = value),
+                    )
+                    .default_value(false),
+                )
+                .description("The folder with project settings and IDE state for this project."),
+            ),
+        )
 }
 
 fn editor_page(cx: &App) -> SettingPage {

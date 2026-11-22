@@ -58,6 +58,8 @@ pub struct Config {
     pub confirm_exit: bool,
     /// Ask before a project window closes.
     pub confirm_close_project: bool,
+    /// Show the `.power-idea` folder (project settings and IDE state) in the Project tree.
+    pub show_power_idea_dir: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -253,6 +255,7 @@ impl Default for Config {
             insights_enabled: false,
             confirm_exit: true,
             confirm_close_project: true,
+            show_power_idea_dir: false,
         }
     }
 }

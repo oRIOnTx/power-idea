@@ -150,6 +150,8 @@ pub struct Workspace {
     /// when focus is on the root row or comes back from a tree context menu.
     project_focus: FocusHandle,
     expanded: HashSet<String>,
+    /// What the Project tree hides; rebuilt when the setting changes.
+    tree_filter: project_tree::TreeFilter,
     /// Files waiting for Paste in the project tree.
     file_clipboard: Option<crate::file_ops::FileClipboard>,
     tree_selection: crate::tree_selection::TreeSelection,
@@ -215,7 +217,8 @@ pub struct Workspace {
 impl Workspace {
     pub fn new(root: PathBuf, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let expanded = HashSet::new();
-        let items = project_tree::build_items(&root, "", &expanded);
+        let tree_filter = Self::tree_filter(cx);
+        let items = project_tree::build_items(&root, "", &expanded, tree_filter);
         let tree = cx.new(|cx| TreeState::new(cx).items(items));
         let tree_subscription = cx.subscribe(&tree, |this, _, event: &TreeEvent, cx| {
             match event {
@@ -225,6 +228,13 @@ impl Workspace {
             this.refresh_tree(cx);
         });
         let tree_cursor_subscription = cx.observe(&tree, |this, tree, cx| this.follow_tree_cursor(&tree, cx));
+        let config_subscription = cx.observe_global::<AppConfig>(|this, cx| {
+            let filter = Self::tree_filter(cx);
+            if filter != this.tree_filter {
+                this.tree_filter = filter;
+                this.refresh_tree(cx);
+            }
+        });
 
         let project = ProjectSettings::load(&root);
         let lsp = crate::language::LspStore::new(root.clone());
@@ -245,6 +255,7 @@ impl Workspace {
             tree,
             project_focus: cx.focus_handle(),
             expanded,
+            tree_filter,
             file_clipboard: None,
             tree_selection: Default::default(),
             conflicts: Default::default(),
@@ -274,7 +285,7 @@ impl Workspace {
             active_terminal: 0,
             show_bottom: false,
             bottom_panel: BottomPanel::Terminal,
-            _subscriptions: vec![tree_subscription, tree_cursor_subscription],
+            _subscriptions: vec![tree_subscription, tree_cursor_subscription, config_subscription],
         };
         workspace.focus_handle.focus(window, cx);
         workspace.reindex(cx);
@@ -343,8 +354,14 @@ impl Workspace {
         .detach();
     }
 
+    fn tree_filter(cx: &App) -> project_tree::TreeFilter {
+        project_tree::TreeFilter {
+            show_power_idea_dir: cx.global::<AppConfig>().0.show_power_idea_dir,
+        }
+    }
+
     fn refresh_tree(&mut self, cx: &mut Context<Self>) {
-        let items = project_tree::build_items(&self.root, "", &self.expanded);
+        let items = project_tree::build_items(&self.root, "", &self.expanded, self.tree_filter);
         let root = self.root.clone();
         self.tree_selection.retain(|rel| root.join(rel).exists());
         let cursor = self.tree_cursor.clone();
