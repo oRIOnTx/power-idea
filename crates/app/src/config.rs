@@ -183,10 +183,6 @@ pub fn default_language_servers() -> BTreeMap<String, LanguageServerConfig> {
             ),
         ),
         (
-            "markdown".into(),
-            server("marksman", &[], &["markdown"], "brew install marksman"),
-        ),
-        (
             "toml".into(),
             server("taplo", &["lsp", "stdio"], &["toml"], "brew install taplo"),
         ),

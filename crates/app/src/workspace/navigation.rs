@@ -132,7 +132,7 @@ impl Workspace {
         let servers = cx.global::<AppConfig>().0.language_servers.clone();
         for language in language::project_languages(&self.root) {
             if let Some((id, config)) = language::server_for(&servers, language)
-                && crate::settings::find_in_path(&config.command).is_some()
+                && crate::settings::server_path(config).is_some()
             {
                 self.lsp.ensure_started(id, config, cx);
             }
@@ -244,7 +244,7 @@ impl Workspace {
         let Some((server_id, config)) = language::server_for(&servers, &language) else {
             return;
         };
-        if crate::settings::find_in_path(&config.command).is_none() {
+        if crate::settings::server_path(config).is_none() {
             return; // The editor banner suggests installing it.
         }
         let Some(server) = self.lsp.running(server_id) else {

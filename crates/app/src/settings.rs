@@ -32,6 +32,34 @@ fn config(cx: &App) -> &Config {
     &cx.global::<AppConfig>().0
 }
 
+/// Where a language server's program is, if it is installed. `xcrun` is always there, so
+/// for servers run through it (clangd, sourcekit-lsp) the tool itself is looked up.
+pub fn server_path(server: &LanguageServerConfig) -> Option<PathBuf> {
+    match (server.command.as_str(), server.args.first()) {
+        ("xcrun", Some(tool)) => xcrun_find(tool),
+        (command, _) => find_in_path(command),
+    }
+}
+
+/// `xcrun --find`, remembered: it runs a process, and banners ask on every render.
+fn xcrun_find(tool: &str) -> Option<PathBuf> {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static FOUND: OnceLock<Mutex<HashMap<String, Option<PathBuf>>>> = OnceLock::new();
+    let mut found = FOUND.get_or_init(Default::default).lock().ok()?;
+    found
+        .entry(tool.to_string())
+        .or_insert_with(|| {
+            let output = std::process::Command::new("xcrun")
+                .args(["--find", tool])
+                .output()
+                .ok()?;
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            (output.status.success() && !path.is_empty()).then(|| PathBuf::from(path))
+        })
+        .clone()
+}
+
 /// Absolute path of `command` if it is found in `PATH`.
 pub fn find_in_path(command: &str) -> Option<PathBuf> {
     if command.contains('/') {
@@ -244,7 +272,7 @@ fn terminal_page() -> SettingPage {
 
 fn server_status(server: &LanguageServerConfig, cx: &App) -> AnyElement {
     let theme = cx.theme();
-    match find_in_path(&server.command) {
+    match server_path(server) {
         Some(path) => h_flex()
             .gap_2()
             .text_xs()

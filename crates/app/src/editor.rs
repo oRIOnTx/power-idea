@@ -130,7 +130,10 @@ pub fn language_for(path: &Path) -> String {
     let special = match name {
         "Gemfile" | "Rakefile" | "Guardfile" | "Capfile" | "config.ru" => Some("ruby"),
         "Makefile" | "makefile" | "GNUmakefile" => Some("make"),
-        "Dockerfile" | ".bashrc" | ".zshrc" | ".envrc" => Some("bash"),
+        // Real shell scripts are `sh` (they get the shell language server); the rest only
+        // borrow the bash highlighter.
+        ".bashrc" | ".bash_profile" | ".envrc" => Some("sh"),
+        "Dockerfile" | ".zshrc" => Some("bash"),
         "CMakeLists.txt" => Some("cmake"),
         _ => None,
     };
@@ -150,6 +153,7 @@ pub fn language_for(path: &Path) -> String {
         "h" => "c",
         "hpp" | "cc" | "cxx" => "cpp",
         "zsh" => "bash",
+        "bash" => "sh",
         "htm" => "html",
         "scss" => "css",
         "ex" | "exs" => "elixir",
@@ -333,6 +337,12 @@ mod tests {
             "cpp"
         );
         assert_eq!(canonical_language(&language_for(Path::new("bin/setup.sh"))), "sh");
+        assert_eq!(
+            canonical_language(&language_for(Path::new("scripts/env.bash"))),
+            "sh"
+        );
+        assert_eq!(canonical_language(&language_for(Path::new(".envrc"))), "sh");
+        assert_ne!(canonical_language(&language_for(Path::new("Dockerfile"))), "sh");
         assert_ne!(canonical_language(&language_for(Path::new(".env"))), "sh");
         assert_eq!(lsp_language_id("sh"), "shellscript");
         assert_eq!(lsp_language_id("ruby"), "ruby");

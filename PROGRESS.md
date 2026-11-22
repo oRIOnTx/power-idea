@@ -177,10 +177,14 @@ is in the working tree only.
       alone without a server; from 2 typed characters, prose (Markdown, text) only on ⌃Space (Basic
       Completion, also forces the list anywhere) — `search::word_completions`, `word_completion.rs`
 - [x] Built-in language servers for HTML, CSS/Less, JSON, YAML, shell scripts (`.sh` only: `.env` and
-      Dockerfiles share the bash highlighter), Markdown, TOML, Lua, C/C++ and Swift (Apple's clangd /
+      Dockerfiles share the bash highlighter), TOML, Lua, C/C++ and Swift (Apple's clangd /
       sourcekit-lsp via `xcrun`), Java, Kotlin, PHP, Elixir and Zig; LSP `languageId`s where the protocol
       names differ (`shellscript`, `typescriptreact`). The missing-server banner gets "Install in Terminal"
       (typed, not run), and a server installed meanwhile attaches when you return to the tab
+- [x] Servers run through `xcrun` (clangd, sourcekit-lsp) count as installed only when `xcrun --find`
+      finds the tool (cached), so the install banner shows without the Command Line Tools; `.bash`,
+      `.bashrc`, `.bash_profile` and `.envrc` are shell scripts for the shell server. Markdown has no
+      default server: Homebrew deprecated `marksman`
 - [x] ⌘Q and closing a project window warn when a terminal still runs something (a running run
       configuration, or a shell whose foreground job is not the shell itself — `ps` `tpgid`, off the UI
       thread): "Terminate" / Cancel, listing the programs; Terminate replaces "Exit?" / "Close project?"

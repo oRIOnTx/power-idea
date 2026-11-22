@@ -335,7 +335,7 @@ impl Workspace {
             .language_servers
             .values()
             .find(|s| s.enabled && s.languages.iter().any(|l| l == language))?;
-        crate::settings::find_in_path(&server.command)
+        crate::settings::server_path(server)
             .is_none()
             .then(|| server.clone())
     }
