@@ -43,7 +43,8 @@ pub fn open_project(path: PathBuf, cx: &mut App) {
     cx.defer(move |cx| open_project_now(path, cx));
 }
 
-fn open_project_now(path: PathBuf, cx: &mut App) {
+/// Opens right away; for callers outside any window update (app start, async tasks).
+pub fn open_project_now(path: PathBuf, cx: &mut App) {
     let path = path.canonicalize().unwrap_or(path);
     let workspaces = Workspaces::live(cx);
     if let Some((handle, _)) = workspaces.iter().find(|(_, ws)| ws.read(cx).root() == &path) {
@@ -77,7 +78,7 @@ pub fn prompt_open_project(cx: &mut App) {
         prompt: Some("Open Project".into()),
     });
     cx.spawn(async move |cx| match paths.await {
-        Ok(Ok(Some(mut paths))) if !paths.is_empty() => cx.update(|cx| open_project(paths.remove(0), cx)),
+        Ok(Ok(Some(mut paths))) if !paths.is_empty() => cx.update(|cx| open_project_now(paths.remove(0), cx)),
         // Cancelled with nothing open: fall back to the Welcome screen.
         _ => cx.update(|cx| {
             if cx.windows().is_empty() {

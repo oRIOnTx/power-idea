@@ -211,7 +211,8 @@ fn main() {
 
             let last_project = cx.global::<AppConfig>().0.recent_projects.first().cloned();
             match arg_project.or(last_project).filter(|p| p.is_dir()) {
-                Some(path) => projects::open_project(path, cx),
+                // Not deferred: nothing would flush a deferred call during launch.
+                Some(path) => projects::open_project_now(path, cx),
                 None => welcome::show(cx),
             }
             cx.activate(true);
