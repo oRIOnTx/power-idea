@@ -25,6 +25,8 @@ so Claude Code can see what you see.
 | Debugging any language (here: Ruby with rdbg) | Database console: completion, editing, export |
 |---|---|
 | ![Debugger paused at a breakpoint with frames, variables and console](docs/images/debug.svg) | ![SQL console with alias completion and pending row edits](docs/images/database.svg) |
+| **Run configurations, clickable stack traces** | **Welcome screen** |
+| ![Run configuration picker and a failed RSpec run with a clickable file:line](docs/images/run.svg) | ![Welcome screen with recent projects, New Project and Open](docs/images/welcome.svg) |
 
 <p align="center"><sub>Illustrations of the real UI in the Neo dark theme.</sub></p>
 
