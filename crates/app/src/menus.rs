@@ -141,6 +141,7 @@ fn menus() -> Vec<Menu> {
             MenuItem::separator(),
             MenuItem::action("Branches…", Branches),
             MenuItem::action("New Branch…", NewBranch),
+            MenuItem::action("New Worktree…", NewWorktree),
             MenuItem::action("Checkout Tag or Revision…", CheckoutRevision),
             MenuItem::action("Show Git Log", ShowGitLog),
         ]),

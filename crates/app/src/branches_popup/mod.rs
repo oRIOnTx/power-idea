@@ -325,6 +325,7 @@ impl BranchesPopup {
                     GitCommand::Commit => Some(style::lucide("git-commit-horizontal")),
                     GitCommand::Push => Some(style::lucide("arrow-up-right")),
                     GitCommand::NewBranch => Some(style::lucide("plus")),
+                    GitCommand::NewWorktree => Some(style::lucide("folder-git-2")),
                     GitCommand::CheckoutRevision => None,
                 };
                 let action = command_action(*command);
@@ -576,6 +577,7 @@ fn command_action(command: GitCommand) -> Box<dyn Action> {
         GitCommand::Commit => Box::new(actions::CommitChanges),
         GitCommand::Push => Box::new(actions::Push),
         GitCommand::NewBranch => Box::new(actions::NewBranch),
+        GitCommand::NewWorktree => Box::new(actions::NewWorktree),
         GitCommand::CheckoutRevision => Box::new(actions::CheckoutRevision),
     }
 }

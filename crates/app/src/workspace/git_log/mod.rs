@@ -1,6 +1,7 @@
 //! Git Log tool window (⌘9): history with the commit graph, branches and
 //! commit details. This module holds the state and loading; see the submodules.
 
+mod branch_tools;
 mod branches;
 mod details;
 mod model;

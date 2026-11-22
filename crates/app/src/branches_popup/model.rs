@@ -32,15 +32,17 @@ pub enum GitCommand {
     Commit,
     Push,
     NewBranch,
+    NewWorktree,
     CheckoutRevision,
 }
 
 impl GitCommand {
-    const ALL: [Self; 5] = [
+    const ALL: [Self; 6] = [
         Self::Update,
         Self::Commit,
         Self::Push,
         Self::NewBranch,
+        Self::NewWorktree,
         Self::CheckoutRevision,
     ];
 
@@ -50,6 +52,7 @@ impl GitCommand {
             Self::Commit => "Commit…",
             Self::Push => "Push…",
             Self::NewBranch => "New Branch…",
+            Self::NewWorktree => "New Worktree…",
             Self::CheckoutRevision => "Checkout Tag or Revision…",
         }
     }
@@ -164,6 +167,12 @@ pub fn branch_ops(branch: &Branch, current: Option<&str>) -> Vec<Option<(String,
         op("Checkout".into(), GitLogOp::CheckoutBranch);
     }
     op(format!("New Branch from '{name}'…"), GitLogOp::NewBranchAt);
+    op(format!("New Worktree from '{name}'…"), GitLogOp::NewWorktreeFrom);
+    ops.push(None);
+    ops.push(Some((
+        "Show Diff with Working Tree".into(),
+        GitLogOp::DiffWithWorkingTree,
+    )));
     if let (false, Some(current)) = (branch.is_current, current) {
         ops.push(None);
         ops.push(Some((
@@ -184,6 +193,11 @@ pub fn branch_ops(branch: &Branch, current: Option<&str>) -> Vec<Option<(String,
         ops.push(Some(("Update".into(), GitLogOp::UpdateBranch)));
     }
     ops.push(Some(("Push…".into(), GitLogOp::PushBranch)));
+    let tracked = match &branch.upstream {
+        Some(upstream) => format!("Tracked Branch '{upstream}'…"),
+        None => "Set Tracked Branch…".into(),
+    };
+    ops.push(Some((tracked, GitLogOp::SetTrackedBranch)));
     ops.push(None);
     ops.push(Some(("Rename…".into(), GitLogOp::RenameBranch)));
     if !branch.is_current {
@@ -248,7 +262,8 @@ mod tests {
         assert_eq!(rows[0], Row::Command(GitCommand::Update));
         assert_eq!(rows[3], Row::Separator);
         assert_eq!(rows[4], Row::Command(GitCommand::NewBranch));
-        let tail: Vec<Row> = rows[6..].to_vec();
+        assert_eq!(rows[5], Row::Command(GitCommand::NewWorktree));
+        let tail: Vec<Row> = rows[7..].to_vec();
         assert_eq!(
             tail,
             vec![
@@ -328,9 +343,12 @@ mod tests {
             [
                 "Checkout",
                 "New Branch from 'feature'…",
+                "New Worktree from 'feature'…",
+                "Show Diff with Working Tree",
                 "Rebase 'main' onto 'feature'",
                 "Merge 'feature' into 'main'",
                 "Push…",
+                "Set Tracked Branch…",
                 "Rename…",
                 "Delete…",
             ]

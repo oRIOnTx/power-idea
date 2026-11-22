@@ -14,7 +14,7 @@ use crate::workspace::Workspace;
 
 impl Workspace {
     /// Runs an operation that changes the working tree, then reloads editors and the index.
-    fn run_log_op<T: Send + 'static>(
+    pub(super) fn run_log_op<T: Send + 'static>(
         &mut self,
         label: &'static str,
         done: String,
@@ -255,6 +255,9 @@ impl Workspace {
             }
             GitLogOp::PushBranch => self.open_push_dialog(Some(target), window, cx),
             GitLogOp::UpdateBranch => self.pull(window, cx),
+            GitLogOp::NewWorktreeFrom => self.prompt_new_worktree(Some(target), window, cx),
+            GitLogOp::DiffWithWorkingTree => self.show_diff_with_working_tree(target, window, cx),
+            GitLogOp::SetTrackedBranch => self.open_tracked_branch_dialog(target, window, cx),
             GitLogOp::ContinueOperation | GitLogOp::AbortOperation => {
                 let live = self.git.as_ref().and_then(|g| g.operation);
                 let Some(operation) = live.or_else(|| self.git_log.as_ref().and_then(|log| log.operation))

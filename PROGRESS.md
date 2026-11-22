@@ -166,6 +166,12 @@ is in the working tree only.
 - [x] Branches popup: the branch submenu is its own card level with the branch row; JetBrains wording with
       the branch names ("New Branch from 'x'…", "Rebase 'main' onto 'x'", "Merge 'x' into 'main'"),
       Update and Push… (⌘⇧K) on the current branch, upstream shown in the submenu header
+- [x] New Worktree… (Branches popup, Git menu, Find Action) and "New Worktree from 'x'…": location and new
+      branch (empty checks out a free local branch), then opens the worktree as a project
+- [x] "Show Diff with Working Tree" for any branch (one diff tab); "Tracked Branch 'origin/x'…" / "Set Tracked
+      Branch…" picks the upstream from the remote branches or removes it
+- [x] Push dialog: the remote is a menu when there are several, the remote branch name is editable (click it;
+      the commits and files reload for the new target); Push ▾ Force Push… (`--force-with-lease`, asks first)
 - [x] ⌘Q and closing a project window warn when a terminal still runs something (a running run
       configuration, or a shell whose foreground job is not the shell itself — `ps` `tpgid`, off the UI
       thread): "Terminate" / Cancel, listing the programs; Terminate replaces "Exit?" / "Close project?"

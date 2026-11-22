@@ -3,6 +3,7 @@
 //! Using the CLI (like JetBrains IDEs do) means the user's credentials, SSH
 //! agent, hooks and `.gitconfig` all work without extra configuration.
 
+mod branching;
 mod conflicts;
 mod graph;
 mod history;

@@ -1,24 +1,25 @@
 //! Push dialog (⌘⇧K), as in JetBrains: before anything leaves the machine it shows where
 //! it goes (remote, URL, branch) and what goes there (commits and the files they touch).
 
+mod files;
+mod push;
 mod tree;
 
 use std::collections::{HashMap, HashSet};
 
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::{Button, ButtonVariants as _, DropdownButton};
 use gpui_kit::component::checkbox::Checkbox;
-use gpui_kit::component::notification::Notification;
+use gpui_kit::component::input::{Input, InputEvent, InputState};
+use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, Icon, IconName, Sizable as _, WindowExt as _, h_flex, v_flex,
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
-use vcs::{ChangeKind, CommitFile, Outgoing, PushTarget, Repo};
+use vcs::{CommitFile, Outgoing, PushTarget, Repo};
 
 use super::Workspace;
-use super::git::kind_color;
-use crate::{file_icons, style};
-use tree::TreeRow;
+use crate::style;
 
 const BODY_HEIGHT: f32 = 400.;
 const ROW_HEIGHT: f32 = 26.;
@@ -33,7 +34,11 @@ enum Load {
 pub struct PushDialog {
     workspace: WeakEntity<Workspace>,
     repo: Repo,
+    /// The local branch being pushed.
+    branch: String,
     load: Load,
+    /// The remote branch name while it is being edited.
+    editing: Option<(Entity<InputState>, Subscription)>,
     /// `None`: the branch row, i.e. all outgoing commits together.
     selected: Option<usize>,
     /// Files of single commits, by hash, loaded when a commit is first selected.
@@ -46,11 +51,44 @@ pub struct PushDialog {
 }
 
 impl PushDialog {
-    fn new(workspace: WeakEntity<Workspace>, repo: Repo, branch: String, cx: &mut Context<Self>) -> Self {
-        let load_repo = repo.clone();
-        let load = cx.spawn(async move |this, cx| {
+    pub(super) fn new(
+        workspace: WeakEntity<Workspace>,
+        repo: Repo,
+        branch: String,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let mut this = Self {
+            workspace,
+            repo,
+            branch,
+            load: Load::Loading,
+            editing: None,
+            selected: None,
+            commit_files: HashMap::new(),
+            collapsed: HashSet::new(),
+            tags: false,
+            focus: cx.focus_handle(),
+            focused_once: false,
+            _tasks: Vec::new(),
+        };
+        this.load(None, cx);
+        this
+    }
+
+    /// Loads what goes to `target` (remote, branch), or to the branch's default target.
+    fn load(&mut self, target: Option<(String, String)>, cx: &mut Context<Self>) {
+        let (repo, branch) = (self.repo.clone(), self.branch.clone());
+        self.load = Load::Loading;
+        self.selected = None;
+        cx.notify();
+        self._tasks = vec![cx.spawn(async move |this, cx| {
             let outgoing = cx
-                .background_spawn(async move { load_repo.outgoing(&branch) })
+                .background_spawn(async move {
+                    match target {
+                        Some((remote, remote_branch)) => repo.outgoing_to(&branch, &remote, &remote_branch),
+                        None => repo.outgoing(&branch),
+                    }
+                })
                 .await;
             this.update(cx, |this, cx| {
                 this.load = match outgoing {
@@ -60,19 +98,47 @@ impl PushDialog {
                 cx.notify();
             })
             .ok();
+        })];
+    }
+
+    fn target(&self) -> Option<&PushTarget> {
+        self.outgoing()?.target.as_ref()
+    }
+
+    fn set_remote(&mut self, remote: String, cx: &mut Context<Self>) {
+        let branch = self
+            .target()
+            .map_or_else(|| self.branch.clone(), |t| t.branch.clone());
+        self.load(Some((remote, branch)), cx);
+    }
+
+    /// Turns the remote branch name into a text field, as JetBrains does on click.
+    fn edit_branch(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(target) = self.target() else { return };
+        let initial = target.branch.clone();
+        let input = cx.new(|cx| InputState::new(window, cx).default_value(initial));
+        input.update(cx, |input, cx| input.focus(window, cx));
+        let subscription = cx.subscribe_in(&input, window, |this, _, event: &InputEvent, window, cx| {
+            if matches!(event, InputEvent::PressEnter { .. } | InputEvent::Blur) {
+                this.apply_branch(window, cx);
+            }
         });
-        Self {
-            workspace,
-            repo,
-            load: Load::Loading,
-            selected: None,
-            commit_files: HashMap::new(),
-            collapsed: HashSet::new(),
-            tags: false,
-            focus: cx.focus_handle(),
-            focused_once: false,
-            _tasks: vec![load],
+        self.editing = Some((input, subscription));
+        cx.notify();
+    }
+
+    fn apply_branch(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((input, _)) = self.editing.take() else {
+            return;
+        };
+        window.focus(&self.focus, cx);
+        let name = input.read(cx).value().trim().to_string();
+        let Some(target) = self.target() else { return };
+        if name.is_empty() || name == target.branch {
+            return cx.notify();
         }
+        let remote = target.remote.clone();
+        self.load(Some((remote, name)), cx);
     }
 
     fn outgoing(&self) -> Option<&Outgoing> {
@@ -82,12 +148,13 @@ impl PushDialog {
         }
     }
 
-    /// What the Push button would push to, if pushing makes sense.
-    fn pushable(&self) -> Option<(&Outgoing, &PushTarget)> {
+    /// What the Push button would push to, if pushing makes sense; a force push makes sense
+    /// whenever there is a target (e.g. to overwrite a remote branch after a rebase).
+    fn pushable(&self, force: bool) -> Option<(&Outgoing, &PushTarget)> {
         let outgoing = self.outgoing()?;
         let target = outgoing.target.as_ref()?;
-        let anything = !outgoing.commits.is_empty() || target.new_branch || self.tags;
-        anything.then_some((outgoing, target))
+        let anything = !outgoing.commits.is_empty() || target.new_branch || self.tags || force;
+        (anything && self.editing.is_none()).then_some((outgoing, target))
     }
 
     fn select(&mut self, selected: Option<usize>, cx: &mut Context<Self>) {
@@ -141,26 +208,33 @@ impl PushDialog {
         self.select(next, cx);
     }
 
-    fn push(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some((outgoing, target)) = self.pushable() else {
+    fn push(&mut self, force: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((outgoing, target)) = self.pushable(force) else {
             return;
         };
         let (local, target, tags) = (outgoing.local.clone(), target.clone(), self.tags);
         window.close_dialog(cx);
         self.workspace
-            .update(cx, |ws, cx| ws.push_to(local, target, tags, window, cx))
+            .update(cx, |ws, cx| {
+                if force {
+                    ws.confirm_force_push(local, target, tags, window, cx);
+                } else {
+                    ws.push_to(local, target, tags, false, window, cx);
+                }
+            })
             .ok();
     }
 
     fn on_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let modifiers = event.keystroke.modifiers;
-        if modifiers.control || modifiers.alt || modifiers.shift {
+        // The branch field takes its own keys (Enter applies the name).
+        if self.editing.is_some() || modifiers.control || modifiers.alt || modifiers.shift {
             return;
         }
         match event.keystroke.key.as_str() {
             "up" if !modifiers.platform => self.step(false, cx),
             "down" if !modifiers.platform => self.step(true, cx),
-            "enter" => self.push(window, cx),
+            "enter" => self.push(false, window, cx),
             _ => return,
         }
         cx.stop_propagation();
@@ -211,7 +285,7 @@ impl PushDialog {
                         .text_color(theme.warning)
                         .child(Icon::new(IconName::TriangleAlert).xsmall())
                         .child(format!(
-                            "{} has {} commit{} that {} lacks: the push will be rejected. Update the project first.",
+                            "{} has {} commit{} that {} lacks: the push will be rejected. Update the project first, or Force Push.",
                             target.name(),
                             outgoing.behind,
                             if outgoing.behind == 1 { "" } else { "s" },
@@ -223,6 +297,9 @@ impl PushDialog {
     }
 
     fn render_commits(&self, cx: &mut Context<Self>) -> AnyElement {
+        let mut remote = self
+            .outgoing()
+            .and_then(|o| Some(self.render_remote(o, o.target.as_ref()?, cx)));
         let theme = cx.theme();
         let list = v_flex()
             .id("push-commits")
@@ -264,7 +341,14 @@ impl PushDialog {
                 .when(selected, |el| el.bg(theme.list_active))
                 .when(!selected, |el| el.hover(|s| s.bg(theme.list_hover)))
         };
-        let link = |text: String| div().text_color(theme.primary).child(text);
+        let link = |id: &'static str, text: String| {
+            div()
+                .id(id)
+                .text_color(theme.primary)
+                .cursor_pointer()
+                .hover(|s| s.underline())
+                .child(text)
+        };
         let mut header = row("push-branch".into(), self.selected.is_none())
             .child(
                 style::lucide("git-branch")
@@ -283,9 +367,20 @@ impl PushDialog {
             );
         header = match &outgoing.target {
             Some(target) => header
-                .child(link(target.remote.clone()))
+                .children(remote.take())
                 .child(":")
-                .child(link(target.branch.clone()))
+                .child(match &self.editing {
+                    Some((input, _)) => div()
+                        .w(px(180.))
+                        .child(Input::new(input).xsmall())
+                        .into_any_element(),
+                    None => link("push-target-branch", target.branch.clone())
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            cx.stop_propagation();
+                            this.edit_branch(window, cx);
+                        }))
+                        .into_any_element(),
+                })
                 .when(target.new_branch, |el| {
                     el.child(
                         div()
@@ -329,111 +424,39 @@ impl PushDialog {
         list.child(header).children(commits).into_any_element()
     }
 
-    fn render_files(&self, cx: &mut Context<Self>) -> AnyElement {
+    /// The remote, a menu of all remotes when there are several.
+    fn render_remote(&self, outgoing: &Outgoing, target: &PushTarget, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme();
-        let muted = theme.muted_foreground;
-        let panel = v_flex()
-            .w(px(360.))
-            .flex_none()
-            .h_full()
-            .border_l_1()
-            .border_color(theme.border);
-        let Some(files) = self.files() else {
-            return panel.into_any_element();
-        };
-        let title = match files.len() {
-            1 => "1 file".to_string(),
-            n => format!("{n} files"),
-        };
-        let rows = tree::rows(files, &self.collapsed)
-            .into_iter()
-            .enumerate()
-            .map(|(ix, row)| {
-                let base = h_flex()
-                    .id(("push-file", ix))
-                    .h(px(ROW_HEIGHT))
-                    .flex_none()
-                    .mx_1()
-                    .pr_2()
-                    .gap_1p5()
-                    .rounded_sm()
-                    .text_sm()
-                    .hover(|s| s.bg(theme.list_hover));
-                match row {
-                    TreeRow::Dir {
-                        path,
-                        label,
-                        depth,
-                        files,
-                        expanded,
-                    } => base
-                        .pl(px(8. + INDENT * depth as f32))
-                        .cursor_pointer()
-                        .child(
-                            Icon::new(if expanded {
-                                IconName::ChevronDown
-                            } else {
-                                IconName::ChevronRight
-                            })
-                            .with_size(style::TREE_CHEVRON)
-                            .text_color(muted),
-                        )
-                        .child(Icon::new(IconName::Folder).small().text_color(muted))
-                        .child(label)
-                        .child(div().text_xs().text_color(muted).child(files.to_string()))
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            if !this.collapsed.remove(&path) {
-                                this.collapsed.insert(path.clone());
-                            }
-                            cx.notify();
-                        }))
-                        .into_any_element(),
-                    TreeRow::File { ix, depth } => {
-                        let file = &files[ix];
-                        let name = tree::file_name(&file.path);
-                        let kind = file.kind();
-                        base.pl(px(8. + INDENT * depth as f32 + 14.))
-                            .child(file_icons::icon_for_file(name, cx).small())
-                            .child(
-                                div()
-                                    .flex_none()
-                                    .text_color(kind_color(kind, cx))
-                                    .when(kind == ChangeKind::Deleted, |el| el.line_through())
-                                    .child(name.to_string()),
-                            )
-                            .children(file.orig_path.clone().map(|orig| {
-                                div()
-                                    .min_w_0()
-                                    .overflow_hidden()
-                                    .text_ellipsis()
-                                    .whitespace_nowrap()
-                                    .text_xs()
-                                    .text_color(muted)
-                                    .child(format!("← {orig}"))
-                            }))
-                            .into_any_element()
-                    }
+        if outgoing.remotes.len() < 2 {
+            return div()
+                .text_color(theme.primary)
+                .child(target.remote.clone())
+                .into_any_element();
+        }
+        let (remotes, current, this) = (
+            outgoing.remotes.clone(),
+            target.remote.clone(),
+            cx.entity().downgrade(),
+        );
+        Button::new("push-remote")
+            .ghost()
+            .xsmall()
+            .label(target.remote.clone())
+            .dropdown_caret(true)
+            .dropdown_menu(move |mut menu, _, _| {
+                for remote in &remotes {
+                    let (this, remote) = (this.clone(), remote.clone());
+                    menu = menu.item(
+                        PopupMenuItem::new(remote.clone())
+                            .checked(remote == current)
+                            .on_click(move |_, _, cx| {
+                                this.update(cx, |this, cx| this.set_remote(remote.clone(), cx))
+                                    .ok();
+                            }),
+                    );
                 }
-            });
-        panel
-            .child(
-                div()
-                    .px_3()
-                    .py_1p5()
-                    .text_xs()
-                    .text_color(muted)
-                    .border_b_1()
-                    .border_color(theme.border)
-                    .child(title),
-            )
-            .child(
-                v_flex()
-                    .id("push-files")
-                    .flex_1()
-                    .py_1()
-                    .overflow_y_scroll()
-                    .children(rows),
-            )
+                menu
+            })
             .into_any_element()
     }
 }
@@ -446,7 +469,9 @@ impl Render for PushDialog {
         }
         let theme = cx.theme();
         let border = theme.border;
-        let can_push = self.pushable().is_some();
+        let can_push = self.pushable(false).is_some();
+        let can_force = self.pushable(true).is_some();
+        let this = cx.entity().downgrade();
         v_flex()
             .track_focus(&self.focus)
             .capture_key_down(cx.listener(Self::on_key))
@@ -483,63 +508,25 @@ impl Render for PushDialog {
                             .on_click(|_, window, cx| window.close_dialog(cx)),
                     )
                     .child(
-                        Button::new("push-confirm")
+                        DropdownButton::new("push-confirm")
                             .primary()
                             .small()
-                            .label("Push")
-                            .disabled(!can_push)
-                            .on_click(cx.listener(|this, _, window, cx| this.push(window, cx))),
+                            .button(
+                                Button::new("push-confirm-button")
+                                    .label("Push")
+                                    .disabled(!can_push)
+                                    .on_click(
+                                        cx.listener(|this, _, window, cx| this.push(false, window, cx)),
+                                    ),
+                            )
+                            .disabled(!can_force)
+                            .dropdown_menu(move |menu, _, _| {
+                                let this = this.clone();
+                                menu.item(PopupMenuItem::new("Force Push…").on_click(move |_, window, cx| {
+                                    this.update(cx, |this, cx| this.push(true, window, cx)).ok();
+                                }))
+                            }),
                     ),
             )
-    }
-}
-
-impl Workspace {
-    /// Opens the Push dialog for `branch`, or for the current branch.
-    pub(super) fn open_push_dialog(
-        &mut self,
-        branch: Option<String>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(git) = self.git.as_ref() else { return };
-        let Some(branch) = branch.or_else(|| git.status.branch.clone()) else {
-            window.push_notification(
-                Notification::warning("HEAD is detached: check out a branch to push it.").title("Push"),
-                cx,
-            );
-            return;
-        };
-        let repo = git.repo.clone();
-        let project = self
-            .root
-            .file_name()
-            .map_or_default(|n| n.to_string_lossy().into_owned());
-        let workspace = cx.entity().downgrade();
-        let dialog = cx.new(|cx| PushDialog::new(workspace, repo, branch, cx));
-        window.open_dialog(cx, move |d, _, _| {
-            d.w(px(900.))
-                .title(format!("Push Commits to {project}"))
-                .child(dialog.clone())
-        });
-    }
-
-    fn push_to(
-        &mut self,
-        local: String,
-        target: PushTarget,
-        tags: bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.run_git(
-            "Push",
-            move |repo| repo.push_to(&local, &target, tags),
-            |_, summary, window, cx| {
-                window.push_notification(Notification::success(summary.message()).title("Push"), cx);
-            },
-            window,
-            cx,
-        );
     }
 }

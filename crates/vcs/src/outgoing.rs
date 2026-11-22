@@ -37,18 +37,34 @@ pub struct Outgoing {
     pub files: Vec<CommitFile>,
     /// Commits on the target the local branch lacks: the push would be rejected.
     pub behind: u32,
+    /// Every remote, to push somewhere else.
+    pub remotes: Vec<String>,
 }
 
 impl Repo {
-    /// What pushing the local branch `branch` would send, and where.
+    /// What pushing the local branch `branch` would send to its upstream (or the
+    /// same-named branch on the default remote).
     pub fn outgoing(&self, branch: &str) -> Result<Outgoing> {
-        let Some(target) = self.push_target(branch)? else {
+        let target = self.push_target(branch)?;
+        self.outgoing_with(branch, target)
+    }
+
+    /// What pushing `branch` to `remote_branch` on `remote` would send.
+    pub fn outgoing_to(&self, branch: &str, remote: &str, remote_branch: &str) -> Result<Outgoing> {
+        let target = self.target(remote, remote_branch);
+        self.outgoing_with(branch, Some(target))
+    }
+
+    fn outgoing_with(&self, branch: &str, target: Option<PushTarget>) -> Result<Outgoing> {
+        let remotes = self.remotes()?;
+        let Some(target) = target else {
             return Ok(Outgoing {
                 local: branch.into(),
                 target: None,
                 commits: self.commits(&[branch])?,
                 files: Vec::new(),
                 behind: 0,
+                remotes,
             });
         };
         let remote_ref = format!("refs/remotes/{}", target.name());
@@ -75,19 +91,30 @@ impl Repo {
             commits,
             files,
             behind,
+            remotes,
         })
     }
 
-    /// Pushes `local` to `target` and makes it the branch's upstream.
-    pub fn push_to(&self, local: &str, target: &PushTarget, tags: bool) -> Result<PushSummary> {
-        let commits = self.outgoing(local)?.commits.len() as u32;
-        if commits == 0 && !target.new_branch && !tags {
+    /// Pushes `local` to `target`; a branch without an upstream gets this one. `force`
+    /// overwrites the remote branch, but only if it is still where we last fetched it.
+    pub fn push_to(&self, local: &str, target: &PushTarget, tags: bool, force: bool) -> Result<PushSummary> {
+        let commits = self
+            .outgoing_to(local, &target.remote, &target.branch)?
+            .commits
+            .len() as u32;
+        if commits == 0 && !target.new_branch && !tags && !force {
             return Ok(PushSummary::UpToDate);
         }
         let refspec = format!("refs/heads/{local}:refs/heads/{}", target.branch);
-        let mut args = vec!["push", "--set-upstream"];
+        let mut args = vec!["push"];
+        if self.branch_config(local, "remote").is_none() {
+            args.push("--set-upstream");
+        }
         if tags {
             args.push("--tags");
+        }
+        if force {
+            args.push("--force-with-lease");
         }
         args.extend([target.remote.as_str(), refspec.as_str()]);
         self.run(&args)?;
@@ -103,15 +130,13 @@ impl Repo {
         if !self.has_ref(&format!("refs/heads/{branch}")) {
             bail!("{branch} is not a local branch");
         }
-        let config = |key: &str| {
-            self.run(&["config", "--get", &format!("branch.{branch}.{key}")])
-                .ok()
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-        };
-        let upstream = config("remote")
+        let upstream = self
+            .branch_config(branch, "remote")
             .filter(|remote| remote != ".")
-            .zip(config("merge").and_then(|m| m.strip_prefix("refs/heads/").map(str::to_string)));
+            .zip(
+                self.branch_config(branch, "merge")
+                    .and_then(|m| m.strip_prefix("refs/heads/").map(str::to_string)),
+            );
         let (remote, remote_branch) = match upstream {
             Some(upstream) => upstream,
             None => {
@@ -127,17 +152,28 @@ impl Repo {
                 (remote, branch.to_string())
             }
         };
-        let new_branch = !self.has_ref(&format!("refs/remotes/{remote}/{remote_branch}"));
+        Ok(Some(self.target(&remote, &remote_branch)))
+    }
+
+    fn target(&self, remote: &str, branch: &str) -> PushTarget {
         let url = self
-            .run(&["remote", "get-url", "--push", &remote])
+            .run(&["remote", "get-url", "--push", remote])
             .ok()
             .map(|s| s.trim().to_string());
-        Ok(Some(PushTarget {
-            remote,
+        PushTarget {
+            remote: remote.into(),
             url,
-            branch: remote_branch,
-            new_branch,
-        }))
+            branch: branch.into(),
+            new_branch: !self.has_ref(&format!("refs/remotes/{remote}/{branch}")),
+        }
+    }
+
+    /// `branch.<name>.<key>` from the git config.
+    fn branch_config(&self, branch: &str, key: &str) -> Option<String> {
+        self.run(&["config", "--get", &format!("branch.{branch}.{key}")])
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
     }
 
     fn has_ref(&self, name: &str) -> bool {
@@ -215,7 +251,7 @@ mod tests {
         );
 
         assert_eq!(
-            local.0.push_to("feature", &target, false).unwrap(),
+            local.0.push_to("feature", &target, false, false).unwrap(),
             PushSummary::Pushed {
                 commits: 1,
                 upstream: "origin/feature".into(),
@@ -227,8 +263,33 @@ mod tests {
         let target = after.target.unwrap();
         assert!(after.commits.is_empty() && !target.new_branch);
         assert_eq!(
-            local.0.push_to("feature", &target, false).unwrap(),
+            local.0.push_to("feature", &target, false, false).unwrap(),
             PushSummary::UpToDate
+        );
+    }
+
+    #[test]
+    fn pushes_to_another_branch_and_forces_a_rewritten_one() {
+        let (remote, local) = remote_and_clone();
+        local.commit_file("a.txt", "2\n", "second");
+        let other = local.0.outgoing_to("main", "origin", "review").unwrap();
+        let target = other.target.clone().unwrap();
+        assert!(target.new_branch);
+        assert_eq!(subjects(&other), ["second"]);
+        local.0.push_to("main", &target, false, false).unwrap();
+        assert!(remote.git(&["branch", "--list", "review"]).contains("review"));
+        // main already tracked origin/main: pushing elsewhere doesn't change that.
+        assert_eq!(local.0.outgoing("main").unwrap().target.unwrap().branch, "main");
+
+        let main = local.0.outgoing("main").unwrap().target.unwrap();
+        local.0.push_to("main", &main, false, false).unwrap();
+        local.git(&["commit", "-q", "--amend", "-m", "second, reworded"]);
+        assert_eq!(local.0.outgoing("main").unwrap().behind, 1);
+        assert!(local.0.push_to("main", &main, false, false).is_err());
+        local.0.push_to("main", &main, false, true).unwrap();
+        assert_eq!(
+            remote.git(&["log", "-1", "--format=%s", "main"]).trim(),
+            "second, reworded"
         );
     }
 
