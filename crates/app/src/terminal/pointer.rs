@@ -6,7 +6,7 @@ use alacritty_terminal::grid::Scroll;
 use gpui_kit::*;
 
 use super::TerminalView;
-use super::mouse::{Button, Mods, MouseAction, alternate_scroll, mouse_report, wants_mouse};
+use super::mouse::{Button, Mods, MouseAction, alternate_scroll, mouse_report, wants_mouse, wheel_lines};
 
 /// Wheel events sent per scroll gesture at most, so a fling does not flood the app.
 const MAX_WHEEL_EVENTS: i32 = 10;
@@ -84,7 +84,11 @@ impl TerminalView {
 
     pub(super) fn on_wheel(&mut self, event: &ScrollEvent, cx: &mut Context<Self>) {
         let Some(metrics) = self.metrics else { return };
-        let lines = (event.delta.pixel_delta(metrics.height).y / metrics.height).round() as i32;
+        if event.touch_phase == TouchPhase::Started {
+            self.wheel_pending = 0.0;
+        }
+        let pixels = event.delta.pixel_delta(metrics.height).y / px(1.);
+        let lines = wheel_lines(&mut self.wheel_pending, pixels, metrics.height / px(1.));
         if lines == 0 {
             return;
         }

@@ -109,6 +109,23 @@ pub fn mouse_report(
     Some(bytes)
 }
 
+/// Whole lines to scroll for a wheel delta of `pixels`, keeping the remainder in
+/// `pending`: a slow trackpad swipe sends a few pixels per event, and rounding each
+/// event on its own drops them all.
+pub fn wheel_lines(pending: &mut f32, pixels: f32, line_height: f32) -> i32 {
+    if pixels == 0.0 || line_height <= 0.0 {
+        return 0;
+    }
+    // Reversing the swipe should move at once, not first pay back the old remainder.
+    if *pending != 0.0 && pending.signum() != pixels.signum() {
+        *pending = 0.0;
+    }
+    *pending += pixels;
+    let lines = (*pending / line_height).trunc();
+    *pending -= lines * line_height;
+    lines as i32
+}
+
 /// Arrow-key presses for wheel scrolling in full-screen apps that do not use
 /// the mouse (less, man): xterm's "alternate scroll" mode.
 pub fn alternate_scroll(mode: TermMode, lines: i32) -> Option<Vec<u8>> {
@@ -129,7 +146,7 @@ pub fn alternate_scroll(mode: TermMode, lines: i32) -> Option<Vec<u8>> {
 mod tests {
     use alacritty_terminal::term::TermMode;
 
-    use super::{Button, Mods, MouseAction, alternate_scroll, mouse_report};
+    use super::{Button, Mods, MouseAction, alternate_scroll, mouse_report, wheel_lines};
 
     #[test]
     fn reports_in_sgr() {
@@ -200,5 +217,22 @@ mod tests {
         );
         assert_eq!(alternate_scroll(TermMode::ALTERNATE_SCROLL, 1), None);
         assert_eq!(alternate_scroll(mode | TermMode::MOUSE_REPORT_CLICK, 1), None);
+    }
+
+    #[test]
+    fn accumulates_small_wheel_deltas() {
+        let mut pending = 0.0;
+        // 16 px lines, a slow swipe of 5 px per event.
+        let lines: Vec<i32> = (0..7).map(|_| wheel_lines(&mut pending, 5.0, 16.0)).collect();
+        assert_eq!(lines, [0, 0, 0, 1, 0, 0, 1]);
+        assert_eq!(pending, 3.0);
+        // Turning back drops the remainder of the other direction.
+        assert_eq!(wheel_lines(&mut pending, -10.0, 16.0), 0);
+        assert_eq!(wheel_lines(&mut pending, -40.0, 16.0), -3);
+        assert_eq!(pending, -2.0);
+        // A mouse wheel notch (whole lines) scrolls exactly.
+        let mut pending = 0.0;
+        assert_eq!(wheel_lines(&mut pending, 48.0, 16.0), 3);
+        assert_eq!(wheel_lines(&mut pending, 0.0, 16.0), 0);
     }
 }

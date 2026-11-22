@@ -73,6 +73,8 @@ pub struct TerminalView {
     selecting: bool,
     /// Last cell reported to a mouse-aware app, to report motion once per cell.
     last_mouse_cell: Option<(usize, usize)>,
+    /// Wheel pixels not yet scrolled (less than a line).
+    wheel_pending: f32,
     /// Blink phase of the cursor; it stays on while typing.
     cursor_on: bool,
     last_input: Instant,
@@ -133,6 +135,7 @@ impl TerminalView {
             origin: Point::default(),
             selecting: false,
             last_mouse_cell: None,
+            wheel_pending: 0.0,
             cursor_on: true,
             last_input: Instant::now(),
             was_focused: false,

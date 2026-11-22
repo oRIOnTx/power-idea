@@ -114,6 +114,7 @@ is in the working tree only.
 - [x] Project tree multi-selection (⌘+click toggles, ⇧+click selects a range, arrows move it) and
       ⌘X / ⌘C / ⌘V for the selected files and folders (also Edit menu, Find Action and the context menu,
       which acts on the whole selection); pasted items become the selection
+- [x] Terminal: slow trackpad swipes scroll (sub-line wheel deltas accumulate instead of being rounded away)
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
 
 ## Backlog
