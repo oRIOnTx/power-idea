@@ -1,6 +1,8 @@
 //! Language server integration: starts servers per language on demand and
 //! adapts them to the editor's completion, hover and definition hooks.
 
+mod ruby_version;
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -18,13 +20,42 @@ use serde_json::Value;
 use crate::config::LanguageServerConfig;
 use crate::inbox::Inbox;
 
+/// How a server came up when the project's own environment failed.
+pub struct Fallback {
+    /// The original startup failure.
+    pub reason: String,
+    /// Another Ruby version, used because the project's one lacks the server.
+    pub ruby: Option<String>,
+    /// A minimal bundle replaced the project's broken one.
+    pub minimal_bundle: bool,
+}
+
+impl Fallback {
+    /// Notification text: what runs instead, and why.
+    pub fn message(&self, server_id: &str) -> String {
+        let mut parts = Vec::new();
+        if let Some(version) = &self.ruby {
+            let why = ruby_version::describe(&self.reason).unwrap_or_default();
+            parts.push(format!("{why} {server_id} runs on Ruby {version} instead."));
+        }
+        if self.minimal_bundle {
+            parts.push(format!(
+                "The project's bundle could not be loaded, so {server_id} runs with a minimal bundle: \
+                 navigation, completion and hover work for project code; Rails add-ons and gem sources \
+                 need the project's gems."
+            ));
+        }
+        format!("{}\n\nCause: {}", parts.join(" "), self.reason)
+    }
+}
+
 /// Events delivered from server threads to the workspace.
 pub enum LspEvent {
     Started {
         server_id: String,
         result: Result<Arc<LanguageServer>, String>,
-        /// Set when the server only came up in fallback mode; the original failure.
-        fallback_reason: Option<String>,
+        /// Set when the server only came up in fallback mode.
+        fallback: Option<Fallback>,
     },
     Diagnostics {
         path: PathBuf,
@@ -124,22 +155,51 @@ impl LspStore {
                     notifications.push(event);
                 }
             });
-            let mut fallback_reason = None;
-            let mut result = LanguageServer::start(&id, &command, &args, &[], &root, handler.clone())
-                .map_err(|e| format!("{e:#}"));
+            let start = |env: &[(String, String)]| {
+                LanguageServer::start(&id, &command, &args, env, &root, handler.clone())
+                    .map_err(|e| format!("{e:#}"))
+            };
+            let mut env = Vec::new();
+            let mut result = start(&env);
+            let mut fallback = None::<Fallback>;
+            // The project's Ruby lacks the server (or isn't installed): use another Ruby.
+            if let Err(reason) = &result
+                && id == "ruby"
+                && let Some((ruby_env, version)) = ruby_version::fallback_env(reason, &command)
+            {
+                env = ruby_env;
+                fallback = Some(Fallback {
+                    reason: reason.clone(),
+                    ruby: Some(version),
+                    minimal_bundle: false,
+                });
+                result = start(&env);
+            }
             // The project's environment is broken (e.g. gems missing): retry in
             // fallback mode so navigation and completion still work.
             if let Err(reason) = &result
-                && let Some(env) = fallback_env(&id, reason)
-                && let Ok(server) = LanguageServer::start(&id, &command, &args, &env, &root, handler)
+                && let Some(bundle_env) = fallback_env(&id, reason)
             {
-                fallback_reason = Some(reason.clone());
-                result = Ok(server);
+                let mut retry_env = env;
+                retry_env.extend(bundle_env);
+                if let Ok(server) = start(&retry_env) {
+                    let fallback = fallback.get_or_insert_with(|| Fallback {
+                        reason: reason.clone(),
+                        ruby: None,
+                        minimal_bundle: false,
+                    });
+                    fallback.minimal_bundle = true;
+                    result = Ok(server);
+                }
+            }
+            // Report the original failure when no fallback helped.
+            if let (Err(_), Some(fallback)) = (&result, fallback.take()) {
+                result = Err(fallback.reason);
             }
             events.push(LspEvent::Started {
                 server_id: id,
                 result,
-                fallback_reason,
+                fallback,
             });
         })
         .detach();
@@ -322,7 +382,13 @@ fn fallback_env(server_id: &str, reason: &str) -> Option<Vec<(String, String)>> 
 
 /// Terminal commands that repair the project environment, typed but not run.
 pub fn fix_commands(server_id: &str, reason: &str) -> Option<String> {
-    if server_id != "ruby" || !is_bundle_failure(reason) {
+    if server_id != "ruby" {
+        return None;
+    }
+    if let Some(command) = ruby_version::fix_command(reason) {
+        return Some(command);
+    }
+    if !is_bundle_failure(reason) {
         return None;
     }
     Some(if reason.contains("Makefile") || reason.contains("pg") {
@@ -333,8 +399,13 @@ pub fn fix_commands(server_id: &str, reason: &str) -> Option<String> {
 }
 
 /// A next step for well-known startup failures.
-pub fn failure_hint(reason: &str) -> Option<&'static str> {
-    if reason.contains("Could not create Makefile")
+pub fn failure_hint(reason: &str) -> Option<String> {
+    if let Some(problem) = ruby_version::describe(reason) {
+        return Some(format!(
+            "{problem} No other installed Ruby has it either; install it with Fix in Terminal."
+        ));
+    }
+    let hint = if reason.contains("Could not create Makefile")
         || reason.contains("Could not find")
         || reason.contains("GemNotFound")
     {
@@ -345,7 +416,8 @@ pub fn failure_hint(reason: &str) -> Option<&'static str> {
         Some("Check the server command in Settings → Languages.")
     } else {
         None
-    }
+    };
+    hint.map(String::from)
 }
 
 /// Picks the configured, enabled server for an editor language.

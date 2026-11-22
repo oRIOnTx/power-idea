@@ -55,14 +55,13 @@ impl Workspace {
             LspEvent::Started {
                 server_id,
                 result,
-                fallback_reason,
+                fallback,
             } => {
-                self.lsp
-                    .mark_started(&server_id, &result, fallback_reason.is_some());
+                self.lsp.mark_started(&server_id, &result, fallback.is_some());
                 match result {
                     Ok(_) => {
-                        match &fallback_reason {
-                            Some(reason) => self.report_fallback(&server_id, reason, cx),
+                        match &fallback {
+                            Some(fallback) => self.report_fallback(&server_id, fallback, cx),
                             None => self.pending_notices.push(Notice::ServerRecovered {
                                 server_id: server_id.clone(),
                             }),
@@ -159,7 +158,7 @@ impl Workspace {
         let mut message = reason.to_string();
         if let Some(hint) = language::failure_hint(reason) {
             message.push_str("\n\n");
-            message.push_str(hint);
+            message.push_str(&hint);
         }
         let title = format!("{server_id} language server is not running");
         let notification = self.server_notice(NotificationType::Error, title, message, server_id, reason, cx);
@@ -170,15 +169,17 @@ impl Workspace {
     }
 
     /// The server runs, but without the project's environment.
-    fn report_fallback(&mut self, server_id: &str, reason: &str, cx: &mut Context<Self>) {
-        let message = format!(
-            "The project's bundle could not be loaded, so {server_id} runs with a minimal bundle: \
-             navigation, completion and hover work for project code; Rails add-ons and gem sources \
-             need the project's gems.\n\nCause: {reason}"
-        );
+    fn report_fallback(&mut self, server_id: &str, fallback: &language::Fallback, cx: &mut Context<Self>) {
         let title = format!("{server_id} language server · fallback mode");
-        let notification =
-            self.server_notice(NotificationType::Warning, title, message, server_id, reason, cx);
+        let message = fallback.message(server_id);
+        let notification = self.server_notice(
+            NotificationType::Warning,
+            title,
+            message,
+            server_id,
+            &fallback.reason,
+            cx,
+        );
         self.pending_notices.push(Notice::ServerFailed {
             server_id: server_id.to_string(),
             notification: Box::new(notification),
