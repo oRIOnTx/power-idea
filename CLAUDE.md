@@ -90,6 +90,15 @@ Rules:
 - **Paths:** tools and menus use paths relative to the project root; validate
   that user/agent-supplied paths stay inside the project.
 
+## Commits
+
+- **Commit after every finished change, without asking**: once `scripts/check.sh`
+  is clean and `PROGRESS.md` is updated, commit on the current branch (`main`).
+- One commit per feature or fix; English, imperative subject ("Add …", "Fix …"),
+  ending with the session's attribution trailer.
+- Commit only files that belong to the change; look at unknown files before adding them.
+- `git push`, force-push and history rewrites still need the owner's explicit request.
+
 ## Code style
 
 - Code, comments, identifiers, commits: English. `rustfmt.toml` sets
