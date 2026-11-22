@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::Result;
-use docker::{Action, ComposeProject, Container, Docker, Row, State};
+use docker::{Action, ComposeProject, Container, Docker, Group, State};
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
@@ -35,6 +35,8 @@ pub(super) struct DockerState {
     pub(super) project: Option<ComposeProject>,
     containers: Vec<Container>,
     pub(super) show_all: bool,
+    /// Groups folded in "Show all containers", by `group_key`.
+    pub(super) collapsed: HashSet<String>,
     /// Containers with an action in flight (their buttons show progress).
     pub(super) busy: HashSet<String>,
     /// Ends the event-stream thread when the panel state goes away.
@@ -48,8 +50,8 @@ impl Drop for DockerState {
 }
 
 impl DockerState {
-    pub(super) fn rows(&self, root: &std::path::Path) -> Vec<Row> {
-        docker::rows(root, self.project.as_ref(), &self.containers, self.show_all)
+    pub(super) fn groups(&self, root: &std::path::Path) -> Vec<Group> {
+        docker::groups(root, self.project.as_ref(), &self.containers, self.show_all)
     }
 
     /// (running, total) of the project's rows, for the sidebar badge.
@@ -102,6 +104,7 @@ impl Workspace {
             project: None,
             containers: Vec::new(),
             show_all: false,
+            collapsed: HashSet::new(),
             busy: HashSet::new(),
             stop_events: Arc::new(AtomicBool::new(false)),
         });

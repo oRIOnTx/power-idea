@@ -3,10 +3,10 @@
 
 use std::process::Command;
 
-use docker::{Action, Container, Health, Row, State};
+use docker::{Action, Container, Group, GroupKind, Health, Row, State};
 use gpui_kit::component::button::Button;
 use gpui_kit::component::checkbox::Checkbox;
-use gpui_kit::component::{ActiveTheme as _, Sizable as _, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
@@ -47,12 +47,9 @@ impl Workspace {
             DockerStatus::Unavailable(err) => return message(err.clone(), true, cx),
             DockerStatus::Ready => {}
         }
-        let rows = state.rows(&self.root);
+        let groups = state.groups(&self.root);
         let (running, total) = state.counts(&self.root);
-        let title = state
-            .project
-            .as_ref()
-            .map_or_else(|| self.project_name(), |p| p.name.clone());
+        let title = self.docker_project_title();
         let has_compose = state.project.is_some();
         let show_all = state.show_all;
 
@@ -121,12 +118,25 @@ impl Workspace {
                     })),
             );
 
-        let empty = rows.is_empty();
-        let rows: Vec<AnyElement> = rows
-            .into_iter()
-            .enumerate()
-            .map(|(ix, row)| self.render_docker_row(ix, row, state, cx))
-            .collect();
+        let empty = groups.is_empty();
+        let mut rows: Vec<AnyElement> = Vec::new();
+        let mut ix = 0;
+        for group in groups {
+            let key = group_key(&group.kind);
+            let collapsed = show_all && state.collapsed.contains(&key);
+            // Without "Show all" there is only the project, so no header is needed.
+            if show_all {
+                rows.push(self.render_docker_group_header(&group, key, collapsed, cx));
+            }
+            if collapsed {
+                ix += group.rows.len();
+                continue;
+            }
+            for row in group.rows {
+                rows.push(self.render_docker_row(ix, row, state, cx));
+                ix += 1;
+            }
+        }
         v_flex()
             .size_full()
             .child(header)
@@ -147,6 +157,80 @@ impl Workspace {
                         )
                     }),
             )
+            .into_any_element()
+    }
+
+    /// The compose project's name, or the folder's without a compose file.
+    fn docker_project_title(&self) -> String {
+        self.docker
+            .as_ref()
+            .and_then(|d| d.project.as_ref())
+            .map_or_else(|| self.project_name(), |p| p.name.clone())
+    }
+
+    /// Foldable group title with its running / total counts.
+    fn render_docker_group_header(
+        &self,
+        group: &Group,
+        key: String,
+        collapsed: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let theme = cx.theme();
+        let title = match &group.kind {
+            GroupKind::Project => self.docker_project_title(),
+            GroupKind::Compose(name) => name.clone(),
+            GroupKind::Standalone => "Other containers".to_string(),
+        };
+        let running = group.rows.iter().filter(|r| r.state() == State::Running).count();
+        let icon = match group.kind {
+            GroupKind::Standalone => style::lucide("box"),
+            _ => style::lucide("layers"),
+        };
+        h_flex()
+            .id(SharedString::from(format!("docker-group-{key}")))
+            .mx_1()
+            .mt_1()
+            .px_1()
+            .py_0p5()
+            .gap_1()
+            .rounded(theme.radius)
+            .text_xs()
+            .cursor_pointer()
+            .hover(|s| s.bg(theme.list_hover))
+            .child(
+                Icon::new(if collapsed {
+                    IconName::ChevronRight
+                } else {
+                    IconName::ChevronDown
+                })
+                .xsmall()
+                .text_color(theme.muted_foreground),
+            )
+            .child(Icon::new(icon).xsmall().text_color(theme.muted_foreground))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .text_ellipsis()
+                    .whitespace_nowrap()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(title),
+            )
+            .child(
+                div()
+                    .text_color(theme.muted_foreground)
+                    .child(format!("{running}/{}", group.rows.len())),
+            )
+            .on_click(cx.listener(move |ws, _, _, cx| {
+                if let Some(state) = ws.docker.as_mut()
+                    && !state.collapsed.remove(&key)
+                {
+                    state.collapsed.insert(key.clone());
+                }
+                cx.notify();
+            }))
             .into_any_element()
     }
 
@@ -322,5 +406,13 @@ impl Workspace {
                 buttons.into_any_element()
             })
             .into_any_element()
+    }
+}
+
+fn group_key(kind: &GroupKind) -> String {
+    match kind {
+        GroupKind::Project => "project".into(),
+        GroupKind::Compose(name) => format!("compose:{name}"),
+        GroupKind::Standalone => "standalone".into(),
     }
 }

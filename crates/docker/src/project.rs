@@ -103,13 +103,8 @@ pub fn rows(root: &Path, project: Option<&ComposeProject>, containers: &[Contain
             continue;
         }
         if all || belongs(container, root, project) {
-            let title = if container.service.is_empty() {
-                container.name.clone()
-            } else {
-                container.service.clone()
-            };
             rows.push(Row {
-                title,
+                title: row_title(container).to_string(),
                 container: Some(container.clone()),
             });
         }
@@ -117,11 +112,79 @@ pub fn rows(root: &Path, project: Option<&ComposeProject>, containers: &[Contain
     rows
 }
 
+/// Which containers a panel group holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GroupKind {
+    /// The open project's services and containers.
+    Project,
+    /// Another compose project, by its name.
+    Compose(String),
+    /// Containers started without compose.
+    Standalone,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Group {
+    pub kind: GroupKind,
+    pub rows: Vec<Row>,
+}
+
+/// [`rows`] grouped like JetBrains Services: the project first, then (with `all`) other
+/// compose projects by name, then standalone containers. Empty groups are left out.
+pub fn groups(
+    root: &Path,
+    project: Option<&ComposeProject>,
+    containers: &[Container],
+    all: bool,
+) -> Vec<Group> {
+    let mut groups = vec![Group {
+        kind: GroupKind::Project,
+        rows: rows(root, project, containers, false),
+    }];
+    if all {
+        let mut others: Vec<&Container> = containers.iter().filter(|c| !belongs(c, root, project)).collect();
+        others.sort_by(|a, b| (&a.project, row_title(a)).cmp(&(&b.project, row_title(b))));
+        for container in others {
+            let kind = match container.project.as_str() {
+                "" => GroupKind::Standalone,
+                name => GroupKind::Compose(name.to_string()),
+            };
+            let row = Row {
+                title: row_title(container).to_string(),
+                container: Some(container.clone()),
+            };
+            match groups.iter_mut().find(|g| g.kind == kind) {
+                Some(group) => group.rows.push(row),
+                None => groups.push(Group {
+                    kind,
+                    rows: vec![row],
+                }),
+            }
+        }
+        // Standalone containers go last, after every compose project.
+        groups.sort_by_key(|g| match g.kind {
+            GroupKind::Project => 0,
+            GroupKind::Compose(_) => 1,
+            GroupKind::Standalone => 2,
+        });
+    }
+    groups.retain(|g| !g.rows.is_empty());
+    groups
+}
+
+fn row_title(container: &Container) -> &str {
+    if container.service.is_empty() {
+        &container.name
+    } else {
+        &container.service
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
 
-    use super::{ComposeProject, parse_compose_config, rows};
+    use super::{ComposeProject, GroupKind, groups, parse_compose_config, rows};
     use crate::model::{Container, State};
 
     fn container(name: &str, project: &str, service: &str, dir: &str, state: State) -> Container {
@@ -188,5 +251,40 @@ mod tests {
             .map(|r| r.title)
             .collect();
         assert_eq!(plain, ["web", "db", "old"]);
+    }
+
+    #[test]
+    fn groups_other_containers_by_compose_project() {
+        let root = Path::new("/nonexistent/shop");
+        let project = ComposeProject {
+            name: "shop".into(),
+            services: vec!["web".into()],
+        };
+        let containers = vec![
+            container("shop-web-1", "shop", "web", "/nonexistent/shop", State::Running),
+            container("loose", "", "", "", State::Running),
+            container("blog-db-1", "blog", "db", "/elsewhere/blog", State::Running),
+            container("api-web-1", "api", "web", "/elsewhere/api", State::Exited),
+            container("blog-app-1", "blog", "app", "/elsewhere/blog", State::Running),
+        ];
+        let summary = |all| -> Vec<(GroupKind, Vec<String>)> {
+            groups(root, Some(&project), &containers, all)
+                .into_iter()
+                .map(|g| (g.kind, g.rows.into_iter().map(|r| r.title).collect()))
+                .collect()
+        };
+        assert_eq!(summary(false), [(GroupKind::Project, vec!["web".to_string()])]);
+        assert_eq!(
+            summary(true),
+            [
+                (GroupKind::Project, vec!["web".to_string()]),
+                (GroupKind::Compose("api".into()), vec!["web".to_string()]),
+                (
+                    GroupKind::Compose("blog".into()),
+                    vec!["app".to_string(), "db".to_string()]
+                ),
+                (GroupKind::Standalone, vec!["loose".to_string()]),
+            ]
+        );
     }
 }

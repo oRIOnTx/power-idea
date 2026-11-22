@@ -155,6 +155,8 @@ is in the working tree only.
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
 - [x] Status bar shows JetBrains-style breadcrumbs (project › folders › file, with icons) instead of the
       branch and file count; a click reveals the crumb in the project tree
+- [x] Docker "Show all containers" groups containers like JetBrains Services: the project, other compose
+      projects by name, then standalone containers; each group folds and shows running/total
 
 ## Backlog
 Agreed backlog is done. Candidates:
