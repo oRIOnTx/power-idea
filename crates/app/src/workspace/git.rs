@@ -13,7 +13,6 @@ use vcs::{Branch, ChangeKind, FileChange, Operation, Repo, Status};
 
 use super::Workspace;
 use crate::editor::{CenterTab, DiffTab};
-use crate::palette::PaletteMode;
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(3);
 const LOCAL_CHANGES_DIFF: &str = "diff:local";
@@ -437,22 +436,7 @@ impl Workspace {
         self.activate_tab(ix, window, cx);
     }
 
-    pub(super) fn open_branches(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(repo) = self.git.as_ref().map(|g| g.repo.clone()) else {
-            return;
-        };
-        cx.spawn_in(window, async move |this, cx| {
-            let branches = cx.background_spawn(async move { repo.branches() }).await;
-            this.update_in(cx, |ws, window, cx| match branches {
-                Ok(branches) => ws.open_palette_with(PaletteMode::Branches, branches, window, cx),
-                Err(err) => window.push_notification(Notification::error(format!("{err:#}")), cx),
-            })
-            .ok();
-        })
-        .detach();
-    }
-
-    pub fn checkout(&mut self, branch: Branch, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn checkout(&mut self, branch: Branch, window: &mut Window, cx: &mut Context<Self>) {
         let name = branch.name.clone();
         self.run_git(
             "Checkout",
@@ -461,19 +445,6 @@ impl Workspace {
                 ws.reload_clean_editors(window, cx);
                 ws.reindex(cx);
                 window.push_notification(Notification::success(format!("Checked out {name}")), cx);
-            },
-            window,
-            cx,
-        );
-    }
-
-    pub fn create_branch(&mut self, name: String, window: &mut Window, cx: &mut Context<Self>) {
-        let label = name.clone();
-        self.run_git(
-            "New Branch",
-            move |repo| repo.create_branch(&name),
-            move |_, _, window, cx| {
-                window.push_notification(Notification::success(format!("Created branch {label}")), cx);
             },
             window,
             cx,

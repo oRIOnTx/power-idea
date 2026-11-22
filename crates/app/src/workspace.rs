@@ -21,6 +21,7 @@ use crate::project_tree;
 use crate::terminal::TerminalView;
 
 mod action_handlers;
+mod branches;
 mod chrome;
 mod code_nav;
 mod conflicts;
@@ -158,6 +159,8 @@ pub struct Workspace {
     left_panel: LeftPanel,
     git: Option<git::GitState>,
     git_log: Option<git_log::GitLogState>,
+    /// The open Branches popup under the title bar's branch widget.
+    branches_popup: Option<(Entity<crate::branches_popup::BranchesPopup>, Subscription)>,
     /// Run configurations (user + detected) and the one Run (⌃R) starts.
     run_configs: Vec<run::RunConfig>,
     selected_run: Option<String>,
@@ -238,6 +241,7 @@ impl Workspace {
             left_panel: LeftPanel::Project,
             git: None,
             git_log: None,
+            branches_popup: None,
             run_configs: Vec::new(),
             selected_run: None,
             breakpoints: Default::default(),
@@ -351,18 +355,7 @@ impl Workspace {
     }
 
     fn open_palette(&mut self, mode: PaletteMode, window: &mut Window, cx: &mut Context<Self>) {
-        self.open_palette_with(mode, Vec::new(), window, cx);
-    }
-
-    fn open_palette_with(
-        &mut self,
-        mode: PaletteMode,
-        branches: Vec<vcs::Branch>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
         let mut source = self.palette_source(cx);
-        source.branches = branches;
         // Like JetBrains, the current file is listed last in Recent Files.
         if mode == PaletteMode::RecentFiles && !source.recent_files.is_empty() {
             source.recent_files.rotate_left(1);
@@ -377,7 +370,6 @@ impl Workspace {
             index: self.index.clone(),
             recent_files: self.recent_files.clone(),
             recent_projects: cx.global::<AppConfig>().0.recent_projects.clone(),
-            branches: Vec::new(),
             exclude: self.project.exclude.clone(),
             locations: Vec::new(),
             symbol_search: None,

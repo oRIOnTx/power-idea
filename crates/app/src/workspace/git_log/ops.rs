@@ -57,6 +57,57 @@ impl Workspace {
         });
     }
 
+    /// Asks for a name, then creates a branch at `start` and checks it out.
+    pub(in crate::workspace) fn prompt_new_branch(
+        &mut self,
+        start: String,
+        initial: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.prompt_name("New Branch", &initial, window, cx, move |ws, name, window, cx| {
+            let name = check_ref_name(&name)?;
+            let start = start.clone();
+            let done = format!("Created and checked out {name}");
+            ws.run_log_op(
+                "New Branch",
+                done,
+                move |repo| repo.create_branch_at(&name, &start, true),
+                window,
+                cx,
+            );
+            Ok(())
+        });
+    }
+
+    /// Asks for a tag, branch or commit and checks it out as a detached HEAD.
+    pub(in crate::workspace) fn prompt_checkout_revision(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.prompt_name(
+            "Checkout Tag or Revision",
+            "",
+            window,
+            cx,
+            |ws, revision, window, cx| {
+                let revision = revision.trim().to_string();
+                if revision.is_empty() {
+                    anyhow::bail!("Enter a tag, branch or commit");
+                }
+                ws.run_log_op(
+                    "Checkout",
+                    format!("Checked out {revision} (detached HEAD)"),
+                    move |repo| repo.checkout_revision(&revision),
+                    window,
+                    cx,
+                );
+                Ok(())
+            },
+        );
+    }
+
     fn current_branch(&self) -> Option<String> {
         self.git.as_ref()?.status.branch.clone()
     }
@@ -75,21 +126,7 @@ impl Workspace {
                 cx.write_to_clipboard(ClipboardItem::new_string(target));
                 window.push_notification(Notification::info("Revision number copied"), cx);
             }
-            GitLogOp::NewBranchAt => {
-                self.prompt_name("New Branch", "", window, cx, move |ws, name, window, cx| {
-                    let name = check_ref_name(&name)?;
-                    let start = target.clone();
-                    let done = format!("Created and checked out {name}");
-                    ws.run_log_op(
-                        "New Branch",
-                        done,
-                        move |repo| repo.create_branch_at(&name, &start, true),
-                        window,
-                        cx,
-                    );
-                    Ok(())
-                });
-            }
+            GitLogOp::NewBranchAt => self.prompt_new_branch(target, String::new(), window, cx),
             GitLogOp::NewTagAt => self.prompt_name("New Tag", "", window, cx, move |ws, name, window, cx| {
                 let name = check_ref_name(&name)?;
                 let hash = target.clone();
@@ -207,7 +244,13 @@ impl Workspace {
                     },
                 );
             }
-            GitLogOp::DeleteBranch => self.delete_branch(target, window, cx),
+            GitLogOp::DeleteBranch => {
+                let remote = self
+                    .git_log
+                    .as_ref()
+                    .is_some_and(|log| log.branches.iter().any(|b| b.name == target && b.is_remote));
+                self.delete_branch(target, remote, window, cx);
+            }
             GitLogOp::PushBranch => self.run_git(
                 "Push",
                 {
@@ -256,11 +299,13 @@ impl Workspace {
     }
 
     /// Deletes a branch after confirmation; offers a force delete when it is not merged.
-    fn delete_branch(&mut self, name: String, window: &mut Window, cx: &mut Context<Self>) {
-        let remote = self
-            .git_log
-            .as_ref()
-            .is_some_and(|log| log.branches.iter().any(|b| b.name == name && b.is_remote));
+    pub(in crate::workspace) fn delete_branch(
+        &mut self,
+        name: String,
+        remote: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let body = if remote {
             "The branch is deleted on the remote server.".to_string()
         } else {

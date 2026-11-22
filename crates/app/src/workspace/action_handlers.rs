@@ -68,6 +68,10 @@ impl Workspace {
             cx.listener(|this, action: &GitLogAction, w, cx| this.handle_git_log_action(action, w, cx)),
         )
         .on_action(cx.listener(|this, _: &Branches, w, cx| this.open_branches(w, cx)))
+        .on_action(cx.listener(|this, _: &NewBranch, w, cx| {
+            this.prompt_new_branch("HEAD".into(), String::new(), w, cx);
+        }))
+        .on_action(cx.listener(|this, _: &CheckoutRevision, w, cx| this.prompt_checkout_revision(w, cx)))
         .on_action(cx.listener(|_, _: &CopyMcpCommand, w, cx| crate::mcp_bridge::copy_claude_command(w, cx)))
         .on_action(cx.listener(|this, _: &OpenSettings, w, cx| this.open_settings(w, cx)))
         .on_action(cx.listener(|this, action: &FileAction, w, cx| this.handle_file_action(action, w, cx)))

@@ -6,6 +6,7 @@
 mod conflicts;
 mod graph;
 mod history;
+mod recent;
 mod sync;
 #[cfg(test)]
 mod testing;

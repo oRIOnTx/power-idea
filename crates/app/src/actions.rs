@@ -20,6 +20,8 @@ use crate::config::Config;
 pub const WORKSPACE_CONTEXT: &str = "Workspace";
 pub const CODE_EDITOR_CONTEXT: &str = "CodeEditor";
 pub const PALETTE_CONTEXT: &str = "Palette";
+/// The Branches popup under the title bar's branch widget.
+pub const BRANCHES_CONTEXT: &str = "Branches";
 pub const TERMINAL_CONTEXT: &str = "Terminal";
 /// The Git Log commit list (arrow keys move the selection).
 pub const GIT_LOG_CONTEXT: &str = "GitLog";
@@ -63,6 +65,8 @@ actions!(
         UpdateProject,
         ShowGitLog,
         Branches,
+        NewBranch,
+        CheckoutRevision,
         CopyMcpCommand,
         CutFiles,
         CopyFiles,
@@ -259,6 +263,8 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Git Log", Box::new(ShowGitLog)),
         ("Refresh Git Log", GitLogAction::boxed(GitLogOp::Refresh, "")),
         ("Branches…", Box::new(Branches)),
+        ("New Branch…", Box::new(NewBranch)),
+        ("Checkout Tag or Revision…", Box::new(CheckoutRevision)),
         ("Toggle Commit View", Box::new(ToggleCommitView)),
         ("Settings…", Box::new(OpenSettings)),
         ("Database", Box::new(ToggleDatabaseView)),
@@ -363,6 +369,7 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-k", CommitChanges, ws),
         KeyBinding::new("cmd-shift-k", Push, ws),
         KeyBinding::new("cmd-t", UpdateProject, ws),
+        KeyBinding::new("alt-cmd-n", NewBranch, ws),
         KeyBinding::new("cmd-9", ShowGitLog, ws),
         KeyBinding::new("cmd-t", NewTerminal, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-w", CloseTerminal, Some(TERMINAL_CONTEXT)),
@@ -382,6 +389,8 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("down", SelectNext, Some("Welcome > Input")),
         KeyBinding::new("up", SelectPrev, Some("Palette > Input")),
         KeyBinding::new("down", SelectNext, Some("Palette > Input")),
+        KeyBinding::new("up", SelectPrev, Some("Branches > Input")),
+        KeyBinding::new("down", SelectNext, Some("Branches > Input")),
     ]
 }
 

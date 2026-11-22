@@ -140,6 +140,8 @@ fn menus() -> Vec<Menu> {
             MenuItem::action("Update Project…", UpdateProject),
             MenuItem::separator(),
             MenuItem::action("Branches…", Branches),
+            MenuItem::action("New Branch…", NewBranch),
+            MenuItem::action("Checkout Tag or Revision…", CheckoutRevision),
             MenuItem::action("Show Git Log", ShowGitLog),
         ]),
         Menu::new("Window").items([

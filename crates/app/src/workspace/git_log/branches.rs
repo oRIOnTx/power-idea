@@ -10,37 +10,17 @@ use super::GitLogState;
 use super::model::{BranchRow, branch_rows};
 use super::view::ROW_HEIGHT;
 use crate::actions::{GitLogAction, GitLogOp};
+use crate::branches_popup::branch_ops;
 use crate::style;
 use crate::workspace::Workspace;
 
 fn branch_menu(menu: PopupMenu, branch: &Branch, focus: FocusHandle) -> PopupMenu {
-    let action = |op| GitLogAction::boxed(op, branch.name.clone());
-    let menu = menu.action_context(focus);
-    let menu = if branch.is_current {
-        menu
-    } else {
-        menu.menu("Checkout", action(GitLogOp::CheckoutBranch))
-    };
-    let menu = menu.menu("New Branch from Here…", action(GitLogOp::NewBranchAt));
-    let menu = if branch.is_current {
-        menu
-    } else {
-        menu.separator()
-            .menu("Merge into Current", action(GitLogOp::MergeIntoCurrent))
-            .menu("Rebase Current onto This", action(GitLogOp::RebaseCurrentOnto))
-    };
-    if branch.is_remote {
-        return menu.separator().menu("Delete…", action(GitLogOp::DeleteBranch));
-    }
-    let menu = menu
-        .separator()
-        .menu("Push", action(GitLogOp::PushBranch))
-        .menu("Rename…", action(GitLogOp::RenameBranch));
-    if branch.is_current {
-        menu
-    } else {
-        menu.menu("Delete…", action(GitLogOp::DeleteBranch))
-    }
+    branch_ops(branch)
+        .into_iter()
+        .fold(menu.action_context(focus), |menu, op| match op {
+            Some((label, op)) => menu.menu(label, GitLogAction::boxed(op, branch.name.clone())),
+            None => menu.separator(),
+        })
 }
 
 impl Workspace {

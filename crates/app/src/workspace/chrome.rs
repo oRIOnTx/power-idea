@@ -1,6 +1,7 @@
 //! Window chrome: title bar widgets and the status bar.
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::popover::Popover;
 use gpui_kit::component::status_bar::StatusBar;
 use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Sizable as _, TitleBar, h_flex};
@@ -17,13 +18,6 @@ impl Workspace {
     pub(super) fn render_title_bar(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let run_widget = self.render_run_widget(cx).into_any_element();
         let conflict_chip = self.render_conflict_chip(cx);
-        let theme = cx.theme();
-        let file = self.active().map(|tab| tab.rel.clone());
-        let branch = self.git.as_ref().map(|g| {
-            let name = g.status.branch.clone().unwrap_or_else(|| "detached".into());
-            (name, g.status.ahead, g.status.behind)
-        });
-
         // JetBrains-style widget: label + chevron, opens a picker.
         let widget = |id: &'static str, label: String, tooltip: &'static str| {
             Button::new(id)
@@ -33,6 +27,20 @@ impl Workspace {
                 .dropdown_caret(true)
                 .tooltip(tooltip)
         };
+        let branch_widget = self.git.as_ref().map(|g| {
+            let name = g.status.branch.clone().unwrap_or_else(|| "detached".into());
+            let (ahead, behind) = (g.status.ahead, g.status.behind);
+            let tooltip = if ahead > 0 {
+                "Branches — commits to push"
+            } else {
+                "Branches"
+            };
+            let trigger = widget("branch-widget", format!("⎇ {name}"), tooltip)
+                .children(style::tracking_arrows(ahead, behind, cx));
+            self.render_branches_popover(trigger, cx)
+        });
+        let theme = cx.theme();
+        let file = self.active().map(|tab| tab.rel.clone());
         let focus = self.focus_handle.clone();
         let tool = |id: &'static str, icon: IconName, action: Box<dyn Action>, tooltip: &'static str| {
             let focus = focus.clone();
@@ -65,16 +73,7 @@ impl Workspace {
                         |this, _, window, cx| this.open_palette(PaletteMode::RecentProjects, window, cx),
                     )),
                 )
-                .children(branch.map(|(branch, ahead, behind)| {
-                    let tooltip = if ahead > 0 {
-                        "Branches — commits to push"
-                    } else {
-                        "Branches"
-                    };
-                    widget("branch-widget", format!("⎇ {branch}"), tooltip)
-                        .children(style::tracking_arrows(ahead, behind, cx))
-                        .on_click(cx.listener(|this, _, window, cx| this.open_branches(window, cx)))
-                }))
+                .children(branch_widget)
                 .children(conflict_chip)
                 .child(
                     div()
@@ -104,6 +103,31 @@ impl Workspace {
                     "Open Project…",
                 )),
         )
+    }
+
+    /// The branch widget opens the Branches popup right under itself, as in JetBrains.
+    fn render_branches_popover(&self, trigger: Button, cx: &mut Context<Self>) -> Popover {
+        let popup = self.branches_popup();
+        let workspace = cx.entity().downgrade();
+        Popover::new("branches-popover")
+            .anchor(Anchor::TopLeft)
+            .p_0()
+            .open(popup.is_some())
+            .on_open_change(move |open, window, cx| {
+                let open = *open;
+                workspace
+                    .update(cx, |ws, cx| match (open, ws.branches_popup.is_some()) {
+                        (true, false) => ws.open_branches(window, cx),
+                        (false, true) => ws.close_branches(cx),
+                        _ => {}
+                    })
+                    .ok();
+            })
+            .trigger(trigger)
+            .content(move |_, _, _| match &popup {
+                Some(popup) => popup.clone().into_any_element(),
+                None => div().into_any_element(),
+            })
     }
 
     /// "Merging · 2 conflicts" next to the branch while conflicts or an operation are pending.

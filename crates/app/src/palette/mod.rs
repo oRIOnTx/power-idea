@@ -15,10 +15,8 @@ use gpui_kit::component::list::ListItem;
 use gpui_kit::component::{ActiveTheme as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 use search::{FileIndex, TextMatch, TextSearchOptions, find_in_files, fuzzy_filter};
-use vcs::Branch;
 
 use crate::actions::{self, PALETTE_CONTEXT, SelectNext, SelectPrev, WORKSPACE_CONTEXT};
-use crate::style;
 use crate::workspace::Workspace;
 pub use locations::{LocationItem, SymbolSearch};
 
@@ -34,7 +32,6 @@ pub enum PaletteMode {
     FindAction,
     GotoLine,
     RecentProjects,
-    Branches,
     FileStructure,
     GotoSymbol,
     GotoClass,
@@ -51,7 +48,6 @@ impl PaletteMode {
             Self::FindAction => "Find action",
             Self::GotoLine => "Go to line[:column]",
             Self::RecentProjects => "Recent projects",
-            Self::Branches => "Checkout branch, or type a name to create one",
             Self::FileStructure => "File structure",
             Self::GotoSymbol => "Go to symbol",
             Self::GotoClass => "Go to class",
@@ -67,7 +63,6 @@ pub struct PaletteSource {
     pub index: Arc<FileIndex>,
     pub recent_files: Vec<String>,
     pub recent_projects: Vec<PathBuf>,
-    pub branches: Vec<Branch>,
     /// Project paths excluded from search.
     pub exclude: Vec<String>,
     /// Fixed results of File Structure.
@@ -85,8 +80,6 @@ enum PaletteItem {
         action: Box<dyn Action>,
     },
     Project(PathBuf),
-    Branch(Branch),
-    NewBranch(String),
     Location(LocationItem),
     Run(run::RunConfig),
     EditRunConfigs,
@@ -186,26 +179,6 @@ impl Palette {
                     .collect();
             }
             PaletteMode::GotoLine => self.items.clear(),
-            PaletteMode::Branches => {
-                let branches = self.source.branches.clone();
-                let exact = branches.iter().any(|b| b.name == query);
-                // JetBrains puts the git actions above the branches. Only without a query, so
-                // typing a branch name and pressing Enter never pushes by accident.
-                let mut items: Vec<PaletteItem> = if query.is_empty() {
-                    git_actions()
-                } else {
-                    Vec::new()
-                };
-                items.extend(
-                    fuzzy_filter(&query, branches, |b| b.name.as_str())
-                        .into_iter()
-                        .map(PaletteItem::Branch),
-                );
-                if !query.is_empty() && !exact && !query.contains(char::is_whitespace) {
-                    items.push(PaletteItem::NewBranch(query));
-                }
-                self.items = items;
-            }
             PaletteMode::RunConfigs => {
                 let configs = self.source.run_configs.clone();
                 let mut items: Vec<PaletteItem> = fuzzy_filter(&query, configs, |c| c.name.as_str())
@@ -330,18 +303,6 @@ impl Palette {
                     .ok();
             }
             PaletteItem::Project(path) => crate::projects::open_project(path.clone(), cx),
-            PaletteItem::Branch(branch) => {
-                let branch = branch.clone();
-                workspace
-                    .update(cx, |ws, cx| ws.checkout(branch, window, cx))
-                    .ok();
-            }
-            PaletteItem::NewBranch(name) => {
-                let name = name.clone();
-                workspace
-                    .update(cx, |ws, cx| ws.create_branch(name, window, cx))
-                    .ok();
-            }
             PaletteItem::Run(config) => {
                 let config = config.clone();
                 workspace
@@ -362,10 +323,6 @@ impl Palette {
                     .ok();
             }
         }
-    }
-
-    fn current_branch(&self) -> Option<&Branch> {
-        self.source.branches.iter().find(|b| b.is_current)
     }
 
     fn render_item(&self, ix: usize, window: &Window, cx: &App) -> ListItem {
@@ -406,12 +363,6 @@ impl Palette {
                 .w_full()
                 .gap_2()
                 .child(*label)
-                .children(
-                    (self.mode == PaletteMode::Branches && action.partial_eq(&actions::Push))
-                        .then(|| self.current_branch())
-                        .flatten()
-                        .and_then(|b| style::tracking_arrows(b.ahead, 0, cx)),
-                )
                 .child(div().flex_1())
                 .children(Kbd::binding_for_action(
                     action.as_ref(),
@@ -429,23 +380,6 @@ impl Palette {
                         .child(path.display().to_string()),
                 )
             }
-            PaletteItem::Branch(branch) => h_flex()
-                .w_full()
-                .gap_2()
-                .child(if branch.is_current { "● " } else { "  " })
-                .child(branch.name.clone())
-                .children(style::tracking_arrows(branch.ahead, branch.behind, cx))
-                .child(div().flex_1())
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(theme.muted_foreground)
-                        .child(if branch.is_remote { "remote" } else { "local" }),
-                ),
-            PaletteItem::NewBranch(name) => h_flex()
-                .gap_2()
-                .child(div().text_color(theme.primary).child("+ New branch"))
-                .child(name.clone()),
             PaletteItem::Run(config) => h_flex()
                 .w_full()
                 .gap_3()
@@ -545,19 +479,6 @@ impl Render for Palette {
                     .child(hint)
             }))
     }
-}
-
-fn git_actions() -> Vec<PaletteItem> {
-    let items: [(&'static str, Box<dyn Action>); 4] = [
-        ("Update Project…", Box::new(actions::UpdateProject)),
-        ("Commit…", Box::new(actions::CommitChanges)),
-        ("Push…", Box::new(actions::Push)),
-        ("Fetch", Box::new(actions::Fetch)),
-    ];
-    items
-        .into_iter()
-        .map(|(label, action)| PaletteItem::Action { label, action })
-        .collect()
 }
 
 fn actions_matching(query: &str) -> Vec<PaletteItem> {

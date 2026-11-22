@@ -1,5 +1,6 @@
 mod actions;
 mod assets;
+mod branches_popup;
 mod config;
 mod database;
 mod editor;

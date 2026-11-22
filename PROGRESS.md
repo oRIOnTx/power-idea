@@ -126,6 +126,11 @@ is in the working tree only.
       Editor + Mark as Resolved for manual edits, Continue / Abort of the operation. Rebase sides are labelled
       Upstream / Your commit. `vcs::conflicts` parses markers (diff3 base too) and is tested on real merges
 - [x] Terminal: slow trackpad swipes scroll (sub-line wheel deltas accumulate instead of being rounded away)
+- [x] Branches popup (JetBrains style) drops down under the branch widget instead of the centered palette:
+      search, Update / Commit / Push / New Branch (⌥⌘N) / Checkout Tag or Revision, Recent (from the reflog,
+      `vcs::recent_branches`), Local and Remote groups (Remote folded), upstream on the right, and a submenu per
+      branch (click / → / Enter: Checkout, New Branch from Here, Merge, Rebase, Push, Rename, Delete); Fetch button
+
 - [x] Project tree root row (JetBrains style): project folder name + `~/…` location; click folds the tree
 - [x] Terminal ⌘V pastes copied files and images (screenshots) as shell-escaped paths; images are saved to
       `$TMPDIR/power-idea-paste/`, so Claude Code in the terminal attaches them
