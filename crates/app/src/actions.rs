@@ -91,6 +91,7 @@ actions!(
         StepOver,
         StepInto,
         StepOut,
+        ToggleDockerView,
     ]
 );
 
@@ -251,6 +252,7 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Toggle Commit View", Box::new(ToggleCommitView)),
         ("Settings…", Box::new(OpenSettings)),
         ("Database", Box::new(ToggleDatabaseView)),
+        ("Docker", Box::new(ToggleDockerView)),
         (
             "Toggle Preview (Editor / Split / Preview)",
             Box::new(TogglePreview),

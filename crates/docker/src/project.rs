@@ -183,7 +183,10 @@ mod tests {
         );
         assert_eq!(titles(true).len(), 5);
         // Without a compose file, containers labelled with the project folder still count.
-        let plain: Vec<String> = rows(root, None, &containers, false).into_iter().map(|r| r.title).collect();
+        let plain: Vec<String> = rows(root, None, &containers, false)
+            .into_iter()
+            .map(|r| r.title)
+            .collect();
         assert_eq!(plain, ["web", "db", "old"]);
     }
 }

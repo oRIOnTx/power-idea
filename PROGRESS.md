@@ -95,12 +95,20 @@ is in the working tree only.
       moves across volumes, open tabs follow moved files; Paste into the clicked folder or the file's folder)
 - [x] Graphite theme: a lighter dark theme in the style of current JetBrains IDEs (editor #1E1F22, panels
       #2B2D30, blue accent, JetBrains-like syntax colors); Settings → Appearance → Theme
+- [x] Docker panel (backlog/docke, MVP + parts of stage 2–3), `crates/docker`: Engine API over the unix socket
+      (no CLI per action), socket from DOCKER_HOST → docker context → Docker Desktop / OrbStack / Colima;
+      project containers by compose labels + `docker compose config --format json`; live status from `/events`
+      (one connection, debounced re-list); start / stop / restart / remove (confirm); logs, shell and
+      `compose up -d / restart / down` in terminal tabs; clickable `:PORT` links; health colors; running-count
+      badge; lazy (connects when the panel opens); "Docker is not running" + Check again
 
 ## Backlog
 Agreed backlog is done. Candidates:
 Database gaps below.
 
 ## Known gaps
+- Docker: logs use `docker logs -f` in a terminal tab (no in-panel search/highlight yet); no stats, no Info
+  tab, no settings page (socket path, extra compose files, profiles); remote (ssh/tcp) hosts unsupported
 - Debug: breakpoints are toggled with ⌘F8 (no gutter click in the gpui-kit editor), not saved between sessions,
   no conditional breakpoints or watches; Node.js (js-debug) not supported yet; debugpy/dlv not installed here,
   only their launch plans are unit-tested

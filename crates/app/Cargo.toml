@@ -12,6 +12,7 @@ lsp = { path = "../lsp" }
 db = { path = "../db" }
 run = { path = "../run" }
 dap = { path = "../dap" }
+docker = { path = "../docker" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 notify.workspace = true

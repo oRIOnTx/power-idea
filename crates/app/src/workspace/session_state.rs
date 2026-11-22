@@ -21,6 +21,7 @@ fn panel_name(panel: LeftPanel) -> &'static str {
         LeftPanel::Project => "project",
         LeftPanel::Commit => "commit",
         LeftPanel::Database => "database",
+        LeftPanel::Docker => "docker",
     }
 }
 
@@ -28,6 +29,7 @@ fn panel_from_name(name: &str) -> LeftPanel {
     match name {
         "commit" => LeftPanel::Commit,
         "database" => LeftPanel::Database,
+        "docker" => LeftPanel::Docker,
         _ => LeftPanel::Project,
     }
 }
@@ -99,6 +101,10 @@ impl Workspace {
         self.refresh_tree(cx);
         self.show_project_view = session.show_sidebar;
         self.left_panel = panel_from_name(&session.sidebar);
+        // The Docker panel connects lazily; reopened, it should connect right away.
+        if self.show_project_view && self.left_panel == LeftPanel::Docker {
+            self.ensure_docker(window, cx);
+        }
 
         // Reopening tabs is not navigation, so keep it out of Back/Forward history.
         self.nav_paused = true;
@@ -208,7 +214,12 @@ mod tests {
 
     #[test]
     fn names_round_trip() {
-        for panel in [LeftPanel::Project, LeftPanel::Commit, LeftPanel::Database] {
+        for panel in [
+            LeftPanel::Project,
+            LeftPanel::Commit,
+            LeftPanel::Database,
+            LeftPanel::Docker,
+        ] {
             assert!(panel_from_name(panel_name(panel)) == panel);
         }
         for mode in [PreviewMode::Editor, PreviewMode::Split, PreviewMode::Preview] {

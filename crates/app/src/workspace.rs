@@ -25,6 +25,8 @@ mod chrome;
 mod code_nav;
 mod database_panel;
 mod debug;
+mod docker_panel;
+mod docker_view;
 mod editors;
 mod file_clipboard;
 mod files;
@@ -122,6 +124,7 @@ enum LeftPanel {
     Project,
     Commit,
     Database,
+    Docker,
 }
 
 pub struct Workspace {
@@ -145,6 +148,8 @@ pub struct Workspace {
     selected_run: Option<String>,
     breakpoints: debug::Breakpoints,
     debug: Option<debug::DebugSession>,
+    /// Docker panel state; created the first time the panel opens.
+    docker: Option<docker_panel::DockerState>,
     usages: Option<usages_panel::UsagesState>,
     project: ProjectSettings,
     /// Languages whose "install a language server" banner was dismissed.
@@ -215,6 +220,7 @@ impl Workspace {
             selected_run: None,
             breakpoints: Default::default(),
             debug: None,
+            docker: None,
             usages: None,
             watcher: None,
             terminals: Vec::new(),

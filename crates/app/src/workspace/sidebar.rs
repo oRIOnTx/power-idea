@@ -24,6 +24,14 @@ impl Workspace {
         cx.notify();
     }
 
+    /// Shows the Docker panel (connecting on first use) or hides the sidebar.
+    pub(super) fn toggle_docker(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.toggle_left_panel(LeftPanel::Docker, cx);
+        if self.show_project_view && self.left_panel == LeftPanel::Docker {
+            self.ensure_docker(window, cx);
+        }
+    }
+
     /// Vertical tool window stripe at the far left, JetBrains new-UI style.
     pub(super) fn render_activity_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
@@ -31,6 +39,8 @@ impl Workspace {
         let project_open = self.show_project_view && self.left_panel == LeftPanel::Project;
         let commit_open = self.show_project_view && self.left_panel == LeftPanel::Commit;
         let database_open = self.show_project_view && self.left_panel == LeftPanel::Database;
+        let docker_open = self.show_project_view && self.left_panel == LeftPanel::Docker;
+        let docker_running = self.docker.as_ref().map_or(0, |d| d.counts(&self.root).0);
         let terminal_open = self.terminal_visible();
         let log_open = self.git_log_visible();
 
@@ -120,6 +130,14 @@ impl Workspace {
                 0,
                 Box::new(cx.listener(|this, _, _, cx| this.toggle_left_panel(LeftPanel::Database, cx))),
             ))
+            .child(slot(
+                "bar-docker",
+                style::lucide("container"),
+                "Docker",
+                docker_open,
+                docker_running,
+                Box::new(cx.listener(|this, _, window, cx| this.toggle_docker(window, cx))),
+            ))
             .child(div().flex_1())
             .child(slot(
                 "bar-git-log",
@@ -153,6 +171,7 @@ impl Workspace {
             LeftPanel::Project => self.project_name(),
             LeftPanel::Commit => "Commit".to_string(),
             LeftPanel::Database => "Database".to_string(),
+            LeftPanel::Docker => "Docker".to_string(),
         };
         let header = h_flex()
             .h(px(34.))
@@ -167,6 +186,7 @@ impl Workspace {
             LeftPanel::Project => self.render_project_view(cx).into_any_element(),
             LeftPanel::Commit => self.render_commit_panel(cx),
             LeftPanel::Database => self.render_database_panel(cx),
+            LeftPanel::Docker => self.render_docker_panel(cx),
         };
         v_flex()
             .size_full()
