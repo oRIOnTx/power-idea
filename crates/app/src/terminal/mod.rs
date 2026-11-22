@@ -4,6 +4,7 @@
 mod colors;
 mod input;
 mod mouse;
+mod paste;
 mod pointer;
 mod run_tab;
 mod session;
@@ -21,7 +22,8 @@ use alacritty_terminal::term::cell::Flags;
 use alacritty_terminal::term::test::TermSize;
 use alacritty_terminal::term::{Term, TermMode};
 use alacritty_terminal::vte::ansi::{Color as AnsiColor, CursorShape};
-use gpui_kit::component::ActiveTheme as _;
+use gpui_kit::component::notification::Notification;
+use gpui_kit::component::{ActiveTheme as _, WindowExt as _};
 use gpui_kit::*;
 use std::sync::Arc;
 
@@ -299,18 +301,31 @@ impl TerminalView {
         }
     }
 
-    fn paste(&mut self, _: &Paste, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) else {
+    fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(clip) = cx.read_from_clipboard().as_ref().and_then(paste::classify) else {
             return;
         };
-        let bracketed = self.term.lock().mode().contains(TermMode::BRACKETED_PASTE);
-        let text = text.replace("\r\n", "\r").replace('\n', "\r");
-        let bytes = if bracketed {
-            format!("\x1b[200~{text}\x1b[201~")
-        } else {
-            text
+        let image = match clip {
+            paste::Clip::Text(text) => return self.paste_text(&text),
+            paste::Clip::Paths(paths) => return self.paste_text(&paste::paths_text(&paths)),
+            paste::Clip::Image(image) => image,
         };
-        self.write(bytes.into_bytes());
+        cx.spawn_in(window, async move |this, cx| {
+            let saved = cx
+                .background_spawn(async move { paste::save_image(&image) })
+                .await;
+            this.update_in(cx, |view, window, cx| match saved {
+                Ok(path) => view.paste_text(&paste::paths_text(&[path])),
+                Err(err) => window.push_notification(Notification::error(format!("{err:#}")), cx),
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    fn paste_text(&self, text: &str) {
+        let bracketed = self.term.lock().mode().contains(TermMode::BRACKETED_PASTE);
+        self.write(paste::pty_bytes(text, bracketed));
     }
 
     fn clear(&mut self, _: &Clear, _: &mut Window, cx: &mut Context<Self>) {

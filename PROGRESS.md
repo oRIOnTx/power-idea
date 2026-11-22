@@ -126,6 +126,8 @@ is in the working tree only.
       Editor + Mark as Resolved for manual edits, Continue / Abort of the operation. Rebase sides are labelled
       Upstream / Your commit. `vcs::conflicts` parses markers (diff3 base too) and is tested on real merges
 - [x] Terminal: slow trackpad swipes scroll (sub-line wheel deltas accumulate instead of being rounded away)
+- [x] Terminal ⌘V pastes copied files and images (screenshots) as shell-escaped paths; images are saved to
+      `$TMPDIR/power-idea-paste/`, so Claude Code in the terminal attaches them
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
 
 ## Backlog
