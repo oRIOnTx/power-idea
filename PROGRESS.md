@@ -39,8 +39,16 @@ is in the working tree only.
 - [ ] Previews, Git Log and navigation UI not clicked through by hand (no UI automation here);
       LSP requests verified against real ruby-lsp (`cargo test -p lsp -- --ignored`)
 
+### Committed 2026-11-22 (third batch)
+- [x] Self-contained scripts: `scripts/run.sh`, `check.sh`, `build.sh`, `bump-version.sh` (find rustup themselves)
+- [x] Welcome screen (JetBrains style) after closing the last project: recent projects with search, New Project
+      (folder + optional `git init`), Open
+- [x] ⌘Q asks about unsaved files in every project window (Save all / Don't Save / Cancel)
+- [x] Version `0.2.0 (build N, hash[+])`: build number = git commit count, `+` = uncommitted changes;
+      shown on the Welcome screen, in `panic.log` and as `CFBundleVersion`
+
 ## Backlog
-Agreed backlog is done. Candidates: ⌘Q unsaved-changes prompt, file watching (`notify`, needs approval),
+Agreed backlog is done. Candidates: file watching (`notify`, needs approval),
 Database gaps below, Find Usages as a tool window (JetBrains shows a tree, we use the picker).
 
 ## Known gaps
@@ -50,6 +58,6 @@ Database gaps below, Find Usages as a tool window (JetBrains shows a tree, we us
 - Database: no inline data editing, no table/column completion in consoles, no export, no TLS for Redis
 - Terminal: no mouse reporting for TUI apps, no cursor blink
 - Tree and search miss files created outside the IDE until reopen (needs `notify`, not yet approved)
-- ⌘Q quits without the unsaved-changes prompt
+- Quitting from the Dock bypasses the ⌘Q unsaved-changes prompt (no app menu yet)
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end
 - The user's `lms` project needs `brew install libpq` + `bundle install` for full Ruby LSP (fallback mode works meanwhile)

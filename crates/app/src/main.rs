@@ -27,6 +27,16 @@ use gpui_kit::*;
 use crate::actions::{OpenProject, Quit, ToggleTheme};
 use crate::config::{AppConfig, Appearance, Config};
 
+/// Version shown to the user, e.g. `0.2.0 (build 61, 5d0e08f)`; see `build.rs`.
+pub(crate) const APP_VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (build ",
+    env!("POWER_IDEA_BUILD"),
+    ", ",
+    env!("POWER_IDEA_COMMIT"),
+    ")"
+);
+
 /// Bundled "Neo" theme set (dark + light).
 const NEO_THEME: &str = include_str!("../themes/neo.json");
 
@@ -147,7 +157,7 @@ fn install_panic_log() {
                 "--- {:?} thread '{}' v{}\n{info}\n{backtrace}",
                 std::time::SystemTime::now(),
                 thread.name().unwrap_or("?"),
-                env!("CARGO_PKG_VERSION"),
+                APP_VERSION,
             );
         }
         default_hook(info);
@@ -168,7 +178,7 @@ fn main() {
             actions::bind_keys(cx);
             mcp_bridge::start(cx);
 
-            cx.on_action(|_: &Quit, cx| cx.quit());
+            cx.on_action(|_: &Quit, cx| workspace::request_quit(cx));
             cx.on_action(|_: &OpenProject, cx| projects::prompt_open_project(cx));
             cx.on_action(|_: &ToggleTheme, cx| {
                 let config = &mut cx.global_mut::<AppConfig>().0;

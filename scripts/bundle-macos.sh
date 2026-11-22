@@ -7,6 +7,8 @@ source "$(dirname "$0")/env.sh"
 APP_NAME="Power IDEA"
 BUNDLE_ID="dev.power-idea.app"
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+# Build number = commit count, matching the version shown inside the app.
+BUILD="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
 OUT="target/release/${APP_NAME}.app"
 WORK="target/bundle"
 
@@ -38,7 +40,7 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
-  <key>CFBundleVersion</key><string>${VERSION}</string>
+  <key>CFBundleVersion</key><string>${BUILD}</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSDocumentsFolderUsageDescription</key><string>Power IDEA opens and edits projects stored in your Documents folder.</string>

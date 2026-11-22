@@ -1,4 +1,4 @@
-//! Guards against losing unsaved edits when closing tabs or the window.
+//! Guards against losing unsaved edits when closing tabs, windows or the app.
 
 use std::rc::Rc;
 
@@ -6,9 +6,67 @@ use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Sizable as _, WindowExt as _, h_flex};
 use gpui_kit::*;
 
-use super::Workspace;
+use super::{Workspace, Workspaces};
 
 type Choice = Rc<dyn Fn(&mut Workspace, &mut Window, &mut Context<Workspace>)>;
+
+/// ⌘Q: quits right away, or first asks about unsaved files in any project window.
+pub(crate) fn request_quit(cx: &mut App) {
+    let live = Workspaces::live(cx);
+    let mut dirty = Vec::new();
+    for (handle, ws) in &live {
+        let count = ws.update(cx, |ws, cx| {
+            ws.save_session_now(cx);
+            ws.tabs.iter().filter(|t| t.is_dirty(cx)).count()
+        });
+        if count > 0 {
+            dirty.push((*handle, ws.clone(), count));
+        }
+    }
+    let Some((handle, ws, _)) = dirty.first().cloned() else {
+        return cx.quit();
+    };
+    let total: usize = dirty.iter().map(|(_, _, n)| n).sum();
+    let title = format!(
+        "{total} file{} with unsaved changes",
+        if total == 1 { "" } else { "s" }
+    );
+    let message = match dirty.len() {
+        1 => "Save them before quitting?".to_string(),
+        projects => format!("They are in {projects} projects. Save them before quitting?"),
+    };
+    handle
+        .update(cx, |_, window, cx| {
+            window.activate_window();
+            ws.update(cx, |ws, cx| {
+                ws.ask_unsaved(
+                    title,
+                    message,
+                    // Saving touches every workspace, including this one, so run it after this update.
+                    Rc::new(|_, _, cx| App::defer(cx, save_all_and_quit)),
+                    Rc::new(|_, _, cx| cx.quit()),
+                    window,
+                    cx,
+                );
+            });
+        })
+        .ok();
+}
+
+fn save_all_and_quit(cx: &mut App) {
+    for (handle, ws) in Workspaces::live(cx) {
+        let saved = handle
+            .update(cx, |_, window, cx| {
+                ws.update(cx, |ws, cx| ws.save_all(window, cx))
+            })
+            .unwrap_or(true);
+        // A failed save has already been reported; stay open so nothing is lost.
+        if !saved {
+            return;
+        }
+    }
+    cx.quit();
+}
 
 impl Workspace {
     /// Closes a tab, asking first when it has unsaved changes.

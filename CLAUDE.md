@@ -13,6 +13,7 @@ update it when a feature lands.
 scripts/run.sh [project-dir]     # run the IDE (debug) on a project
 scripts/check.sh [--live]        # fmt + clippy + test; must be clean before a change is done
 scripts/build.sh [--no-open]     # release "Power IDEA.app" (scripts/bundle-macos.sh) and open it
+scripts/bump-version.sh [patch|minor|major]   # semantic version; the build number is automatic
 ```
 
 The scripts find rustup themselves (`scripts/env.sh`; Homebrew's rustup is keg-only).
@@ -45,6 +46,7 @@ crates/
     palette/            modal pickers (Search Everywhere, Go to File, usages, symbols, …)
     preview.rs          Markdown/SVG/image preview rules
     session.rs          per-project workspace state (.power-idea/workspace.toml)
+    welcome/            Welcome window: recent projects, New Project
     settings.rs         Settings tab (Cmd+,)
     actions.rs          every action + the default JetBrains keymap
     mcp_bridge.rs       MCP server thread ⇄ UI thread

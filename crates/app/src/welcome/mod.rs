@@ -227,7 +227,7 @@ impl Render for Welcome {
                             div()
                                 .text_xs()
                                 .text_color(theme.muted_foreground)
-                                .child(env!("CARGO_PKG_VERSION")),
+                                .child(crate::APP_VERSION),
                         ),
                 ),
             )

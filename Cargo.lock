@@ -1261,7 +1261,7 @@ checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 
 [[package]]
 name = "db"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "futures-core",
@@ -3708,7 +3708,7 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "lsp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "lsp-types",
@@ -3863,7 +3863,7 @@ dependencies = [
 
 [[package]]
 name = "mcp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde_json",
 ]
@@ -5025,7 +5025,7 @@ dependencies = [
 
 [[package]]
 name = "power-idea"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alacritty_terminal",
  "anyhow",
@@ -5910,7 +5910,7 @@ checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
 
 [[package]]
 name = "search"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ignore",
  "nucleo-matcher",
@@ -7716,7 +7716,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vcs"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
 ]

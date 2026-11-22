@@ -37,6 +37,8 @@ mod sidebar;
 mod terminal_panel;
 mod unsaved;
 
+pub(crate) use unsaved::request_quit;
+
 const MAX_RECENT_FILES: usize = 50;
 
 /// All open project windows, used for routing MCP calls and focusing
