@@ -1,9 +1,10 @@
 //! Claude Session Insights: how effectively the user steers Claude Code,
 //! from the local transcripts in `~/.claude/projects`. Layers: `parse`
 //! (transcripts → facts) → `metrics` → `score` → `rules` (insights), with
-//! `report` (periods and trends), `store` (SQLite) and `index` (incremental, off the UI thread). Everything
+//! `report` (periods and trends), `advice` (on request, via the `claude` CLI), `store` (SQLite) and `index` (incremental, off the UI thread). Everything
 //! stays on this machine.
 
+pub mod advice;
 pub mod metrics;
 pub mod parse;
 pub mod report;

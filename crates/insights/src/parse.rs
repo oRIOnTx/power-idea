@@ -197,6 +197,16 @@ fn tool_fingerprint(name: &str, input: &Value) -> String {
     format!("{name}:{}", text.chars().take(200).collect::<String>())
 }
 
+/// The prompts the user typed, in order (interruption markers left out).
+pub fn prompt_texts(lines: impl Iterator<Item = String>) -> Vec<String> {
+    lines
+        .filter_map(|line| serde_json::from_str::<Value>(&line).ok())
+        .filter(|value| value.get("type").and_then(Value::as_str) == Some("user"))
+        .filter_map(|value| prompt_text(&value))
+        .filter(|text| !text.contains("[Request interrupted by user"))
+        .collect()
+}
+
 /// Parses one transcript; `None` when it has no user prompt (empty or tool-only sessions).
 pub fn parse_session(lines: impl Iterator<Item = String>) -> Option<Session> {
     let mut session = Session::default();
@@ -399,6 +409,17 @@ not json at all
         assert_eq!(s.tools[2].input, "git commit -m fix");
         assert_eq!((s.cost_usd, s.lines_added), (0.42, 12));
         assert_eq!(s.duration_secs(), 121);
+    }
+
+    #[test]
+    fn extracts_prompt_texts() {
+        assert_eq!(
+            super::prompt_texts(fixture_lines()),
+            [
+                "Fix the login bug in app/models/user.rb, tests must pass",
+                "no, revert that commit"
+            ]
+        );
     }
 
     #[test]

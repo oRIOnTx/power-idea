@@ -1,5 +1,5 @@
 //! Insights panel rendering: one score with its trend, a score-per-session
-//! chart, block bars (now vs previous period), up to three tips, the session
+//! chart, block bars (now vs previous period), up to three tips and Claude's advice, the session
 //! list and the selected session's breakdown. State lives in `insights_panel`.
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -76,13 +76,13 @@ impl Workspace {
             .when_some(selected, |el, session| {
                 el.child(render_session_details(&session, cx))
             })
-            .when(!tips.is_empty(), |el| {
-                el.child(section("Tips", cx)).children(
-                    tips.into_iter()
-                        .enumerate()
-                        .map(|(ix, tip)| self.render_tip(ix, tip, cx)),
-                )
-            })
+            .child(section("Tips", cx))
+            .children(
+                tips.into_iter()
+                    .enumerate()
+                    .map(|(ix, tip)| self.render_tip(ix, tip, cx)),
+            )
+            .child(self.render_insights_advice(&state.advice, cx))
             .child(section("Sessions", cx))
             .children(
                 report
@@ -309,7 +309,7 @@ impl Workspace {
                             .on_click(cx.listener(move |ws, _, _, cx| ws.dismiss_tip(id, cx))),
                     ),
             )
-            .child(div().child(tip.evidence))
+            .when(!tip.evidence.is_empty(), |el| el.child(div().child(tip.evidence)))
             .child(div().text_color(theme.muted_foreground).child(tip.why))
             .child(
                 div()

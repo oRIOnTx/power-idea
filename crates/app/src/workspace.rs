@@ -38,6 +38,7 @@ mod fs_watch;
 mod git;
 mod git_log;
 mod git_panel;
+mod insights_advice;
 mod insights_panel;
 mod insights_parts;
 mod insights_view;

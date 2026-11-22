@@ -1,6 +1,7 @@
 //! Rule-based insights: each rule looks at recent sessions and, when it
 //! fires, says what the data shows, why it matters and what to try. A new
-//! rule is one function added to `RULES`.
+//! rule is one function added to `RULES`. `GENERAL` tips (good practice, no
+//! data needed) fill the remaining slots, so the panel always has advice.
 
 use super::SessionSummary;
 use super::score::moving_average;
@@ -19,7 +20,59 @@ pub struct Insight {
 type Rule = fn(&[SessionSummary]) -> Option<Insight>;
 
 /// Rules in priority order; the panel shows the first three that fire.
-pub const RULES: &[Rule] = &[corrections, verification, long_sessions, tool_errors, interrupts];
+pub const RULES: &[Rule] = &[
+    corrections,
+    verification,
+    long_sessions,
+    tool_errors,
+    interrupts,
+    vague_prompts,
+    loops,
+    compactions,
+];
+
+/// Good-practice tips shown after the data-driven ones, in this order.
+pub const GENERAL: &[Insight] = &[
+    general(
+        "plan-first",
+        "Plan bigger changes first",
+        "A plan you approve up front is cheaper than undoing edits that went the wrong way.",
+        "For anything touching several files, use plan mode (Shift+Tab) and review the plan.",
+    ),
+    general(
+        "claude-md",
+        "Keep CLAUDE.md current",
+        "The agent reads it every session; stale or missing rules get rediscovered by trial and error.",
+        "When you correct the same thing twice, add the rule to CLAUDE.md (or say \"remember this\").",
+    ),
+    general(
+        "show-dont-tell",
+        "Give the agent the evidence",
+        "Exact errors, failing output and screenshots remove guessing about what is wrong.",
+        "Paste the full error or a screenshot instead of describing it.",
+    ),
+    general(
+        "one-task",
+        "One task per session",
+        "Unrelated tasks in one context make the agent mix them up and cost more tokens.",
+        "Finish a task, commit, then /clear before the next one.",
+    ),
+];
+
+const fn general(
+    id: &'static str,
+    title: &'static str,
+    why: &'static str,
+    try_this: &'static str,
+) -> Insight {
+    Insight {
+        id,
+        title,
+        evidence: String::new(),
+        why,
+        try_this,
+    }
+}
 
 fn last(sessions: &[SessionSummary], n: usize) -> &[SessionSummary] {
     &sessions[sessions.len().saturating_sub(n)..]
@@ -120,11 +173,60 @@ fn interrupts(sessions: &[SessionSummary]) -> Option<Insight> {
     })
 }
 
-/// Insights that fire, skipping dismissed ones, best first.
+fn vague_prompts(sessions: &[SessionSummary]) -> Option<Insight> {
+    let recent = last(sessions, 10);
+    let vague = recent
+        .iter()
+        .filter(|s| !s.metrics.first_prompt_paths && !s.metrics.first_prompt_criteria)
+        .count();
+    (recent.len() >= 3 && vague as f64 > recent.len() as f64 * 0.6).then(|| Insight {
+        id: "vague-prompts",
+        title: "First prompts are vague",
+        evidence: format!(
+            "{vague} of the last {} sessions started without files or a goal to check against.",
+            recent.len()
+        ),
+        why: "Without a target the agent explores first, and you correct it later.",
+        try_this: "Name the files or area involved and how to tell the task is done.",
+    })
+}
+
+fn loops(sessions: &[SessionSummary]) -> Option<Insight> {
+    let recent = last(sessions, 10);
+    let total: usize = recent.iter().map(|s| s.metrics.loops).sum();
+    (recent.len() >= 3 && total >= 3).then(|| Insight {
+        id: "loops",
+        title: "The agent goes in circles",
+        evidence: format!(
+            "{total} runs of the same tool call repeated 3+ times in the last {} sessions.",
+            recent.len()
+        ),
+        why: "Repeating a call means the agent is stuck and hopes for a different result.",
+        try_this: "When you see a repeat, stop it (Esc) and give the missing fact or a different approach.",
+    })
+}
+
+fn compactions(sessions: &[SessionSummary]) -> Option<Insight> {
+    let recent = last(sessions, 10);
+    let compacted = recent.iter().filter(|s| s.metrics.compactions > 0).count();
+    (recent.len() >= 3 && compacted * 3 >= recent.len()).then(|| Insight {
+        id: "compactions",
+        title: "Sessions outgrow the context",
+        evidence: format!(
+            "{compacted} of the last {} sessions were compacted.",
+            recent.len()
+        ),
+        why: "Compaction summarises the conversation and drops details the agent then has to rediscover.",
+        try_this: "Split big work into steps with a short written plan, and start each step fresh.",
+    })
+}
+
+/// Insights that fire, skipping dismissed ones, best first; general tips fill the rest.
 pub fn insights(sessions: &[SessionSummary], dismissed: &[String], limit: usize) -> Vec<Insight> {
     RULES
         .iter()
         .filter_map(|rule| rule(sessions))
+        .chain(GENERAL.iter().cloned())
         .filter(|insight| !dismissed.iter().any(|d| d == insight.id))
         .take(limit)
         .collect()
@@ -156,14 +258,29 @@ mod tests {
             .map(|i| session(0.5, false, 1_000 * (i + 1), if i >= 6 { 30.0 } else { 70.0 }))
             .collect();
         let ids: Vec<&str> = insights(&sessions, &[], 5).iter().map(|i| i.id).collect();
-        assert_eq!(ids, ["corrections", "verification", "long-sessions"]);
+        assert_eq!(
+            ids,
+            [
+                "corrections",
+                "verification",
+                "long-sessions",
+                "vague-prompts",
+                "plan-first"
+            ]
+        );
         let ids: Vec<&str> = insights(&sessions, &["corrections".into()], 2)
             .iter()
             .map(|i| i.id)
             .collect();
         assert_eq!(ids, ["verification", "long-sessions"]);
 
-        let good: Vec<_> = (0..8).map(|_| session(0.0, true, 1_000, 80.0)).collect();
-        assert!(insights(&good, &[], 3).is_empty());
+        // Good sessions get only general advice.
+        let mut good: Vec<_> = (0..8).map(|_| session(0.0, true, 1_000, 80.0)).collect();
+        for s in &mut good {
+            s.metrics.first_prompt_criteria = true;
+        }
+        let tips = insights(&good, &["plan-first".into()], 3);
+        assert!(tips.iter().all(|t| t.evidence.is_empty()));
+        assert_eq!(tips[0].id, "claude-md");
     }
 }

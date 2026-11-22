@@ -12,6 +12,7 @@ use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 use insights::{Insight, Period, SessionSummary, Store};
 
+use super::insights_advice::Advice;
 use super::{LeftPanel, Workspace};
 use crate::config::{AppConfig, Config};
 
@@ -34,19 +35,23 @@ pub(super) struct InsightsState {
     pub(super) period: Period,
     pub(super) project: Option<String>,
     pub(super) selected: Option<String>,
+    pub(super) advice: Advice,
     /// Re-index loop; dropping the state stops it.
     _refresh: Option<Task<()>>,
 }
 
 impl InsightsState {
-    pub(super) fn tips(&self) -> Vec<Insight> {
-        let scoped: Vec<SessionSummary> = self
-            .sessions
+    /// Sessions of the chosen project (all when no filter).
+    pub(super) fn scoped_sessions(&self) -> Vec<SessionSummary> {
+        self.sessions
             .iter()
             .filter(|s| self.project.as_ref().is_none_or(|p| &s.project == p))
             .cloned()
-            .collect();
-        insights::rules::insights(&scoped, &self.dismissed, MAX_TIPS)
+            .collect()
+    }
+
+    pub(super) fn tips(&self) -> Vec<Insight> {
+        insights::rules::insights(&self.scoped_sessions(), &self.dismissed, MAX_TIPS)
     }
 }
 
@@ -133,6 +138,7 @@ impl Workspace {
             period: Period::default(),
             project: None,
             selected: None,
+            advice: Advice::None,
             _refresh: Some(refresh),
         });
         cx.notify();

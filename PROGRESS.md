@@ -111,6 +111,10 @@ is in the working tree only.
       sidebar panel (off by default, Settings → Insights): score + trend vs previous period (7d/30d/90d/All),
       project filter, score-per-session chart, block bars now vs before, top-3 tips with "Got it", session
       list and breakdown; "Clear all analytics data"
+- [x] Insights advice: 8 data rules (+ vague first prompts, agent loops, compactions) and good-practice tips
+      that fill the Tips section when few rules fire; "Ask Claude for advice" (asks first) sends the last 10
+      sessions' numbers and first prompts (shortened) to `claude -p --no-session-persistence --tools ""`
+      and shows the answer under the tips (not persisted)
 - [x] Project tree multi-selection (⌘+click toggles, ⇧+click selects a range, arrows move it) and
       ⌘X / ⌘C / ⌘V for the selected files and folders (also Edit menu, Find Action and the context menu,
       which acts on the whole selection); pasted items become the selection
