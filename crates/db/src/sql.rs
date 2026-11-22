@@ -16,6 +16,7 @@ use sqlx::{
     ValueRef as _,
 };
 
+use super::edit::{TableRef, qualified, quote_literal};
 use super::{
     CONNECT_TIMEOUT, ConnectionConfig, DbKind, NodeKind, QueryOutcome, ResultSet, SchemaNode, runtime,
 };
@@ -141,6 +142,42 @@ impl SqlDatabase {
         })?;
         outcome.elapsed = started.elapsed();
         Ok(outcome)
+    }
+
+    pub fn primary_key(&self, table: &TableRef) -> Result<Vec<String>> {
+        let lit = |v: &str| quote_literal(DbKind::Postgres, Some(v));
+        let query = match self {
+            Self::Postgres(_) => format!(
+                "SELECT a.attname FROM pg_index i \
+                 JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) \
+                 WHERE i.indisprimary AND i.indrelid = ({}::text)::regclass \
+                 ORDER BY array_position(i.indkey, a.attnum)",
+                lit(&qualified(DbKind::Postgres, table))
+            ),
+            Self::MySql(_) => format!(
+                "SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE \
+                 WHERE CONSTRAINT_NAME = 'PRIMARY' AND TABLE_NAME = {} AND TABLE_SCHEMA = {} \
+                 ORDER BY ORDINAL_POSITION",
+                quote_literal(DbKind::MySql, Some(&table.name)),
+                table
+                    .schema
+                    .as_deref()
+                    .map_or_else(|| "DATABASE()".into(), |s| quote_literal(DbKind::MySql, Some(s)))
+            ),
+            Self::Sqlite(_) => format!(
+                "SELECT name FROM pragma_table_info({}) WHERE pk > 0 ORDER BY pk",
+                lit(&table.name)
+            ),
+        };
+        let outcome = self
+            .execute(&query, usize::MAX)
+            .context("reading the primary key")?;
+        Ok(outcome.sets.into_iter().next().map_or_default(|set| {
+            set.rows
+                .into_iter()
+                .filter_map(|r| r.into_iter().next().flatten())
+                .collect()
+        }))
     }
 
     pub fn schema(&self) -> Result<Vec<SchemaNode>> {
@@ -277,10 +314,12 @@ mod tests {
     use super::*;
 
     fn sqlite_db() -> (SqlDatabase, std::path::PathBuf) {
+        // A counter, not the clock: parallel tests must never share a file.
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         let path = std::env::temp_dir().join(format!(
-            "power-idea-db-{}-{:?}.sqlite",
+            "power-idea-db-{}-{}.sqlite",
             std::process::id(),
-            Instant::now()
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::File::create(&path).unwrap();
         let config = ConnectionConfig {
@@ -330,6 +369,42 @@ mod tests {
             NodeKind::Column {
                 data_type: "TEXT".into()
             }
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn edits_rows_by_primary_key() {
+        use crate::edit::{CellEdit, editable_table, update_statement};
+
+        let (db, path) = sqlite_db();
+        db.execute(
+            "CREATE TABLE memberships (org TEXT, user_id INTEGER, role TEXT, PRIMARY KEY (org, user_id)); \
+             INSERT INTO memberships VALUES ('acme', 1, 'member'), ('acme', 2, 'member');",
+            10,
+        )
+        .unwrap();
+        let table = editable_table("SELECT * FROM memberships ORDER BY user_id").unwrap();
+        assert_eq!(db.primary_key(&table).unwrap(), ["org", "user_id"]);
+
+        let edit = CellEdit {
+            column: "role".into(),
+            value: Some("o'wner".into()),
+            key: vec![
+                ("org".into(), Some("acme".into())),
+                ("user_id".into(), Some("2".into())),
+            ],
+        };
+        let outcome = db
+            .execute(&update_statement(DbKind::Sqlite, &table, &edit), 10)
+            .unwrap();
+        assert_eq!(outcome.rows_affected, 1);
+        let roles = db
+            .execute("SELECT role FROM memberships ORDER BY user_id", 10)
+            .unwrap();
+        assert_eq!(
+            roles.sets[0].rows,
+            [[Some("member".to_string())], [Some("o'wner".to_string())]]
         );
         let _ = std::fs::remove_file(path);
     }

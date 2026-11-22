@@ -1,18 +1,22 @@
 //! Query console tab: an editor for SQL / Redis commands and a results grid.
 //! Cmd+Enter runs the selection, or the whole console when nothing is selected.
+//! Editing and export of the results live in `editing.rs`.
 
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use db::{ConnectionConfig, Database, DbKind, QueryOutcome};
+use db::{ConnectionConfig, Database, DbKind, QueryOutcome, SchemaNode};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Editor, EditorState, TabSize};
-use gpui_kit::component::table::{DataTable, TableState};
+use gpui_kit::component::table::{DataTable, TableEvent, TableState};
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, Icon, Sizable as _, h_flex, resizable_panel, v_flex, v_resizable,
 };
 use gpui_kit::*;
 
+use super::completion::SqlCompletion;
+use super::editing::Editability;
 use super::results::ResultsDelegate;
 use crate::style;
 
@@ -30,10 +34,14 @@ enum Status {
 pub struct QueryConsole {
     pub connection_id: String,
     pub title: String,
-    kind: DbKind,
-    db: Arc<Database>,
+    pub(super) kind: DbKind,
+    pub(super) db: Arc<Database>,
     editor: Entity<EditorState>,
-    table: Option<Entity<TableState<ResultsDelegate>>>,
+    pub(super) table: Option<Entity<TableState<ResultsDelegate>>>,
+    /// The query that produced the results (for edits, export and refresh).
+    pub(super) last_query: String,
+    pub(super) editability: Editability,
+    _table_events: Option<Subscription>,
     status: Status,
     run_task: Task<()>,
     focus_handle: FocusHandle,
@@ -43,6 +51,7 @@ impl QueryConsole {
     pub fn new(
         config: &ConnectionConfig,
         db: Arc<Database>,
+        schema: Vec<SchemaNode>,
         initial: String,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -58,6 +67,11 @@ impl QueryConsole {
                 .soft_wrap(false)
                 .default_value(initial)
         });
+        if config.kind.is_sql() {
+            editor.update(cx, |editor, _| {
+                editor.lsp_mut().completion_provider = Some(Rc::new(SqlCompletion { schema }));
+            });
+        }
         Self {
             connection_id: config.id.clone(),
             title: config.name.clone(),
@@ -65,6 +79,9 @@ impl QueryConsole {
             db,
             editor,
             table: None,
+            last_query: String::new(),
+            editability: Editability::Unknown,
+            _table_events: None,
             status: Status::Idle,
             run_task: Task::ready(()),
             focus_handle: cx.focus_handle(),
@@ -85,9 +102,19 @@ impl QueryConsole {
             selected
         }
         .to_string();
+        self.execute(query, window, cx);
+    }
+
+    /// Runs the last query again (after submitting edits).
+    pub(super) fn rerun_last(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.execute(self.last_query.clone(), window, cx);
+    }
+
+    fn execute(&mut self, query: String, window: &mut Window, cx: &mut Context<Self>) {
         if query.trim().is_empty() {
             return;
         }
+        self.last_query = query.clone();
         self.status = Status::Running;
         cx.notify();
 
@@ -103,12 +130,20 @@ impl QueryConsole {
                         let set = outcome.sets.iter().rev().find(|s| !s.columns.is_empty()).cloned();
                         this.table = set.map(|set| {
                             cx.new(|cx| {
-                                TableState::new(ResultsDelegate { set }, window, cx)
+                                TableState::new(ResultsDelegate::new(set), window, cx)
                                     .col_resizable(true)
                                     .cell_selectable(true)
                             })
                         });
+                        this._table_events = this.table.as_ref().map(|table| {
+                            cx.subscribe_in(table, window, |this, _, event: &TableEvent, window, cx| {
+                                if let TableEvent::DoubleClickedCell(row, col) = event {
+                                    this.edit_cell(*row, *col, window, cx);
+                                }
+                            })
+                        });
                         this.status = Status::Done(outcome);
+                        this.detect_editability(cx);
                     }
                     Err(err) => this.status = Status::Failed(format!("{err:#}")),
                 }
@@ -199,6 +234,7 @@ impl Focusable for QueryConsole {
 
 impl Render for QueryConsole {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let edit_toolbar = self.render_edit_toolbar(cx);
         let theme = cx.theme();
         let running = matches!(self.status, Status::Running);
         let toolbar = h_flex()
@@ -231,6 +267,20 @@ impl Render for QueryConsole {
                     .child(div().text_color(theme.muted_foreground).child(self.kind.label())),
             )
             .child(div().flex_1())
+            .children(edit_toolbar)
+            .children(
+                self.editability_hint()
+                    .map(|hint| div().text_color(theme.muted_foreground).child(hint.to_string())),
+            )
+            .child(
+                Button::new("export-csv")
+                    .ghost()
+                    .xsmall()
+                    .label("Export CSV")
+                    .tooltip("Save the results as CSV")
+                    .disabled(self.table.is_none())
+                    .on_click(cx.listener(|this, _, window, cx| this.export_csv(window, cx))),
+            )
             .child(self.render_status(cx));
 
         v_flex()

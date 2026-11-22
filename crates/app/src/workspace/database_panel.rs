@@ -96,7 +96,8 @@ impl Workspace {
             }
             return;
         };
-        let console = cx.new(|cx| QueryConsole::new(&config, db, sql, window, cx));
+        let schema = self.databases.schema(id);
+        let console = cx.new(|cx| QueryConsole::new(&config, db, schema, sql, window, cx));
         if run {
             console.update(cx, |console, cx| console.run(window, cx));
         }

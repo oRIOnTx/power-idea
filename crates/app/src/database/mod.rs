@@ -1,8 +1,10 @@
 //! Database tool window: project data sources, schema browser and query
 //! consoles (SQL for PostgreSQL/MySQL/SQLite, commands for Redis).
 
+mod completion;
 mod connection_dialog;
 pub mod console;
+mod editing;
 mod results;
 
 use std::collections::{HashMap, HashSet};
@@ -85,6 +87,14 @@ impl DatabaseStore {
         self.states.remove(id);
         db::delete_password(id);
         self.save()
+    }
+
+    /// Schema loaded when the data source connected (for console completion).
+    pub fn schema(&self, id: &str) -> Vec<SchemaNode> {
+        match self.states.get(id) {
+            Some(ConnState::Connected { schema, .. }) => schema.clone(),
+            _ => Vec::new(),
+        }
     }
 
     pub fn connected(&self, id: &str) -> Option<Arc<Database>> {

@@ -2,6 +2,8 @@
 //! `sqlx`, Redis via `redis`. Blocking API on top of a shared tokio runtime,
 //! meant to be called from background threads.
 
+pub mod edit;
+mod export;
 mod keychain;
 mod redis_db;
 mod sql;
@@ -12,6 +14,7 @@ use std::time::Duration;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+pub use export::to_csv;
 pub use keychain::{delete_password, load_password, store_password};
 
 /// Rows fetched per result set before the result is marked truncated.
@@ -163,6 +166,14 @@ impl Database {
         match self {
             Self::Sql(db) => db.execute(query, row_limit),
             Self::Redis(db) => db.execute(query),
+        }
+    }
+
+    /// Primary-key columns of a table, in key order (SQL only).
+    pub fn primary_key(&self, table: &edit::TableRef) -> Result<Vec<String>> {
+        match self {
+            Self::Sql(db) => db.primary_key(table),
+            Self::Redis(_) => anyhow::bail!("Redis has no tables"),
         }
     }
 

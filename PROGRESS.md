@@ -57,17 +57,21 @@ is in the working tree only.
       are drawn under the title bar because the custom title bar hides the native macOS tab strip
 - [x] Find Usages tool window (⌥F7, bottom panel): usages grouped by file (project files first), match
       highlighted, collapsible files, ↑/↓ select, Enter/F4 or click jumps; a single usage jumps directly
+- [x] Database consoles: completion of tables, columns (`table.` → its columns) and SQL keywords;
+      Export CSV (read-only queries are re-run to export every row, up to 1M); editing cells of a
+      single-table SELECT that includes the primary key: double-click → value / NULL, pending edits
+      highlighted, Submit runs one UPDATE per cell and reloads, Revert drops them
 
 ## Backlog
 Agreed backlog is done. Candidates:
 Database gaps below.
 
 ## Known gaps
-- `db` test `sqlite_queries_schema_and_limits` failed once in a full run, not reproducible (15 reruns pass)
+- `db` test `sqlite_queries_schema_and_limits` failed once; temp DB names now use a counter instead of the clock
 - Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;
   Go to Symbol lists library symbols after project ones
 - Git Log: right-click does not select the row; dates older than a week are shown in UTC; history capped at 2000 commits; no author/date/path filters
-- Database: no inline data editing, no table/column completion in consoles, no export, no TLS for Redis
+- Database: no TLS for Redis; editing is per cell (no insert/delete rows yet); completion ignores table aliases
 - Terminal: no mouse reporting for TUI apps, no cursor blink
 - Quitting from the Dock icon bypasses the unsaved-changes prompt (menu Quit and ⌘Q ask)
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end
