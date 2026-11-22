@@ -159,6 +159,13 @@ is in the working tree only.
       projects by name, then standalone containers; each group folds and shows running/total
 - [x] Commit tool window: file rows are indented under their group header (Changes / Unversioned Files)
 - [x] Commit tool window: long file names truncate with an ellipsis instead of overlapping the row buttons
+- [x] Push dialog (⌘⇧K, Commit and Push, a branch's Push…), as in JetBrains: where it goes (remote, URL,
+      remote branch, "New" when the branch isn't there yet), the outgoing commits and a folded file tree of
+      what they change (all together or per commit), a warning when the remote has commits the branch lacks,
+      Push tags; pushes `local:remote-branch` and sets the upstream (`vcs::Repo::outgoing` / `push_to`)
+- [x] Branches popup: the branch submenu is its own card level with the branch row; JetBrains wording with
+      the branch names ("New Branch from 'x'…", "Rebase 'main' onto 'x'", "Merge 'x' into 'main'"),
+      Update and Push… (⌘⇧K) on the current branch, upstream shown in the submenu header
 - [x] ⌘Q and closing a project window warn when a terminal still runs something (a running run
       configuration, or a shell whose foreground job is not the shell itself — `ps` `tpgid`, off the UI
       thread): "Terminate" / Cancel, listing the programs; Terminate replaces "Exit?" / "Close project?"

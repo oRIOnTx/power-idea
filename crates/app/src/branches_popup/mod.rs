@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::kbd::Kbd;
-use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Sizable as _, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Sizable as _, ThemeStyled as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use vcs::Branch;
@@ -48,6 +48,8 @@ pub struct BranchesPopup {
     submenu: Option<(usize, usize)>,
     /// Where the open submenu is drawn, for the safe-triangle check.
     submenu_bounds: Option<Bounds<Pixels>>,
+    /// Top of the popup in window coordinates, to line the submenu up with its row.
+    popup_top: Option<Pixels>,
     /// Recent pointer positions over the popup, oldest first: the direction of travel.
     trail: std::collections::VecDeque<Point<Pixels>>,
     /// A row hovered on the way to the submenu; selected only if the pointer stays.
@@ -79,6 +81,7 @@ impl BranchesPopup {
             selected: 0,
             submenu: None,
             submenu_bounds: None,
+            popup_top: None,
             trail: Default::default(),
             _aim_task: None,
             scroll: ScrollHandle::new(),
@@ -120,10 +123,22 @@ impl BranchesPopup {
         }
     }
 
-    fn submenu_ops(&self) -> Vec<(&'static str, GitLogOp)> {
+    fn current_name(&self) -> Option<&str> {
+        self.branches
+            .iter()
+            .find(|b| b.is_current && !b.is_remote)
+            .map(|b| b.name.as_str())
+    }
+
+    fn submenu_ops(&self) -> Vec<(String, GitLogOp)> {
         self.submenu
             .and_then(|(row, _)| self.branch_at(row))
-            .map_or_default(|branch| branch_ops(branch).into_iter().flatten().collect())
+            .map_or_default(|branch| {
+                branch_ops(branch, self.current_name())
+                    .into_iter()
+                    .flatten()
+                    .collect()
+            })
     }
 
     fn select(&mut self, row: usize, cx: &mut Context<Self>) {
@@ -387,19 +402,33 @@ impl BranchesPopup {
         }
     }
 
-    fn render_submenu(&self, cx: &mut Context<Self>) -> Option<impl IntoElement> {
+    /// The submenu floats beside the list, its first item level with the branch row.
+    fn submenu_offset(&self, row: usize) -> Pixels {
+        const PADDING: Pixels = px(4.);
+        match (self.scroll.bounds_for_item(row), self.popup_top) {
+            (Some(item), Some(top)) => (item.top() - top - PADDING).max(px(0.)),
+            _ => px(0.),
+        }
+    }
+
+    fn render_submenu(&self, window: &Window, cx: &mut Context<Self>) -> Option<impl IntoElement> {
         let (row, selected) = self.submenu?;
         let branch = self.branch_at(row)?.clone();
+        let offset = self.submenu_offset(row);
         let theme = cx.theme();
         let mut items: Vec<AnyElement> = Vec::new();
         let mut item_ix = 0;
-        for op in branch_ops(&branch) {
+        for op in branch_ops(&branch, self.current_name()) {
             let Some((label, op)) = op else {
                 items.push(div().mx_2().my_1().h(px(1.)).bg(theme.border).into_any_element());
                 continue;
             };
             let ix = item_ix;
             item_ix += 1;
+            // The current branch's Push… is the ⌘⇧K Push.
+            let shortcut = (op == GitLogOp::PushBranch && branch.is_current)
+                .then(|| Kbd::binding_for_action(&actions::Push, Some(WORKSPACE_CONTEXT), window))
+                .flatten();
             let branch = branch.clone();
             items.push(
                 h_flex()
@@ -407,6 +436,8 @@ impl BranchesPopup {
                     .h(px(ROW_HEIGHT))
                     .mx_1()
                     .px_2()
+                    .gap_4()
+                    .justify_between()
                     .rounded_sm()
                     .text_sm()
                     .cursor_pointer()
@@ -421,6 +452,7 @@ impl BranchesPopup {
                         cx.emit(BranchesPopupEvent::Branch(op, branch.clone()));
                     }))
                     .child(label)
+                    .children(shortcut)
                     .into_any_element(),
             );
         }
@@ -428,8 +460,11 @@ impl BranchesPopup {
         Some(
             v_flex()
                 .relative()
-                .w(px(SUBMENU_WIDTH))
+                .mt(offset)
+                .ml_1()
+                .min_w(px(SUBMENU_WIDTH))
                 .flex_none()
+                .popover_style(cx)
                 // Reaching the submenu ends the aim: no row it crossed takes over.
                 .on_mouse_move(cx.listener(|this, _: &MouseMoveEvent, _, _| this._aim_task = None))
                 .child(
@@ -443,8 +478,6 @@ impl BranchesPopup {
                     .size_full(),
                 )
                 .py_1()
-                .border_l_1()
-                .border_color(theme.border)
                 .child(
                     div()
                         .px_3()
@@ -454,7 +487,10 @@ impl BranchesPopup {
                         .overflow_hidden()
                         .text_ellipsis()
                         .whitespace_nowrap()
-                        .child(branch.name),
+                        .child(match &branch.upstream {
+                            Some(upstream) => format!("{} → {upstream}", branch.name),
+                            None => branch.name.clone(),
+                        }),
                 )
                 .children(items),
         )
@@ -477,6 +513,8 @@ impl Render for BranchesPopup {
         let list = v_flex()
             .w(px(LIST_WIDTH))
             .flex_none()
+            .popover_style(cx)
+            .overflow_hidden()
             .child(
                 h_flex()
                     .p_2()
@@ -512,8 +550,23 @@ impl Render for BranchesPopup {
             .on_action(cx.listener(Self::select_next))
             .on_action(cx.listener(Self::select_prev))
             .items_start()
+            .child(
+                canvas(
+                    {
+                        let this = cx.entity().downgrade();
+                        move |bounds, _, cx| {
+                            this.update(cx, |this, _| this.popup_top = Some(bounds.top()))
+                                .ok();
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_full(),
+            )
+            .relative()
             .child(list)
-            .children(self.render_submenu(cx))
+            .children(self.render_submenu(window, cx))
     }
 }
 

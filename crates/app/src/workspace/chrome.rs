@@ -111,7 +111,8 @@ impl Workspace {
         let workspace = cx.entity().downgrade();
         Popover::new("branches-popover")
             .anchor(Anchor::TopLeft)
-            .p_0()
+            // The list and the branch submenu draw their own cards, side by side.
+            .appearance(false)
             .open(popup.is_some())
             .on_open_change(move |open, window, cx| {
                 let open = *open;

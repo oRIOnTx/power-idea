@@ -42,6 +42,19 @@ pub struct CommitFile {
     pub status: char,
 }
 
+impl CommitFile {
+    /// The change kind for the status letter (copies and type changes count as such).
+    pub fn kind(&self) -> crate::ChangeKind {
+        use crate::ChangeKind;
+        match self.status {
+            'A' => ChangeKind::Added,
+            'D' => ChangeKind::Deleted,
+            'R' | 'C' => ChangeKind::Renamed,
+            _ => ChangeKind::Modified,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommitDetails {
     pub hash: String,
@@ -166,7 +179,7 @@ fn parse_log(out: &str, remotes: &[String]) -> Vec<LogEntry> {
         .collect()
 }
 
-fn parse_name_status(out: &str) -> Vec<CommitFile> {
+pub(crate) fn parse_name_status(out: &str) -> Vec<CommitFile> {
     out.lines()
         .filter_map(|line| {
             let mut parts = line.split('\t');
@@ -332,11 +345,6 @@ impl Repo {
             bail!("{remote_branch} is not a remote branch");
         };
         self.run(&["push", remote, "--delete", branch])
-    }
-
-    /// Pushes a local branch, setting its upstream on first push.
-    pub fn push_branch(&self, name: &str) -> Result<String> {
-        self.run(&["push", "--set-upstream", "origin", name])
     }
 
     /// The merge/rebase/cherry-pick/revert waiting for conflict resolution.

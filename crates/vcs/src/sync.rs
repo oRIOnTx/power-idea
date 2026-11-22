@@ -242,10 +242,8 @@ impl Repo {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
     use super::*;
-    use crate::testing::TempRepo;
+    use crate::testing::remote_and_clone;
 
     #[test]
     fn parses_shortstat_and_refs() {
@@ -303,21 +301,6 @@ mod tests {
             "4 commits in 1 branch · new: origin/feature · current branch is 4 commits behind"
         );
         assert_eq!(FetchSummary::default().message(), "Nothing new");
-    }
-
-    /// `remote` (non-bare, accepts pushes) and a clone of it.
-    fn remote_and_clone() -> (TempRepo, TempRepo) {
-        let remote = TempRepo::new();
-        remote.commit_file("a.txt", "1\n", "first");
-        remote.git(&["config", "receive.denyCurrentBranch", "updateInstead"]);
-        let local = TempRepo::new();
-        fs::remove_dir_all(local.0.root.join(".git")).unwrap();
-        let url = remote.0.root.to_string_lossy().into_owned();
-        local.git(&["clone", "-q", &url, "."]);
-        local.git(&["config", "user.name", "Test"]);
-        local.git(&["config", "user.email", "test@example.com"]);
-        local.git(&["config", "commit.gpgsign", "false"]);
-        (remote, local)
     }
 
     #[test]

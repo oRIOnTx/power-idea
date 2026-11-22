@@ -14,8 +14,8 @@ use crate::branches_popup::branch_ops;
 use crate::style;
 use crate::workspace::Workspace;
 
-fn branch_menu(menu: PopupMenu, branch: &Branch, focus: FocusHandle) -> PopupMenu {
-    branch_ops(branch)
+fn branch_menu(menu: PopupMenu, branch: &Branch, current: Option<&str>, focus: FocusHandle) -> PopupMenu {
+    branch_ops(branch, current)
         .into_iter()
         .fold(menu.action_context(focus), |menu, op| match op {
             Some((label, op)) => menu.menu(label, GitLogAction::boxed(op, branch.name.clone())),
@@ -147,6 +147,7 @@ impl Workspace {
         }
         let (name, checkout_name) = (branch.name.clone(), branch.name.clone());
         let menu_branch = branch.clone();
+        let current = self.git.as_ref().and_then(|g| g.status.branch.clone());
         let focus = self.focus_handle.clone();
         row.child(
             style::lucide("git-branch")
@@ -179,6 +180,6 @@ impl Workspace {
                 ws.set_log_branch(Some(name.clone()), cx);
             }
         }))
-        .context_menu(move |menu, _, _| branch_menu(menu, &menu_branch, focus.clone()))
+        .context_menu(move |menu, _, _| branch_menu(menu, &menu_branch, current.as_deref(), focus.clone()))
     }
 }

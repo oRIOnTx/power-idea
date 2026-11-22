@@ -154,27 +154,40 @@ fn valid_branch_name(name: &str) -> bool {
         && !name.contains("..")
 }
 
-/// What a branch offers (its submenu); `None` is a separator.
-pub fn branch_ops(branch: &Branch) -> Vec<Option<(&'static str, GitLogOp)>> {
+/// What a branch offers (its submenu), worded as in JetBrains with the branch names
+/// spelled out; `None` is a separator. `current` is the checked-out branch, if any.
+pub fn branch_ops(branch: &Branch, current: Option<&str>) -> Vec<Option<(String, GitLogOp)>> {
+    let name = &branch.name;
     let mut ops = Vec::new();
+    let mut op = |label: String, op: GitLogOp| ops.push(Some((label, op)));
     if !branch.is_current {
-        ops.push(Some(("Checkout", GitLogOp::CheckoutBranch)));
+        op("Checkout".into(), GitLogOp::CheckoutBranch);
     }
-    ops.push(Some(("New Branch from Here…", GitLogOp::NewBranchAt)));
-    if !branch.is_current {
+    op(format!("New Branch from '{name}'…"), GitLogOp::NewBranchAt);
+    if let (false, Some(current)) = (branch.is_current, current) {
         ops.push(None);
-        ops.push(Some(("Merge into Current", GitLogOp::MergeIntoCurrent)));
-        ops.push(Some(("Rebase Current onto This", GitLogOp::RebaseCurrentOnto)));
+        ops.push(Some((
+            format!("Rebase '{current}' onto '{name}'"),
+            GitLogOp::RebaseCurrentOnto,
+        )));
+        ops.push(Some((
+            format!("Merge '{name}' into '{current}'"),
+            GitLogOp::MergeIntoCurrent,
+        )));
     }
     ops.push(None);
     if branch.is_remote {
-        ops.push(Some(("Delete…", GitLogOp::DeleteBranch)));
+        ops.push(Some(("Delete…".into(), GitLogOp::DeleteBranch)));
         return ops;
     }
-    ops.push(Some(("Push", GitLogOp::PushBranch)));
-    ops.push(Some(("Rename…", GitLogOp::RenameBranch)));
+    if branch.is_current {
+        ops.push(Some(("Update".into(), GitLogOp::UpdateBranch)));
+    }
+    ops.push(Some(("Push…".into(), GitLogOp::PushBranch)));
+    ops.push(None);
+    ops.push(Some(("Rename…".into(), GitLogOp::RenameBranch)));
     if !branch.is_current {
-        ops.push(Some(("Delete…", GitLogOp::DeleteBranch)));
+        ops.push(Some(("Delete…".into(), GitLogOp::DeleteBranch)));
     }
     ops
 }
@@ -285,14 +298,43 @@ mod tests {
 
     #[test]
     fn current_and_remote_branches_offer_fewer_ops() {
-        let ops =
-            |b: &Branch| -> Vec<GitLogOp> { branch_ops(b).into_iter().flatten().map(|(_, op)| op).collect() };
+        let ops = |b: &Branch| -> Vec<GitLogOp> {
+            branch_ops(b, Some("main"))
+                .into_iter()
+                .flatten()
+                .map(|(_, op)| op)
+                .collect()
+        };
         let current = ops(&branch("main", false, true));
         assert!(!current.contains(&GitLogOp::CheckoutBranch));
         assert!(!current.contains(&GitLogOp::DeleteBranch));
+        assert!(!current.contains(&GitLogOp::MergeIntoCurrent));
+        assert!(current.contains(&GitLogOp::UpdateBranch));
         let remote = ops(&branch("origin/x", true, false));
         assert!(!remote.contains(&GitLogOp::RenameBranch));
+        assert!(!remote.contains(&GitLogOp::PushBranch));
         assert!(remote.contains(&GitLogOp::DeleteBranch));
+    }
+
+    #[test]
+    fn labels_name_both_branches() {
+        let labels: Vec<String> = branch_ops(&branch("feature", false, false), Some("main"))
+            .into_iter()
+            .flatten()
+            .map(|(label, _)| label)
+            .collect();
+        assert_eq!(
+            labels,
+            [
+                "Checkout",
+                "New Branch from 'feature'…",
+                "Rebase 'main' onto 'feature'",
+                "Merge 'feature' into 'main'",
+                "Push…",
+                "Rename…",
+                "Delete…",
+            ]
+        );
     }
 
     #[test]

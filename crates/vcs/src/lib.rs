@@ -6,6 +6,7 @@
 mod conflicts;
 mod graph;
 mod history;
+mod outgoing;
 mod recent;
 mod sync;
 #[cfg(test)]
@@ -23,6 +24,7 @@ pub use graph::{Anchor, GraphRow, Segment, layout as graph_layout};
 pub use history::{
     CommitDetails, CommitFile, HistoryQuery, LogEntry, Operation, RefKind, RefLabel, ResetMode,
 };
+pub use outgoing::{Outgoing, PushTarget};
 pub use sync::{DiffStat, FetchSummary, PullSummary, PushSummary};
 
 #[derive(Debug, Clone)]
@@ -255,13 +257,14 @@ impl Repo {
         if !self.has_head() {
             return Ok(Vec::new());
         }
-        let limit = format!("-n{limit}");
-        let out = self.run(&[
-            "log",
-            &limit,
-            "--date=short",
-            "--format=%H%x1f%h%x1f%an%x1f%ad%x1f%s%x1e",
-        ])?;
+        self.commits(&[&format!("-n{limit}")])
+    }
+
+    /// `git log` with `revisions` (a range, `-n…`, …), newest first.
+    fn commits(&self, revisions: &[&str]) -> Result<Vec<Commit>> {
+        let mut args = vec!["log", "--date=short", "--format=%H%x1f%h%x1f%an%x1f%ad%x1f%s%x1e"];
+        args.extend_from_slice(revisions);
+        let out = self.run(&args)?;
         Ok(out
             .split('\x1e')
             .filter_map(|record| {

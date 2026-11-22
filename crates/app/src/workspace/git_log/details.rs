@@ -12,16 +12,6 @@ use crate::actions::{GitLogAction, GitLogOp};
 use crate::workspace::Workspace;
 use crate::workspace::git::kind_color;
 
-/// Maps a `--name-status` letter to the change kinds used for colors.
-fn file_kind(status: char) -> ChangeKind {
-    match status {
-        'A' => ChangeKind::Added,
-        'D' => ChangeKind::Deleted,
-        'R' | 'C' => ChangeKind::Renamed,
-        _ => ChangeKind::Modified,
-    }
-}
-
 impl Workspace {
     pub(super) fn render_commit_details(
         &self,
@@ -132,7 +122,7 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let theme = cx.theme();
-        let kind = file_kind(file.status);
+        let kind = file.kind();
         let color = kind_color(kind, cx);
         let (dir, name) = file.path.rsplit_once('/').unwrap_or(("", &file.path));
         let (hash, path) = (hash.to_string(), file.path.clone());

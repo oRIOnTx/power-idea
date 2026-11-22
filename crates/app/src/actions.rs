@@ -153,6 +153,8 @@ pub enum GitLogOp {
     RenameBranch,
     DeleteBranch,
     PushBranch,
+    /// Pull into the current branch (JetBrains "Update").
+    UpdateBranch,
     ContinueOperation,
     AbortOperation,
     Refresh,

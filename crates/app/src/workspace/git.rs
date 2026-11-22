@@ -239,34 +239,26 @@ impl Workspace {
         let label = if push { "Commit and Push" } else { "Commit" };
         self.run_git(
             label,
-            move |repo| {
-                repo.commit(&message, &paths, amend)?;
-                push.then(|| repo.push_with_summary()).transpose()
-            },
-            move |ws, pushed, window, cx| {
+            move |repo| repo.commit(&message, &paths, amend),
+            move |ws, _, window, cx| {
                 if let Some(git) = ws.git.as_mut() {
                     git.amend = false;
                     git.message.update(cx, |m, cx| m.set_value("", window, cx));
                 }
-                let text =
-                    pushed.map_or_else(|| "Committed".into(), |p| format!("Committed. {}", p.message()));
-                window.push_notification(Notification::success(text), cx);
+                window.push_notification(Notification::success("Committed"), cx);
+                // As in JetBrains, Commit and Push goes on to the Push dialog.
+                if push {
+                    ws.open_push_dialog(None, window, cx);
+                }
             },
             window,
             cx,
         );
     }
 
+    /// Push asks first, in the Push dialog, what goes where.
     pub(super) fn push(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.run_git(
-            "Push",
-            |repo| repo.push_with_summary(),
-            |_, summary, window, cx| {
-                window.push_notification(Notification::success(summary.message()).title("Push"), cx);
-            },
-            window,
-            cx,
-        );
+        self.open_push_dialog(None, window, cx);
     }
 
     /// JetBrains "Update Project".
