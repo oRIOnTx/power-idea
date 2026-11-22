@@ -406,7 +406,16 @@ impl Render for Welcome {
                         .child("Welcome to Power IDEA"),
                 ),
             )
-            .child(h_flex().flex_1().overflow_hidden().child(sidebar).child(main))
+            .child(
+                // h_flex centers its children vertically; stretch them so the sidebar runs the
+                // full height and the content starts at the top, as in the prototype.
+                h_flex()
+                    .flex_1()
+                    .items_stretch()
+                    .overflow_hidden()
+                    .child(sidebar)
+                    .child(main),
+            )
     }
 }
 
