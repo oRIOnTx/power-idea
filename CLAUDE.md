@@ -13,6 +13,8 @@ update it when a feature lands.
 scripts/run.sh [project-dir]     # run the IDE (debug) on a project
 scripts/check.sh [--live]        # fmt + clippy + test; must be clean before a change is done
 scripts/build.sh [--no-open]     # release "Power IDEA.app" (scripts/bundle-macos.sh) and open it
+scripts/dmg.sh [--install]       # dist/*.dmg installer; --install also updates /Applications
+scripts/install.sh [file.dmg]    # install / update /Applications from a disk image
 scripts/bump-version.sh [patch|minor|major]   # semantic version; the build number is automatic
 ```
 

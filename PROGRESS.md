@@ -41,6 +41,8 @@ is in the working tree only.
 
 ### Committed 2026-11-22 (third batch)
 - [x] Self-contained scripts: `scripts/run.sh`, `check.sh`, `build.sh`, `bump-version.sh` (find rustup themselves)
+- [x] Installer: `scripts/dmg.sh` (drag-to-Applications disk image in `dist/`, signed with the local
+      certificate when present) and `scripts/install.sh` (install / update, quits the running app gracefully)
 - [x] Welcome screen (JetBrains style) after closing the last project: recent projects with search, New Project
       (folder + optional `git init`), Open
 - [x] ⌘Q asks about unsaved files in every project window (Save all / Don't Save / Cancel)

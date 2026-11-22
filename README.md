@@ -97,6 +97,18 @@ scripts/check.sh [--live]        # fmt + clippy + tests (--live: also against re
 scripts/bump-version.sh minor    # semantic version; the build number comes from git automatically
 ```
 
+### Install or update
+
+```sh
+scripts/dmg.sh --install         # build dist/Power-IDEA-<version>-<build>.dmg and install it
+scripts/dmg.sh                   # only build the disk image (drag the app onto Applications)
+scripts/install.sh [file.dmg]    # install / update /Applications from a disk image (newest in dist/)
+```
+
+`install.sh` quits a running Power IDEA first (it still asks about unsaved changes),
+replaces the app and starts the new version. Settings and projects are kept: they
+live in `~/Library/Application Support/power-idea/`, not inside the app.
+
 macOS remembers folder permissions per signing identity. Create a local signing
 certificate once so they survive rebuilds:
 
