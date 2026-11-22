@@ -91,6 +91,16 @@ impl Repo {
         })
     }
 
+    /// Creates an empty repository in `path` (`git init`).
+    pub fn init(path: &Path) -> Result<Self> {
+        let output = git_command(path)
+            .arg("init")
+            .output()
+            .context("running git init")?;
+        check(output, &["init"])?;
+        Self::discover(path).context("git init did not create a repository")
+    }
+
     pub fn root(&self) -> &Path {
         &self.root
     }
@@ -475,6 +485,15 @@ mod tests {
             ]
         );
         assert_eq!(status.changes[0].orig_path.as_deref(), Some("b.rs"));
+    }
+
+    #[test]
+    fn inits_a_repository() {
+        let dir = std::env::temp_dir().join(format!("power-idea-vcs-init-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let repo = Repo::init(&dir).unwrap();
+        assert_eq!(repo.root(), dir.canonicalize().unwrap());
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

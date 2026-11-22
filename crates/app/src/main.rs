@@ -14,6 +14,7 @@ mod session;
 mod settings;
 mod style;
 mod terminal;
+mod welcome;
 mod workspace;
 
 use std::path::PathBuf;
@@ -179,9 +180,16 @@ fn main() {
                 apply_theme(None, cx);
                 cx.refresh_windows();
             });
-            cx.on_window_closed(|cx, _| {
+            // Like JetBrains: closing the last project shows the Welcome screen;
+            // closing the Welcome screen itself quits.
+            cx.on_window_closed(|cx, id| {
+                let was_welcome = welcome::forget_closed(id, cx);
                 if cx.windows().is_empty() {
-                    cx.quit();
+                    if was_welcome {
+                        cx.quit();
+                    } else {
+                        welcome::show(cx);
+                    }
                 }
             })
             .detach();
@@ -189,7 +197,7 @@ fn main() {
             let last_project = cx.global::<AppConfig>().0.recent_projects.first().cloned();
             match arg_project.or(last_project).filter(|p| p.is_dir()) {
                 Some(path) => projects::open_project(path, cx),
-                None => projects::prompt_open_project(cx),
+                None => welcome::show(cx),
             }
             cx.activate(true);
         });

@@ -72,10 +72,10 @@ pub fn prompt_open_project(cx: &mut App) {
     });
     cx.spawn(async move |cx| match paths.await {
         Ok(Ok(Some(mut paths))) if !paths.is_empty() => cx.update(|cx| open_project(paths.remove(0), cx)),
-        // Nothing to show if the user cancels on startup.
+        // Cancelled with nothing open: fall back to the Welcome screen.
         _ => cx.update(|cx| {
             if cx.windows().is_empty() {
-                cx.quit();
+                crate::welcome::show(cx);
             }
         }),
     })
@@ -175,6 +175,7 @@ fn open_window(path: PathBuf, placement: Placement, cx: &mut App) {
         Ok((handle, _)) => handle,
         Err(err) => return eprintln!("failed to open window: {err:#}"),
     };
+    crate::welcome::close(cx);
 
     match placement {
         Placement::NewWindow => {}
