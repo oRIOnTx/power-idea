@@ -54,6 +54,11 @@ pub fn lucide(name: &str) -> Icon {
     Icon::empty().path(format!("icons/{name}.svg"))
 }
 
+/// One of the app's own icons (`crates/app/assets/icons`), e.g. the Docker whale.
+pub fn app_icon(name: &str) -> Icon {
+    Icon::empty().path(format!("app-icons/{name}.svg"))
+}
+
 /// Borderless icon button; `size` is one of the `BUTTON_*` constants.
 pub fn icon_button_sized(
     id: impl Into<ElementId>,

@@ -30,7 +30,7 @@ impl Workspace {
                 .p_4()
                 .text_sm()
                 .text_color(theme.muted_foreground)
-                .child(style::lucide("container").size_6())
+                .child(style::app_icon("docker").size_6())
                 .child(div().text_center().child(text))
                 .when(retry, |el| {
                     el.child(

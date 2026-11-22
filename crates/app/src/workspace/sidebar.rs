@@ -134,7 +134,7 @@ impl Workspace {
             ))
             .child(slot(
                 "bar-docker",
-                style::lucide("container"),
+                style::app_icon("docker"),
                 "Docker",
                 docker_open,
                 docker_running,

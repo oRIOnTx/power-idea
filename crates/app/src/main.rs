@@ -1,4 +1,5 @@
 mod actions;
+mod assets;
 mod config;
 mod database;
 mod editor;
@@ -190,7 +191,7 @@ fn main() {
     let arg_project = std::env::args().nth(1).map(PathBuf::from);
 
     gpui_kit::application()
-        .with_assets(gpui_kit::assets::AllAssets)
+        .with_assets(assets::Assets)
         .run(move |cx| {
             gpui_kit::init(cx);
             cx.set_global(AppConfig(Config::load()));
