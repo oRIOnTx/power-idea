@@ -41,6 +41,8 @@ impl Workspace {
         let database_open = self.show_project_view && self.left_panel == LeftPanel::Database;
         let docker_open = self.show_project_view && self.left_panel == LeftPanel::Docker;
         let docker_running = self.docker.as_ref().map_or(0, |d| d.counts(&self.root).0);
+        let insights_open = self.show_project_view && self.left_panel == LeftPanel::Insights;
+        let insights_enabled = Self::insights_enabled(cx);
         let terminal_open = self.terminal_visible();
         let log_open = self.git_log_visible();
 
@@ -138,6 +140,16 @@ impl Workspace {
                 docker_running,
                 Box::new(cx.listener(|this, _, window, cx| this.toggle_docker(window, cx))),
             ))
+            .when(insights_enabled, |bar| {
+                bar.child(slot(
+                    "bar-insights",
+                    style::lucide("chart-line"),
+                    "Claude Insights",
+                    insights_open,
+                    0,
+                    Box::new(cx.listener(|this, _, window, cx| this.toggle_insights(window, cx))),
+                ))
+            })
             .child(div().flex_1())
             .child(slot(
                 "bar-git-log",
@@ -172,6 +184,7 @@ impl Workspace {
             LeftPanel::Commit => "Commit".to_string(),
             LeftPanel::Database => "Database".to_string(),
             LeftPanel::Docker => "Docker".to_string(),
+            LeftPanel::Insights => "Claude Insights".to_string(),
         };
         let header = h_flex()
             .h(px(34.))
@@ -187,6 +200,7 @@ impl Workspace {
             LeftPanel::Commit => self.render_commit_panel(cx),
             LeftPanel::Database => self.render_database_panel(cx),
             LeftPanel::Docker => self.render_docker_panel(cx),
+            LeftPanel::Insights => self.render_insights_panel(cx),
         };
         v_flex()
             .size_full()

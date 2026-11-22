@@ -101,12 +101,22 @@ is in the working tree only.
       (one connection, debounced re-list); start / stop / restart / remove (confirm); logs, shell and
       `compose up -d / restart / down` in terminal tabs; clickable `:PORT` links; health colors; running-count
       badge; lazy (connects when the panel opens); "Docker is not running" + Check again
+- [x] Claude Session Insights (backlog/claude-review, MVP + scoring + rule tips), `crates/insights`: parses
+      `~/.claude/projects/*/*.jsonl` (unknown lines skipped; usage de-duplicated per message id), pure
+      metrics → 7 blocks (0–100) → Session Score; SQLite store in the config folder with incremental
+      indexing by mtime/size (re-index every 2 min while the panel is open, never on the UI thread);
+      sidebar panel (off by default, Settings → Insights): score + trend vs previous period (7d/30d/90d/All),
+      project filter, score-per-session chart, block bars now vs before, top-3 tips with "Got it", session
+      list and breakdown; "Clear all analytics data"
 
 ## Backlog
 Agreed backlog is done. Candidates:
 Database gaps below.
 
 ## Known gaps
+- Insights: no event timeline in session details, no "tip resolved" tracking, weights/excluded
+  projects/tip language not configurable in the UI, no file watcher (periodic re-index), no weekly LLM
+  report (stage 4); correction detection is keyword-based (UA/EN), no similarity to the previous prompt
 - Docker: logs use `docker logs -f` in a terminal tab (no in-panel search/highlight yet); no stats, no Info
   tab, no settings page (socket path, extra compose files, profiles); remote (ssh/tcp) hosts unsupported
 - Debug: breakpoints are toggled with ⌘F8 (no gutter click in the gpui-kit editor), not saved between sessions,

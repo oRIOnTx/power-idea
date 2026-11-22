@@ -46,6 +46,8 @@ pub struct Config {
     /// Language servers keyed by id (e.g. "ruby"), merged over the built-in list.
     pub language_servers: BTreeMap<String, LanguageServerConfig>,
     pub recent_projects: Vec<PathBuf>,
+    /// Claude Session Insights (reads ~/.claude transcripts locally); off by default.
+    pub insights_enabled: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -142,6 +144,7 @@ impl Default for Config {
             terminal_shell: String::new(),
             language_servers: default_language_servers(),
             recent_projects: Vec::new(),
+            insights_enabled: false,
         }
     }
 }

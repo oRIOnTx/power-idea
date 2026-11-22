@@ -92,6 +92,7 @@ actions!(
         StepInto,
         StepOut,
         ToggleDockerView,
+        ToggleInsightsView,
     ]
 );
 
@@ -253,6 +254,7 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Settings…", Box::new(OpenSettings)),
         ("Database", Box::new(ToggleDatabaseView)),
         ("Docker", Box::new(ToggleDockerView)),
+        ("Claude Session Insights", Box::new(ToggleInsightsView)),
         (
             "Toggle Preview (Editor / Split / Preview)",
             Box::new(TogglePreview),

@@ -34,6 +34,9 @@ mod fs_watch;
 mod git;
 mod git_log;
 mod git_panel;
+mod insights_panel;
+mod insights_parts;
+mod insights_view;
 mod mcp_code_tools;
 mod mcp_tools;
 mod navigation;
@@ -47,6 +50,7 @@ mod unsaved;
 mod usages_panel;
 mod window_tabs;
 
+pub(crate) use insights_panel::clear_insights;
 pub(crate) use unsaved::{request_quit, store_recovery};
 
 const MAX_RECENT_FILES: usize = 50;
@@ -125,6 +129,7 @@ enum LeftPanel {
     Commit,
     Database,
     Docker,
+    Insights,
 }
 
 pub struct Workspace {
@@ -150,6 +155,8 @@ pub struct Workspace {
     debug: Option<debug::DebugSession>,
     /// Docker panel state; created the first time the panel opens.
     docker: Option<docker_panel::DockerState>,
+    /// Claude Session Insights; created the first time the panel opens.
+    insights: Option<insights_panel::InsightsState>,
     usages: Option<usages_panel::UsagesState>,
     project: ProjectSettings,
     /// Languages whose "install a language server" banner was dismissed.
@@ -221,6 +228,7 @@ impl Workspace {
             breakpoints: Default::default(),
             debug: None,
             docker: None,
+            insights: None,
             usages: None,
             watcher: None,
             terminals: Vec::new(),

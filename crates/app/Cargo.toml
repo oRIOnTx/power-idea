@@ -13,6 +13,7 @@ db = { path = "../db" }
 run = { path = "../run" }
 dap = { path = "../dap" }
 docker = { path = "../docker" }
+insights = { path = "../insights" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 notify.workspace = true

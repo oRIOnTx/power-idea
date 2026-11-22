@@ -22,6 +22,7 @@ fn panel_name(panel: LeftPanel) -> &'static str {
         LeftPanel::Commit => "commit",
         LeftPanel::Database => "database",
         LeftPanel::Docker => "docker",
+        LeftPanel::Insights => "insights",
     }
 }
 
@@ -30,6 +31,7 @@ fn panel_from_name(name: &str) -> LeftPanel {
         "commit" => LeftPanel::Commit,
         "database" => LeftPanel::Database,
         "docker" => LeftPanel::Docker,
+        "insights" => LeftPanel::Insights,
         _ => LeftPanel::Project,
     }
 }
@@ -104,6 +106,13 @@ impl Workspace {
         // The Docker panel connects lazily; reopened, it should connect right away.
         if self.show_project_view && self.left_panel == LeftPanel::Docker {
             self.ensure_docker(window, cx);
+        }
+        if self.show_project_view && self.left_panel == LeftPanel::Insights {
+            if Self::insights_enabled(cx) {
+                self.ensure_insights(window, cx);
+            } else {
+                self.left_panel = LeftPanel::Project;
+            }
         }
 
         // Reopening tabs is not navigation, so keep it out of Back/Forward history.
@@ -219,6 +228,7 @@ mod tests {
             LeftPanel::Commit,
             LeftPanel::Database,
             LeftPanel::Docker,
+            LeftPanel::Insights,
         ] {
             assert!(panel_from_name(panel_name(panel)) == panel);
         }

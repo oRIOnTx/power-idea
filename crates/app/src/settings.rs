@@ -69,6 +69,7 @@ pub fn render(workspace: WeakEntity<Workspace>, cx: &App) -> Settings {
         terminal_page(),
         languages_page(cx),
         mcp_page(),
+        insights_page(),
         keymap_page(workspace.clone()),
         project_page(workspace),
     ])
@@ -312,6 +313,35 @@ fn languages_page(cx: &App) -> SettingPage {
              Add more under [language_servers] in config.toml.",
         )
         .groups(config(cx).language_servers.keys().cloned().map(language_group))
+}
+
+fn insights_page() -> SettingPage {
+    SettingPage::new("Insights").icon(IconName::ChartPie).group(
+        SettingGroup::new()
+            .description(
+                "Scores how you steer Claude Code, from the transcripts in ~/.claude/projects. \
+                 Everything stays on this machine; transcripts are read, never copied or sent.",
+            )
+            .item(SettingItem::new(
+                "Enabled",
+                SettingField::switch(
+                    |cx| config(cx).insights_enabled,
+                    |value, cx| update_config(cx, |c| c.insights_enabled = value),
+                ),
+            ))
+            .item(SettingItem::render(|_, _, _| {
+                h_flex()
+                    .child(div().flex_1())
+                    .child(
+                        Button::new("clear-insights")
+                            .danger()
+                            .small()
+                            .label("Clear all analytics data")
+                            .on_click(|_, window, cx| crate::workspace::clear_insights(window, cx)),
+                    )
+                    .into_any_element()
+            })),
+    )
 }
 
 fn mcp_page() -> SettingPage {
