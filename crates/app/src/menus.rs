@@ -136,6 +136,7 @@ fn menus() -> Vec<Menu> {
             MenuItem::action("Commit…", CommitChanges),
             MenuItem::action("Push…", Push),
             MenuItem::action("Fetch", Fetch),
+            MenuItem::action("Resolve Conflicts…", ResolveConflicts),
             MenuItem::action("Update Project…", UpdateProject),
             MenuItem::separator(),
             MenuItem::action("Branches…", Branches),

@@ -23,6 +23,8 @@ use crate::terminal::TerminalView;
 mod action_handlers;
 mod chrome;
 mod code_nav;
+mod conflicts;
+mod conflicts_view;
 mod database_panel;
 mod debug;
 mod docker_panel;
@@ -141,6 +143,7 @@ pub struct Workspace {
     /// Files waiting for Paste in the project tree.
     file_clipboard: Option<crate::file_ops::FileClipboard>,
     tree_selection: crate::tree_selection::TreeSelection,
+    conflicts: conflicts::ConflictsState,
     /// The tree row the keyboard cursor was last put on by us; any other row
     /// selected in the tree (arrow keys) replaces the multi-selection.
     tree_cursor: Option<String>,
@@ -222,6 +225,7 @@ impl Workspace {
             expanded,
             file_clipboard: None,
             tree_selection: Default::default(),
+            conflicts: Default::default(),
             tree_cursor: None,
             index: Arc::default(),
             tabs: Vec::new(),
@@ -415,6 +419,7 @@ impl Render for Workspace {
                     .into_any_element(),
             ),
             Some(CenterTab::Console { console, .. }) => Some(console.clone().into_any_element()),
+            Some(CenterTab::Conflicts) => Some(self.render_conflicts_tab(cx)),
             Some(CenterTab::Settings) => Some(
                 div()
                     .size_full()

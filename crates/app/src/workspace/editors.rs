@@ -117,7 +117,9 @@ impl Workspace {
                 self.recent_files.truncate(MAX_RECENT_FILES);
             }
             CenterTab::Diff(tab) => tab.state.read(cx).focus_handle(cx).focus(window, cx),
-            CenterTab::Settings | CenterTab::Image(_) => self.focus_handle.focus(window, cx),
+            CenterTab::Settings | CenterTab::Conflicts | CenterTab::Image(_) => {
+                self.focus_handle.focus(window, cx);
+            }
             CenterTab::Console { console, .. } => console.update(cx, |console, cx| console.focus(window, cx)),
         }
         cx.notify();

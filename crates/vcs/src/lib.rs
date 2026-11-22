@@ -3,6 +3,7 @@
 //! Using the CLI (like JetBrains IDEs do) means the user's credentials, SSH
 //! agent, hooks and `.gitconfig` all work without extra configuration.
 
+mod conflicts;
 mod graph;
 mod history;
 mod sync;
@@ -14,6 +15,9 @@ use std::process::{Command, Output};
 
 use anyhow::{Context as _, Result, bail};
 
+pub use conflicts::{
+    ConflictChunk, ConflictSegment, Resolution, Side, conflict_count, parse_conflicts, resolve,
+};
 pub use graph::{Anchor, GraphRow, Segment, layout as graph_layout};
 pub use history::{
     CommitDetails, CommitFile, HistoryQuery, LogEntry, Operation, RefKind, RefLabel, ResetMode,

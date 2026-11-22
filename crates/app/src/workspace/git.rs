@@ -9,7 +9,7 @@ use gpui_kit::component::input::{InputEvent, TextareaState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{ActiveTheme as _, WindowExt as _};
 use gpui_kit::*;
-use vcs::{Branch, ChangeKind, FileChange, Repo, Status};
+use vcs::{Branch, ChangeKind, FileChange, Operation, Repo, Status};
 
 use super::Workspace;
 use crate::editor::{CenterTab, DiffTab};
@@ -30,9 +30,16 @@ pub struct GitState {
     pub(super) message: Entity<TextareaState>,
     pub(super) amend: bool,
     pub(super) busy: Option<&'static str>,
+    /// Merge / rebase / cherry-pick / revert stopped on conflicts.
+    pub operation: Option<Operation>,
     /// Collapsed change groups in the Commit panel.
     pub(super) collapsed: HashSet<&'static str>,
     pub(super) _subscription: Subscription,
+}
+
+/// Status plus the operation in progress, loaded together off the UI thread.
+fn load_status(repo: &Repo) -> anyhow::Result<(Status, Option<Operation>)> {
+    Ok((repo.status()?, repo.operation_in_progress()))
 }
 
 impl GitState {
@@ -116,6 +123,7 @@ impl Workspace {
             message,
             amend: false,
             busy: None,
+            operation: None,
             collapsed: HashSet::new(),
             _subscription: subscription,
         });
@@ -126,7 +134,7 @@ impl Workspace {
                 else {
                     break;
                 };
-                let status = cx.background_spawn(async move { repo.status() }).await;
+                let status = cx.background_spawn(async move { load_status(&repo) }).await;
                 if this.update(cx, |ws, cx| ws.apply_status(status, cx)).is_err() {
                     break;
                 }
@@ -141,19 +149,20 @@ impl Workspace {
             return;
         };
         cx.spawn(async move |this, cx| {
-            let status = cx.background_spawn(async move { repo.status() }).await;
+            let status = cx.background_spawn(async move { load_status(&repo) }).await;
             this.update(cx, |ws, cx| ws.apply_status(status, cx)).ok();
         })
         .detach();
     }
 
-    fn apply_status(&mut self, status: anyhow::Result<Status>, cx: &mut Context<Self>) {
-        let (Some(git), Ok(status)) = (self.git.as_mut(), status) else {
+    fn apply_status(&mut self, status: anyhow::Result<(Status, Option<Operation>)>, cx: &mut Context<Self>) {
+        let (Some(git), Ok((status, operation))) = (self.git.as_mut(), status) else {
             return;
         };
-        if git.status == status {
+        if git.status == status && git.operation == operation {
             return;
         }
+        git.operation = operation;
         let paths: HashSet<String> = status.changes.iter().map(|c| c.path.clone()).collect();
         // New changes are included in the commit by default, like the JetBrains default changelist.
         for path in paths.difference(&git.known) {
@@ -168,6 +177,7 @@ impl Workspace {
         if moved && self.git_log_visible() {
             self.reload_git_log(cx);
         }
+        self.sync_conflicts(cx);
         cx.notify();
     }
 
@@ -195,10 +205,17 @@ impl Workspace {
                 }
                 match result {
                     Ok(value) => on_success(ws, value, window, cx),
-                    Err(err) => window.push_notification(
-                        Notification::error(format!("{err:#}")).title(format!("{label} failed")),
-                        cx,
-                    ),
+                    Err(err) => {
+                        let text = format!("{err:#}");
+                        // Like JetBrains, a pull or merge that stops on conflicts opens the resolver.
+                        if text.contains("CONFLICT") || text.contains("unmerged") {
+                            ws.open_conflicts(None, window, cx);
+                        }
+                        window.push_notification(
+                            Notification::error(text).title(format!("{label} failed")),
+                            cx,
+                        );
+                    }
                 }
                 ws.refresh_git(cx);
                 ws.reload_git_log(cx);
@@ -343,6 +360,9 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if change.kind == ChangeKind::Conflicted {
+            return self.open_conflicts(Some(change.path), window, cx);
+        }
         // All local-change diffs share one tab, like the JetBrains diff viewer.
         let key = LOCAL_CHANGES_DIFF.to_string();
         let title = format!("Δ {}", change.path.rsplit('/').next().unwrap_or(&change.path));

@@ -63,6 +63,8 @@ pub enum CenterTab {
     Image(ImageTab),
     Diff(DiffTab),
     Settings,
+    /// Merge conflicts of the repository (state lives in the workspace).
+    Conflicts,
     Console {
         title: String,
         console: Entity<crate::database::QueryConsole>,
@@ -73,7 +75,7 @@ impl CenterTab {
     pub fn editor(&self) -> Option<&EditorTab> {
         match self {
             Self::Editor(tab) => Some(tab),
-            Self::Image(_) | Self::Diff(_) | Self::Settings | Self::Console { .. } => None,
+            Self::Image(_) | Self::Diff(_) | Self::Settings | Self::Conflicts | Self::Console { .. } => None,
         }
     }
 
@@ -82,7 +84,7 @@ impl CenterTab {
         match self {
             Self::Editor(tab) => Some(&tab.rel),
             Self::Image(tab) => Some(&tab.rel),
-            Self::Diff(_) | Self::Settings | Self::Console { .. } => None,
+            Self::Diff(_) | Self::Settings | Self::Conflicts | Self::Console { .. } => None,
         }
     }
 
@@ -92,6 +94,7 @@ impl CenterTab {
             Self::Image(tab) => tab.rel.rsplit('/').next().unwrap_or(&tab.rel).to_string(),
             Self::Diff(tab) => tab.title.clone(),
             Self::Settings => "Settings".into(),
+            Self::Conflicts => "Conflicts".into(),
             Self::Console { title, .. } => title.clone(),
         }
     }

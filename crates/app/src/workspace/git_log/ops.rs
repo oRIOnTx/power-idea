@@ -221,7 +221,9 @@ impl Workspace {
                 cx,
             ),
             GitLogOp::ContinueOperation | GitLogOp::AbortOperation => {
-                let Some(operation) = self.git_log.as_ref().and_then(|log| log.operation) else {
+                let live = self.git.as_ref().and_then(|g| g.operation);
+                let Some(operation) = live.or_else(|| self.git_log.as_ref().and_then(|log| log.operation))
+                else {
                     return;
                 };
                 if action.op == GitLogOp::ContinueOperation {

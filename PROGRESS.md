@@ -118,6 +118,13 @@ is in the working tree only.
       Update Project / Commit / Push (with ↑N) / Fetch and shows ↑↓ on each tracked branch; Fetch action + Git menu
 - [x] Git notifications say what moved: "Pushed 3 commits to origin/main" (new branch → upstream), Update Project
       → commits, source and diff stat, Fetch → new commits per branch, new/pruned branches and how far behind
+- [x] Merge conflicts (JetBrains-style): a title-bar chip "Merge: 2 conflicts" / "resolved — continue" while a
+      merge/rebase/cherry-pick/revert is pending; Conflicts tab (Git → Resolve Conflicts…, the chip, clicking a
+      conflicted file in Commit, or automatically when pull/merge stops on conflicts) with the conflicted files,
+      per-chunk Yours | Theirs (Accept / both in either order / Undo, unchanged context around), Apply writes and
+      stages the file, Accept Yours / Theirs for the whole file (deletes when that side deleted it), Open in
+      Editor + Mark as Resolved for manual edits, Continue / Abort of the operation. Rebase sides are labelled
+      Upstream / Your commit. `vcs::conflicts` parses markers (diff3 base too) and is tested on real merges
 - [x] Terminal: slow trackpad swipes scroll (sub-line wheel deltas accumulate instead of being rounded away)
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
 
@@ -126,6 +133,8 @@ Agreed backlog is done. Candidates:
 Database gaps below.
 
 ## Known gaps
+- Conflicts: chunks are chosen whole (no editable result pane or word-level diff like JetBrains); binary and
+  delete/modify conflicts get only whole-file choices; not clicked through by hand yet
 - Project tree: Delete and drag-and-drop still act on one item; right-click does not select the row
 - Insights: no event timeline in session details, no "tip resolved" tracking, weights/excluded
   projects/tip language not configurable in the UI, no file watcher (periodic re-index), no weekly LLM

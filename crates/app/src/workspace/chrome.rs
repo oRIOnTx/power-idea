@@ -3,7 +3,7 @@
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::status_bar::StatusBar;
 use gpui_kit::component::tooltip::Tooltip;
-use gpui_kit::component::{ActiveTheme as _, IconName, Sizable as _, TitleBar, h_flex};
+use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Sizable as _, TitleBar, h_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
@@ -16,6 +16,7 @@ use crate::style;
 impl Workspace {
     pub(super) fn render_title_bar(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let run_widget = self.render_run_widget(cx).into_any_element();
+        let conflict_chip = self.render_conflict_chip(cx);
         let theme = cx.theme();
         let file = self.active().map(|tab| tab.rel.clone());
         let branch = self.git.as_ref().map(|g| {
@@ -74,6 +75,7 @@ impl Workspace {
                         .children(style::tracking_arrows(ahead, behind, cx))
                         .on_click(cx.listener(|this, _, window, cx| this.open_branches(window, cx)))
                 }))
+                .children(conflict_chip)
                 .child(
                     div()
                         .flex_1()
@@ -101,6 +103,47 @@ impl Workspace {
                     Box::new(OpenProject),
                     "Open Project…",
                 )),
+        )
+    }
+
+    /// "Merging · 2 conflicts" next to the branch while conflicts or an operation are pending.
+    fn render_conflict_chip(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let operation = self.git.as_ref()?.operation;
+        let conflicts = self.conflicted_paths().len();
+        if operation.is_none() && conflicts == 0 {
+            return None;
+        }
+        let theme = cx.theme();
+        let color = if conflicts > 0 {
+            theme.danger
+        } else {
+            theme.warning
+        };
+        let state = operation.map(|op| op.label());
+        let text = match (state, conflicts) {
+            (Some(op), 0) => format!("{op}: resolved — continue"),
+            (Some(op), n) => format!("{op}: {n} conflict{}", if n == 1 { "" } else { "s" }),
+            (None, n) => format!("{n} conflict{}", if n == 1 { "" } else { "s" }),
+        };
+        Some(
+            h_flex()
+                .id("conflict-chip")
+                .gap_1()
+                .px_2()
+                .h(px(22.))
+                .rounded_sm()
+                .text_xs()
+                .text_color(color)
+                .bg(color.opacity(0.12))
+                .border_1()
+                .border_color(color.opacity(0.4))
+                .cursor_pointer()
+                .hover(|s| s.bg(color.opacity(0.2)))
+                .child(Icon::new(IconName::TriangleAlert).xsmall())
+                .child(text)
+                .tooltip(|window, cx| Tooltip::new("Resolve Conflicts").build(window, cx))
+                .on_click(cx.listener(|ws, _, window, cx| ws.open_conflicts(None, window, cx)))
+                .into_any_element(),
         )
     }
 
