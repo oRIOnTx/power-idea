@@ -140,6 +140,9 @@ is in the working tree only.
       selection; every row of a multi-selection is highlighted (the Tree only paints its cursor row)
 - [x] Destructive confirmations (Rollback, Hard Reset, Abort, Delete Branch, Remove container / data source,
       Clear analytics) share `style::danger_confirm`: red icon, Cancel (Esc) and a red named action button
+- [x] "Exit Power IDEA?" on ⌘Q and "Close project “name”?" on ⇧⌘W / the close button / a project tab, with
+      "Don't ask again"; toggles in Settings → Appearance → Confirmations (`confirm_exit`,
+      `confirm_close_project`). Unsaved files keep their Save / Don't Save / Cancel dialog instead
 - [x] Terminal ⌘V pastes copied files and images (screenshots) as shell-escaped paths; images are saved to
       `$TMPDIR/power-idea-paste/`, so Claude Code in the terminal attaches them
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen

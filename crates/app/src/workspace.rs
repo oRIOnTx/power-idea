@@ -23,6 +23,7 @@ use crate::terminal::TerminalView;
 mod action_handlers;
 mod branches;
 mod chrome;
+mod close_confirm;
 mod code_nav;
 mod conflicts;
 mod conflicts_view;

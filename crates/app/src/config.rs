@@ -51,6 +51,10 @@ pub struct Config {
     pub recent_projects: Vec<PathBuf>,
     /// Claude Session Insights (reads ~/.claude transcripts locally); off by default.
     pub insights_enabled: bool,
+    /// Ask before ⌘Q quits (unsaved files are always asked about).
+    pub confirm_exit: bool,
+    /// Ask before a project window closes.
+    pub confirm_close_project: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -149,6 +153,8 @@ impl Default for Config {
             language_servers: default_language_servers(),
             recent_projects: Vec::new(),
             insights_enabled: false,
+            confirm_exit: true,
+            confirm_close_project: true,
         }
     }
 }

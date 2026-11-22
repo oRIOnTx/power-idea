@@ -116,7 +116,7 @@ impl Workspace {
         .on_action(cx.listener(|this, _: &RenameSymbol, w, cx| this.rename_symbol(w, cx)))
         .on_action(cx.listener(|this, _: &ReformatCode, w, cx| this.reformat_code(w, cx)))
         .on_action(cx.listener(|this, _: &CloseWindow, w, cx| {
-            if this.can_close_window(w, cx) {
+            if this.should_close_window(w, cx) {
                 w.remove_window();
             }
         }))

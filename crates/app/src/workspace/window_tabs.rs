@@ -16,7 +16,7 @@ fn close_project_window(handle: AnyWindowHandle, cx: &mut App) {
     };
     handle
         .update(cx, |_, window, cx| {
-            if workspace.update(cx, |ws, cx| ws.can_close_window(window, cx)) {
+            if workspace.update(cx, |ws, cx| ws.should_close_window(window, cx)) {
                 window.remove_window();
             }
         })

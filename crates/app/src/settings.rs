@@ -147,6 +147,32 @@ fn appearance_page() -> SettingPage {
                     .default_value(13.),
                 )),
         )
+        .group(
+            SettingGroup::new()
+                .title("Confirmations")
+                .item(
+                    SettingItem::new(
+                        "Confirm exit",
+                        SettingField::switch(
+                            |cx| config(cx).confirm_exit,
+                            |value, cx| update_config(cx, |c| c.confirm_exit = value),
+                        )
+                        .default_value(true),
+                    )
+                    .description("Ask before ⌘Q quits. Unsaved files are always asked about."),
+                )
+                .item(
+                    SettingItem::new(
+                        "Confirm closing a project",
+                        SettingField::switch(
+                            |cx| config(cx).confirm_close_project,
+                            |value, cx| update_config(cx, |c| c.confirm_close_project = value),
+                        )
+                        .default_value(true),
+                    )
+                    .description("Ask before ⇧⌘W, the close button or a project tab closes a project."),
+                ),
+        )
 }
 
 fn editor_page(cx: &App) -> SettingPage {

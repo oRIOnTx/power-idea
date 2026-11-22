@@ -55,7 +55,7 @@ pub(crate) fn request_quit(cx: &mut App) {
         }
     }
     let Some((handle, ws, _)) = dirty.first().cloned() else {
-        return cx.quit();
+        return super::close_confirm::confirm_quit(cx);
     };
     let total: usize = dirty.iter().map(|(_, _, n)| n).sum();
     let title = format!(
@@ -135,7 +135,7 @@ impl Workspace {
         window.on_window_should_close(cx, move |window, cx| {
             workspace
                 .upgrade()
-                .is_none_or(|ws| ws.update(cx, |ws, cx| ws.can_close_window(window, cx)))
+                .is_none_or(|ws| ws.update(cx, |ws, cx| ws.should_close_window(window, cx)))
         });
     }
 
