@@ -2,6 +2,7 @@
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Icon, IconName, Sizable as _};
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 /// Soft neon halo around an accent element.
@@ -22,6 +23,26 @@ pub fn signal_dot(color: Hsla) -> Div {
         .rounded_full()
         .bg(color)
         .shadow(glow(color, 0.8))
+}
+
+/// `↑2 ↓1` next to a branch: commits to push (green) and to pull (yellow); `None` when in sync.
+pub fn tracking_arrows(ahead: u32, behind: u32, cx: &App) -> Option<Div> {
+    if ahead == 0 && behind == 0 {
+        return None;
+    }
+    let theme = gpui_kit::component::ActiveTheme::theme(cx);
+    let arrow = |text: String, color: Hsla| div().text_color(color).child(text);
+    Some(
+        div()
+            .flex()
+            .flex_none()
+            .gap_1()
+            .text_xs()
+            .when(ahead > 0, |el| el.child(arrow(format!("↑{ahead}"), theme.green)))
+            .when(behind > 0, |el| {
+                el.child(arrow(format!("↓{behind}"), theme.yellow))
+            }),
+    )
 }
 
 /// Horizontal hairline that fades out at both ends.

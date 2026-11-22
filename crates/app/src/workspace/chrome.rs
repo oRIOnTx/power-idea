@@ -18,10 +18,10 @@ impl Workspace {
         let run_widget = self.render_run_widget(cx).into_any_element();
         let theme = cx.theme();
         let file = self.active().map(|tab| tab.rel.clone());
-        let branch = self
-            .git
-            .as_ref()
-            .map(|g| g.status.branch.clone().unwrap_or_else(|| "detached".into()));
+        let branch = self.git.as_ref().map(|g| {
+            let name = g.status.branch.clone().unwrap_or_else(|| "detached".into());
+            (name, g.status.ahead, g.status.behind)
+        });
 
         // JetBrains-style widget: label + chevron, opens a picker.
         let widget = |id: &'static str, label: String, tooltip: &'static str| {
@@ -64,8 +64,14 @@ impl Workspace {
                         |this, _, window, cx| this.open_palette(PaletteMode::RecentProjects, window, cx),
                     )),
                 )
-                .children(branch.map(|branch| {
-                    widget("branch-widget", format!("⎇ {branch}"), "Branches")
+                .children(branch.map(|(branch, ahead, behind)| {
+                    let tooltip = if ahead > 0 {
+                        "Branches — commits to push"
+                    } else {
+                        "Branches"
+                    };
+                    widget("branch-widget", format!("⎇ {branch}"), tooltip)
+                        .children(style::tracking_arrows(ahead, behind, cx))
                         .on_click(cx.listener(|this, _, window, cx| this.open_branches(window, cx)))
                 }))
                 .child(

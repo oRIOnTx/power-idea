@@ -18,6 +18,7 @@ use search::{FileIndex, TextMatch, TextSearchOptions, find_in_files, fuzzy_filte
 use vcs::Branch;
 
 use crate::actions::{self, PALETTE_CONTEXT, SelectNext, SelectPrev, WORKSPACE_CONTEXT};
+use crate::style;
 use crate::workspace::Workspace;
 pub use locations::{LocationItem, SymbolSearch};
 
@@ -188,10 +189,18 @@ impl Palette {
             PaletteMode::Branches => {
                 let branches = self.source.branches.clone();
                 let exact = branches.iter().any(|b| b.name == query);
-                let mut items: Vec<PaletteItem> = fuzzy_filter(&query, branches, |b| b.name.as_str())
-                    .into_iter()
-                    .map(PaletteItem::Branch)
-                    .collect();
+                // JetBrains puts the git actions above the branches. Only without a query, so
+                // typing a branch name and pressing Enter never pushes by accident.
+                let mut items: Vec<PaletteItem> = if query.is_empty() {
+                    git_actions()
+                } else {
+                    Vec::new()
+                };
+                items.extend(
+                    fuzzy_filter(&query, branches, |b| b.name.as_str())
+                        .into_iter()
+                        .map(PaletteItem::Branch),
+                );
                 if !query.is_empty() && !exact && !query.contains(char::is_whitespace) {
                     items.push(PaletteItem::NewBranch(query));
                 }
@@ -355,6 +364,10 @@ impl Palette {
         }
     }
 
+    fn current_branch(&self) -> Option<&Branch> {
+        self.source.branches.iter().find(|b| b.is_current)
+    }
+
     fn render_item(&self, ix: usize, window: &Window, cx: &App) -> ListItem {
         let theme = cx.theme();
         let row = match &self.items[ix] {
@@ -391,8 +404,15 @@ impl Palette {
                 ),
             PaletteItem::Action { label, action } => h_flex()
                 .w_full()
-                .justify_between()
+                .gap_2()
                 .child(*label)
+                .children(
+                    (self.mode == PaletteMode::Branches && action.partial_eq(&actions::Push))
+                        .then(|| self.current_branch())
+                        .flatten()
+                        .and_then(|b| style::tracking_arrows(b.ahead, 0, cx)),
+                )
+                .child(div().flex_1())
                 .children(Kbd::binding_for_action(
                     action.as_ref(),
                     Some(WORKSPACE_CONTEXT),
@@ -414,6 +434,7 @@ impl Palette {
                 .gap_2()
                 .child(if branch.is_current { "● " } else { "  " })
                 .child(branch.name.clone())
+                .children(style::tracking_arrows(branch.ahead, branch.behind, cx))
                 .child(div().flex_1())
                 .child(
                     div()
@@ -524,6 +545,19 @@ impl Render for Palette {
                     .child(hint)
             }))
     }
+}
+
+fn git_actions() -> Vec<PaletteItem> {
+    let items: [(&'static str, Box<dyn Action>); 4] = [
+        ("Update Project…", Box::new(actions::UpdateProject)),
+        ("Commit…", Box::new(actions::CommitChanges)),
+        ("Push…", Box::new(actions::Push)),
+        ("Fetch", Box::new(actions::Fetch)),
+    ];
+    items
+        .into_iter()
+        .map(|(label, action)| PaletteItem::Action { label, action })
+        .collect()
 }
 
 fn actions_matching(query: &str) -> Vec<PaletteItem> {

@@ -135,6 +135,7 @@ fn menus() -> Vec<Menu> {
         Menu::new("Git").items([
             MenuItem::action("Commit…", CommitChanges),
             MenuItem::action("Push…", Push),
+            MenuItem::action("Fetch", Fetch),
             MenuItem::action("Update Project…", UpdateProject),
             MenuItem::separator(),
             MenuItem::action("Branches…", Branches),

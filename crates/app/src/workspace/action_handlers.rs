@@ -60,6 +60,7 @@ impl Workspace {
             cx.notify();
         }))
         .on_action(cx.listener(|this, _: &Push, w, cx| this.push(w, cx)))
+        .on_action(cx.listener(|this, _: &Fetch, w, cx| this.fetch(w, cx)))
         .on_action(cx.listener(|this, _: &UpdateProject, w, cx| this.pull(w, cx)))
         .on_action(cx.listener(|this, _: &ShowGitLog, w, cx| this.toggle_git_log(w, cx)))
         .on_action(

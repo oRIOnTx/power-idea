@@ -114,6 +114,8 @@ is in the working tree only.
 - [x] Project tree multi-selection (⌘+click toggles, ⇧+click selects a range, arrows move it) and
       ⌘X / ⌘C / ⌘V for the selected files and folders (also Edit menu, Find Action and the context menu,
       which acts on the whole selection); pasted items become the selection
+- [x] Branch widget in the title bar shows ↑ commits to push / ↓ to pull; the Branches popup starts with
+      Update Project / Commit / Push (with ↑N) / Fetch and shows ↑↓ on each tracked branch; Fetch action + Git menu
 - [x] Terminal: slow trackpad swipes scroll (sub-line wheel deltas accumulate instead of being rounded away)
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
 
