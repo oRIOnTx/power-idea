@@ -171,14 +171,20 @@ impl Workspace {
                     .min_w_0()
                     .gap_2()
                     .child(
+                        // Long names truncate instead of overflowing onto the row's buttons.
                         div()
-                            .flex_none()
+                            .min_w_0()
+                            .overflow_hidden()
+                            .text_ellipsis()
+                            .whitespace_nowrap()
                             .text_color(color)
                             .when(change.kind == ChangeKind::Deleted, |el| el.line_through())
                             .child(name.to_string()),
                     )
                     .child(
+                        // Zero basis: the directory gives up its space before the name does.
                         div()
+                            .flex_1()
                             .min_w_0()
                             .overflow_hidden()
                             .text_ellipsis()

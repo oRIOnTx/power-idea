@@ -158,6 +158,7 @@ is in the working tree only.
 - [x] Docker "Show all containers" groups containers like JetBrains Services: the project, other compose
       projects by name, then standalone containers; each group folds and shows running/total
 - [x] Commit tool window: file rows are indented under their group header (Changes / Unversioned Files)
+- [x] Commit tool window: long file names truncate with an ellipsis instead of overlapping the row buttons
 - [x] ⌘Q and closing a project window warn when a terminal still runs something (a running run
       configuration, or a shell whose foreground job is not the shell itself — `ps` `tpgid`, off the UI
       thread): "Terminate" / Cancel, listing the programs; Terminate replaces "Exit?" / "Close project?"
