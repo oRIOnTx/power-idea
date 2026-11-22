@@ -92,7 +92,8 @@ pub fn open_project_now(path: PathBuf, cx: &mut App) {
     };
 
     match cx.global::<AppConfig>().0.open_project_mode {
-        OpenProjectMode::ThisWindow => open_window(path, Placement::Replace(current), cx),
+        // Deferred: callers may be running inside the window being replaced.
+        OpenProjectMode::ThisWindow => cx.defer(move |cx| open_window(path, Placement::Replace(current), cx)),
         OpenProjectMode::NewTab => open_window(path, Placement::NewTab, cx),
         OpenProjectMode::Ask => ask_placement(path, current, cx),
     }
@@ -163,7 +164,10 @@ fn ask_placement(path: PathBuf, current: AnyWindowHandle, cx: &mut App) {
                                 remember_placement(placement, cx);
                             }
                             window.close_dialog(cx);
-                            open_window(path.clone(), placement, cx);
+                            let path = path.clone();
+                            // This click runs inside the current window, which `Replace` must
+                            // update and close; a nested update of it fails silently.
+                            cx.defer(move |cx| open_window(path, placement, cx));
                         })
                 };
             let remember_toggle = remember.clone();
