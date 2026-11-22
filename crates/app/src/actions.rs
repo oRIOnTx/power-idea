@@ -23,6 +23,8 @@ pub const PALETTE_CONTEXT: &str = "Palette";
 pub const TERMINAL_CONTEXT: &str = "Terminal";
 /// The Git Log commit list (arrow keys move the selection).
 pub const GIT_LOG_CONTEXT: &str = "GitLog";
+/// The Find Usages results (arrows select, Enter jumps).
+pub const USAGES_CONTEXT: &str = "Usages";
 
 actions!(
     ide,
@@ -76,6 +78,7 @@ actions!(
         ShowAllApps,
         MinimizeWindow,
         ZoomWindow,
+        OpenSelectedUsage,
     ]
 );
 
@@ -302,6 +305,10 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-c", crate::terminal::Copy, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-v", crate::terminal::Paste, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-k", crate::terminal::Clear, Some(TERMINAL_CONTEXT)),
+        KeyBinding::new("up", SelectPrev, Some(USAGES_CONTEXT)),
+        KeyBinding::new("down", SelectNext, Some(USAGES_CONTEXT)),
+        KeyBinding::new("enter", OpenSelectedUsage, Some(USAGES_CONTEXT)),
+        KeyBinding::new("f4", OpenSelectedUsage, Some(USAGES_CONTEXT)),
         KeyBinding::new("up", SelectPrev, Some(GIT_LOG_CONTEXT)),
         KeyBinding::new("down", SelectNext, Some(GIT_LOG_CONTEXT)),
         KeyBinding::new("up", SelectPrev, Some("Palette > Input")),

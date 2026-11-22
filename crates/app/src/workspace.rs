@@ -37,6 +37,7 @@ mod session_state;
 mod sidebar;
 mod terminal_panel;
 mod unsaved;
+mod usages_panel;
 mod window_tabs;
 
 pub(crate) use unsaved::request_quit;
@@ -107,6 +108,7 @@ impl Notice {
 enum BottomPanel {
     Terminal,
     GitLog,
+    Usages,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -130,6 +132,7 @@ pub struct Workspace {
     left_panel: LeftPanel,
     git: Option<git::GitState>,
     git_log: Option<git_log::GitLogState>,
+    usages: Option<usages_panel::UsagesState>,
     project: ProjectSettings,
     /// Languages whose "install a language server" banner was dismissed.
     dismissed_language_hints: HashSet<String>,
@@ -191,6 +194,7 @@ impl Workspace {
             left_panel: LeftPanel::Project,
             git: None,
             git_log: None,
+            usages: None,
             watcher: None,
             terminals: Vec::new(),
             active_terminal: 0,
@@ -391,6 +395,7 @@ impl Render for Workspace {
                 Some(self.render_terminal_panel(cx).into_any_element())
             }
             BottomPanel::GitLog => self.render_git_log(cx),
+            BottomPanel::Usages => self.render_usages(cx),
             BottomPanel::Terminal => None,
         };
         let center = match bottom {

@@ -34,7 +34,6 @@ pub enum PaletteMode {
     GotoLine,
     RecentProjects,
     Branches,
-    Usages,
     FileStructure,
     GotoSymbol,
     GotoClass,
@@ -51,7 +50,6 @@ impl PaletteMode {
             Self::GotoLine => "Go to line[:column]",
             Self::RecentProjects => "Recent projects",
             Self::Branches => "Checkout branch, or type a name to create one",
-            Self::Usages => "Usages",
             Self::FileStructure => "File structure",
             Self::GotoSymbol => "Go to symbol",
             Self::GotoClass => "Go to class",
@@ -69,7 +67,7 @@ pub struct PaletteSource {
     pub branches: Vec<Branch>,
     /// Project paths excluded from search.
     pub exclude: Vec<String>,
-    /// Fixed results of Usages and File Structure.
+    /// Fixed results of File Structure.
     pub locations: Vec<LocationItem>,
     /// Live symbol lookup for Go to Symbol / Class.
     pub symbol_search: Option<SymbolSearch>,
@@ -194,7 +192,7 @@ impl Palette {
                 }
                 self.items = items;
             }
-            PaletteMode::Usages | PaletteMode::FileStructure => {
+            PaletteMode::FileStructure => {
                 let locations = self.source.locations.clone();
                 self.items = fuzzy_filter(&query, locations, |l| l.label.as_str())
                     .into_iter()

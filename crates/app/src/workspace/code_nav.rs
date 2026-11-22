@@ -2,7 +2,6 @@
 //! Class / Symbol (⌘O / ⌘⌥O), File Structure (⌘F12), Rename (⇧F6) and
 //! Reformat Code (⌥⌘L). Requests block, so they run in the background.
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -19,6 +18,7 @@ use crate::config::AppConfig;
 use crate::editor::CenterTab;
 use crate::language::text_document;
 use crate::palette::{LocationItem, Palette, PaletteMode, SymbolSearch};
+use crate::usages::{Usage, UsageGroup, group_usages};
 
 /// Results shown by Go to Symbol / Class.
 const MAX_SYMBOLS: usize = 200;
@@ -53,32 +53,27 @@ fn symbol_location(symbol: SymbolItem, path: &Path) -> LocationItem {
     }
 }
 
-/// Usages labelled with their source line; files are read once each.
-fn usage_locations(locations: Vec<lsp_types::Location>) -> Vec<LocationItem> {
-    let mut files: HashMap<PathBuf, Vec<String>> = HashMap::new();
-    locations
+/// Usages grouped by file with their source lines; files are read once each.
+fn usage_groups(locations: Vec<lsp_types::Location>, root: &Path) -> Vec<UsageGroup> {
+    let usages = locations
         .into_iter()
         .filter_map(|location| {
-            let path = lsp::uri_to_path(&location.uri).ok()?;
-            let lines = files.entry(path.clone()).or_insert_with(|| {
-                std::fs::read_to_string(&path)
-                    .map_or_default(|text| text.lines().map(str::to_string).collect())
-            });
-            let start = location.range.start;
-            let label = lines
-                .get(start.line as usize)
-                .map_or_default(|line| line.trim().to_string());
-            Some(LocationItem {
-                label,
-                detail: None,
-                kind: "",
-                indent: 0,
-                path,
+            let (start, end) = (location.range.start, location.range.end);
+            Some(Usage {
+                path: lsp::uri_to_path(&location.uri).ok()?,
                 line: start.line,
-                column: start.character,
+                start: start.character,
+                end: if end.line == start.line {
+                    end.character
+                } else {
+                    start.character
+                },
             })
         })
-        .collect()
+        .collect();
+    group_usages(usages, root, |path| {
+        std::fs::read_to_string(path).map_or_default(|text| text.lines().map(str::to_string).collect())
+    })
 }
 
 impl Workspace {
@@ -163,6 +158,15 @@ impl Workspace {
         let Some(doc) = self.active_doc("referencesProvider", "Find Usages", window, cx) else {
             return;
         };
+        let title = self
+            .active()
+            .and_then(|tab| {
+                let text = tab.state.read(cx).value();
+                let line = text.lines().nth(doc.position.line as usize)?.to_string();
+                nav::word_at(&line, doc.position.character)
+            })
+            .unwrap_or_else(|| "symbol".into());
+        let root = self.root.clone();
         self.lsp_task(
             "Find Usages",
             move || {
@@ -175,12 +179,16 @@ impl Workspace {
                     partial_result_params: Default::default(),
                 };
                 let locations = doc.server.request::<request::References>(params)?;
-                Ok(usage_locations(locations.unwrap_or_default()))
+                Ok(usage_groups(locations.unwrap_or_default(), &root))
             },
-            |ws, usages, window, cx| match usages.as_slice() {
+            move |ws, groups, window, cx| match groups.as_slice() {
                 [] => window.push_notification(Notification::info("No usages found"), cx),
-                [only] => ws.jump_to(&only.path.clone(), only.line, only.column, window, cx),
-                _ => ws.open_locations(PaletteMode::Usages, usages, window, cx),
+                // A single usage is a plain jump, like JetBrains.
+                [only] if only.usages.len() == 1 => {
+                    let usage = &only.usages[0];
+                    ws.jump_to(&only.path.clone(), usage.line, usage.column, window, cx);
+                }
+                _ => ws.show_usages(title, groups, window, cx),
             },
             window,
             cx,

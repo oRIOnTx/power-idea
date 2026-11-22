@@ -55,10 +55,12 @@ is in the working tree only.
 - [x] Opening a project from Recent Projects / Welcome asks This Window / New Tab / Cancel again (the dialog
       could not open inside the caller's window update and silently fell back to a new window); project tabs
       are drawn under the title bar because the custom title bar hides the native macOS tab strip
+- [x] Find Usages tool window (⌥F7, bottom panel): usages grouped by file (project files first), match
+      highlighted, collapsible files, ↑/↓ select, Enter/F4 or click jumps; a single usage jumps directly
 
 ## Backlog
 Agreed backlog is done. Candidates:
-Database gaps below, Find Usages as a tool window (JetBrains shows a tree, we use the picker).
+Database gaps below.
 
 ## Known gaps
 - `db` test `sqlite_queries_schema_and_limits` failed once in a full run, not reproducible (15 reruns pass)

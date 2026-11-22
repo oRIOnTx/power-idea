@@ -47,6 +47,7 @@ crates/
     preview.rs          Markdown/SVG/image preview rules
     session.rs          per-project workspace state (.power-idea/workspace.toml)
     welcome/            Welcome window: recent projects, New Project
+    usages.rs           Find Usages grouping (UI in workspace/usages_panel.rs)
     menus.rs            macOS menu bar (every menu item is an action)
     watcher.rs          classifies file system events (project folder watching)
     settings.rs         Settings tab (Cmd+,)
