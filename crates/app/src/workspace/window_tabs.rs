@@ -1,6 +1,6 @@
 //! Project tabs under the title bar. Project windows are grouped as native
 //! macOS window tabs, but the custom title bar hides the native tab strip, so
-//! we draw it ourselves (like Zed does).
+//! we draw it ourselves.
 
 use gpui_kit::component::{ActiveTheme as _, IconName, h_flex};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -26,7 +26,9 @@ fn close_project_window(handle: AnyWindowHandle, cx: &mut App) {
 impl Workspace {
     pub(super) fn render_window_tabs(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         let tabs = window.tabbed_windows()?;
-        if tabs.len() < 2 || window.tab_bar_visible() {
+        // `tab_bar_visible` reports the native strip as shown, but the custom title bar
+        // covers it, so draw ours whenever there is more than one project.
+        if tabs.len() < 2 {
             return None;
         }
         let current = window.window_handle().window_id();

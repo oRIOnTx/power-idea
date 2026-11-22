@@ -5,7 +5,8 @@
 use std::path::PathBuf;
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::{Sizable as _, TitleBar, WindowExt as _, h_flex};
+use gpui_kit::component::checkbox::Checkbox;
+use gpui_kit::component::{ActiveTheme as _, Sizable as _, TitleBar, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 use serde::{Deserialize, Serialize};
 
@@ -89,49 +90,101 @@ pub fn prompt_open_project(cx: &mut App) {
     .detach();
 }
 
+/// Name of a project folder, for labels.
+fn folder_name(path: &std::path::Path) -> String {
+    path.file_name()
+        .map_or_default(|n| n.to_string_lossy().into_owned())
+}
+
+/// JetBrains-style choice: replace the current project or add a tab next to it.
 fn ask_placement(path: PathBuf, current: AnyWindowHandle, cx: &mut App) {
-    let name = path
-        .file_name()
-        .map_or_default(|n| n.to_string_lossy().into_owned());
+    let name = folder_name(&path);
+    let current_name = Workspaces::live(cx)
+        .into_iter()
+        .find(|(handle, _)| *handle == current)
+        .map_or_default(|(_, ws)| folder_name(ws.read(cx).root()));
+    let remember = cx.new(|_| false);
     let fallback = path.clone();
     let result = current.update(cx, |_, window, cx| {
-        window.open_dialog(cx, move |dialog, _, _| {
-            let choose = |placement: Placement| {
-                let path = path.clone();
-                move |_: &ClickEvent, window: &mut Window, cx: &mut App| {
-                    window.close_dialog(cx);
-                    open_window(path.clone(), placement, cx);
-                }
-            };
-            dialog
-                .w(px(440.))
-                .title(format!("Open {name}"))
-                .child("Open the project in this window or in a new tab? You can set a default in Settings.")
-                .footer(
-                    h_flex()
-                        .w_full()
+        window.open_dialog(cx, move |dialog, _, cx| {
+            let theme = cx.theme();
+            let tile =
+                |id: &'static str, icon: &str, title: &'static str, detail: String, placement: Placement| {
+                    let (path, remember) = (path.clone(), remember.clone());
+                    let accent = theme.primary;
+                    v_flex()
+                        .id(id)
+                        .flex_1()
+                        .p_4()
                         .gap_2()
-                        .justify_end()
+                        .rounded(theme.radius_lg)
+                        .border_1()
+                        .border_color(theme.border)
+                        .bg(theme.background)
+                        .cursor_pointer()
+                        .hover(move |s| s.border_color(accent).bg(accent.opacity(0.06)))
+                        .child(crate::style::lucide(icon).size_6().text_color(accent))
+                        .child(div().font_weight(FontWeight::SEMIBOLD).child(title))
+                        .child(div().text_xs().text_color(theme.muted_foreground).child(detail))
+                        .on_click(move |_, window, cx| {
+                            if *remember.read(cx) {
+                                remember_placement(placement, cx);
+                            }
+                            window.close_dialog(cx);
+                            open_window(path.clone(), placement, cx);
+                        })
+                };
+            let remember_toggle = remember.clone();
+            dialog
+                .w(px(500.))
+                .title(format!("Open “{name}”"))
+                .child(
+                    v_flex()
+                        .gap_4()
                         .child(
-                            Button::new("cancel")
-                                .ghost()
-                                .small()
-                                .label("Cancel")
-                                .on_click(|_, window, cx| window.close_dialog(cx)),
+                            div()
+                                .text_sm()
+                                .text_color(theme.muted_foreground)
+                                .child("Where should the project open?"),
                         )
                         .child(
-                            Button::new("this-window")
-                                .small()
-                                .label("This Window")
-                                .on_click(choose(Placement::Replace(current))),
+                            h_flex()
+                                .gap_3()
+                                .child(tile(
+                                    "place-this-window",
+                                    "app-window",
+                                    "This Window",
+                                    format!("Closes {current_name} and opens {name} instead"),
+                                    Placement::Replace(current),
+                                ))
+                                .child(tile(
+                                    "place-new-tab",
+                                    "panels-top-left",
+                                    "New Tab",
+                                    format!("Keeps {current_name} open in a tab next to it"),
+                                    Placement::NewTab,
+                                )),
                         )
                         .child(
-                            Button::new("new-tab")
-                                .primary()
-                                .small()
-                                .label("New Tab")
-                                .on_click(choose(Placement::NewTab)),
+                            Checkbox::new("remember-placement")
+                                .label("Remember my choice (change it in Settings → Appearance)")
+                                .checked(*remember.read(cx))
+                                .on_click(move |checked: &bool, _, cx| {
+                                    remember_toggle.update(cx, |r, cx| {
+                                        *r = *checked;
+                                        cx.notify();
+                                    });
+                                }),
                         ),
+                )
+                .footer(
+                    h_flex().w_full().justify_end().child(
+                        Button::new("cancel")
+                            .ghost()
+                            .small()
+                            .label("Cancel")
+                            .on_click(|_, window, cx| window.close_dialog(cx)),
+                    ),
                 )
         });
     });
@@ -139,6 +192,14 @@ fn ask_placement(path: PathBuf, current: AnyWindowHandle, cx: &mut App) {
         // The window vanished meanwhile; open the project on its own.
         open_window(fallback, Placement::NewWindow, cx);
     }
+}
+
+fn remember_placement(placement: Placement, cx: &mut App) {
+    cx.global_mut::<AppConfig>().0.open_project_mode = match placement {
+        Placement::NewTab => OpenProjectMode::NewTab,
+        _ => OpenProjectMode::ThisWindow,
+    };
+    crate::save_config(cx);
 }
 
 fn window_options(cx: &App) -> WindowOptions {
@@ -202,4 +263,12 @@ fn merge_into_tabs(window: AnyWindowHandle, cx: &mut App) {
             window.activate_window();
         })
         .ok();
+    // The merge runs asynchronously on the main queue; redraw the tab strips once it is done.
+    cx.spawn(async move |cx| {
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(150))
+            .await;
+        cx.update(|cx| cx.refresh_windows());
+    })
+    .detach();
 }
