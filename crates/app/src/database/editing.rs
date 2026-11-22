@@ -216,7 +216,7 @@ impl QueryConsole {
         cx.notify();
     }
 
-    /// Runs the pending DELETE / UPDATE / INSERT statements, then reloads the results.
+    /// Runs the pending DELETE / UPDATE / INSERT statements in one transaction, then reloads.
     pub(super) fn submit_edits(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let (Editability::Editable { table: target, key }, Some(table)) = (&self.editability, &self.table)
         else {
@@ -226,13 +226,7 @@ impl QueryConsole {
         let db = self.db.clone();
         cx.spawn_in(window, async move |this, cx| {
             let result = cx
-                .background_spawn(async move {
-                    let mut changed = 0;
-                    for statement in &statements {
-                        changed += db.execute(statement, 0)?.rows_affected;
-                    }
-                    anyhow::Ok(changed)
-                })
+                .background_spawn(async move { db.execute_batch(&statements) })
                 .await;
             this.update_in(cx, |this, window, cx| match result {
                 Ok(changed) => {
@@ -244,7 +238,8 @@ impl QueryConsole {
                     this.rerun_last(window, cx);
                 }
                 Err(err) => window.push_notification(
-                    Notification::error(format!("{err:#}")).title("Submit failed; edits are kept"),
+                    Notification::error(format!("{err:#}"))
+                        .title("Submit failed; nothing was changed, edits are kept"),
                     cx,
                 ),
             })

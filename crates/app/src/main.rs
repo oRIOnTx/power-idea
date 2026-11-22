@@ -11,6 +11,7 @@ mod palette;
 mod preview;
 mod project_tree;
 mod projects;
+mod recovery;
 mod session;
 mod settings;
 mod style;
@@ -183,6 +184,11 @@ fn main() {
             menus::install(cx);
 
             cx.on_action(|_: &Quit, cx| workspace::request_quit(cx));
+            cx.on_app_quit(|cx| {
+                workspace::store_recovery(cx);
+                async {}
+            })
+            .detach();
             cx.on_action(|_: &OpenProject, cx| projects::prompt_open_project(cx));
             cx.on_action(|_: &ToggleTheme, cx| {
                 let config = &mut cx.global_mut::<AppConfig>().0;

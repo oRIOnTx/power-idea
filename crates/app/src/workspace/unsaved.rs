@@ -10,6 +10,37 @@ use super::{Workspace, Workspaces};
 
 type Choice = Rc<dyn Fn(&mut Workspace, &mut Window, &mut Context<Workspace>)>;
 
+/// Set when the user chose "Don't Save" on quit, so no recovery copy is kept.
+#[derive(Default)]
+struct DiscardOnQuit(bool);
+
+impl Global for DiscardOnQuit {}
+
+/// Runs while the app terminates (also for Dock → Quit, which cannot be
+/// cancelled): saves workspace state and keeps unsaved text for recovery.
+pub(crate) fn store_recovery(cx: &mut App) {
+    let discard = cx.try_global::<DiscardOnQuit>().is_some_and(|d| d.0);
+    let Some(recovery) = crate::recovery::Recovery::new() else {
+        return;
+    };
+    for (_, ws) in Workspaces::live(cx) {
+        let (root, files) = ws.update(cx, |ws, cx| {
+            ws.save_session_now(cx);
+            let files: Vec<(String, String)> = ws
+                .tabs
+                .iter()
+                .filter_map(|tab| tab.editor())
+                .filter(|tab| !discard && tab.is_dirty(cx))
+                .map(|tab| (tab.rel.clone(), tab.state.read(cx).value().to_string()))
+                .collect();
+            (ws.root.clone(), files)
+        });
+        if let Err(err) = recovery.store(&root, &files) {
+            eprintln!("keeping unsaved changes of {}: {err:#}", root.display());
+        }
+    }
+}
+
 /// ⌘Q: quits right away, or first asks about unsaved files in any project window.
 pub(crate) fn request_quit(cx: &mut App) {
     let live = Workspaces::live(cx);
@@ -44,7 +75,10 @@ pub(crate) fn request_quit(cx: &mut App) {
                     message,
                     // Saving touches every workspace, including this one, so run it after this update.
                     Rc::new(|_, _, cx| App::defer(cx, save_all_and_quit)),
-                    Rc::new(|_, _, cx| cx.quit()),
+                    Rc::new(|_, _, cx| {
+                        cx.set_global(DiscardOnQuit(true));
+                        cx.quit();
+                    }),
                     window,
                     cx,
                 );

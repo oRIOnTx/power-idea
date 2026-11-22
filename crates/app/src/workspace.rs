@@ -40,7 +40,7 @@ mod unsaved;
 mod usages_panel;
 mod window_tabs;
 
-pub(crate) use unsaved::request_quit;
+pub(crate) use unsaved::{request_quit, store_recovery};
 
 const MAX_RECENT_FILES: usize = 50;
 

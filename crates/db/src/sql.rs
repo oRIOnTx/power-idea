@@ -62,6 +62,24 @@ macro_rules! collect_results {
     }};
 }
 
+/// Runs statements one by one inside a transaction; any error rolls all of them back.
+macro_rules! run_in_transaction {
+    ($pool:expr, $statements:expr) => {{
+        let mut tx = $pool.begin().await?;
+        let mut affected = 0;
+        for statement in $statements {
+            affected += sqlx::raw_sql(AssertSqlSafe(statement.clone()))
+                .execute(&mut *tx)
+                .await
+                .with_context(|| format!("{statement}"))?
+                .rows_affected();
+        }
+        // Dropping `tx` without commit (on `?` above) rolls back.
+        tx.commit().await?;
+        anyhow::Ok(affected)
+    }};
+}
+
 impl SqlDatabase {
     pub fn connect(config: &ConnectionConfig, password: Option<&str>) -> Result<Self> {
         let db = runtime().block_on(async {
@@ -142,6 +160,17 @@ impl SqlDatabase {
         })?;
         outcome.elapsed = started.elapsed();
         Ok(outcome)
+    }
+
+    /// Runs `statements` atomically; returns the total rows affected.
+    pub fn execute_batch(&self, statements: &[String]) -> Result<u64> {
+        runtime().block_on(async {
+            match self {
+                Self::Postgres(pool) => run_in_transaction!(pool, statements),
+                Self::MySql(pool) => run_in_transaction!(pool, statements),
+                Self::Sqlite(pool) => run_in_transaction!(pool, statements),
+            }
+        })
     }
 
     pub fn primary_key(&self, table: &TableRef) -> Result<Vec<String>> {
@@ -427,6 +456,34 @@ mod tests {
                 [Some("2".to_string()), Some("o'wner".to_string())],
                 [Some("3".to_string()), None]
             ]
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn batches_are_atomic() {
+        let (db, path) = sqlite_db();
+        db.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT NOT NULL)", 0)
+            .unwrap();
+        let ok = [
+            "INSERT INTO t VALUES (1, 'a')".to_string(),
+            "INSERT INTO t VALUES (2, 'b')".to_string(),
+        ];
+        assert_eq!(db.execute_batch(&ok).unwrap(), 2);
+        let failing = [
+            "UPDATE t SET v = 'changed' WHERE id = 1".to_string(),
+            "INSERT INTO t VALUES (3, NULL)".to_string(),
+        ];
+        let err = db.execute_batch(&failing).unwrap_err();
+        assert!(
+            format!("{err:#}").contains("INSERT INTO t VALUES (3, NULL)"),
+            "{err:#}"
+        );
+        let rows = db.execute("SELECT v FROM t ORDER BY id", 10).unwrap();
+        // The UPDATE before the failure was rolled back.
+        assert_eq!(
+            rows.sets[0].rows,
+            [[Some("a".to_string())], [Some("b".to_string())]]
         );
         let _ = std::fs::remove_file(path);
     }

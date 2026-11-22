@@ -68,6 +68,10 @@ is in the working tree only.
       pages of 2000 commits
 - [x] Database: add rows (+ Row, filled via the cell editor) and delete rows (− Row toggles); Submit runs
       DELETE → UPDATE → INSERT; completion resolves table aliases (`FROM users u` → `u.` lists users' columns)
+- [x] Database Submit runs in one transaction (all or nothing)
+- [x] Quit that cannot be cancelled (Dock → Quit, logout) keeps unsaved editor text in
+      `~/Library/Application Support/power-idea/recovery/` and restores it as unsaved edits on next open
+      ("Don't Save" on ⌘Q skips this)
 
 ## Backlog
 Agreed backlog is done. Candidates:
@@ -78,7 +82,7 @@ Database gaps below.
 - Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;
   Go to Symbol lists library symbols after project ones
 - Git Log: no date-range filter
-- Database: no TLS for Redis; submitted statements are not wrapped in one transaction
-- Quitting from the Dock icon bypasses the unsaved-changes prompt (menu Quit and ⌘Q ask)
+- Database: no TLS for Redis
+- Dock → Quit cannot ask (gpui has no cancellable terminate hook); unsaved text is recovered instead
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end
 - The user's `lms` project needs `brew install libpq` + `bundle install` for full Ruby LSP (fallback mode works meanwhile)

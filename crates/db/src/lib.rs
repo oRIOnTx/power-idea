@@ -169,6 +169,14 @@ impl Database {
         }
     }
 
+    /// Runs SQL statements in one transaction (all or nothing); returns rows affected.
+    pub fn execute_batch(&self, statements: &[String]) -> Result<u64> {
+        match self {
+            Self::Sql(db) => db.execute_batch(statements),
+            Self::Redis(_) => anyhow::bail!("Redis has no transactions for table edits"),
+        }
+    }
+
     /// Primary-key columns of a table, in key order (SQL only).
     pub fn primary_key(&self, table: &edit::TableRef) -> Result<Vec<String>> {
         match self {

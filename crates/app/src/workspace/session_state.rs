@@ -4,6 +4,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use gpui_kit::component::WindowExt as _;
+use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 
 use super::{LeftPanel, Workspace};
@@ -114,6 +116,7 @@ impl Workspace {
                 preview.mode = mode;
             }
         }
+        self.restore_unsaved(window, cx);
         let active = session.active.and_then(|ix| session.tabs.get(ix));
         if let Some(ix) = active.and_then(|a| self.tabs.iter().position(|t| t.file_rel() == Some(&a.path))) {
             self.activate_tab(ix, window, cx);
@@ -129,6 +132,35 @@ impl Workspace {
 
         self.saved_session = Some(self.session_snapshot(cx));
         self.start_session_saver(cx);
+    }
+
+    /// Puts back text that was unsaved when the app last quit without asking.
+    fn restore_unsaved(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(recovery) = crate::recovery::Recovery::new() else {
+            return;
+        };
+        let mut restored = 0;
+        for (rel, text) in recovery.take(&self.root) {
+            if !self.root.join(&rel).is_file() {
+                continue;
+            }
+            self.open_file(&rel, None, window, cx);
+            let Some(tab) = self.active().filter(|tab| tab.rel == rel) else {
+                continue;
+            };
+            if tab.saved_text.as_ref() != text.as_str() {
+                let state = tab.state.clone();
+                state.update(cx, |state, cx| state.set_value(text, window, cx));
+                restored += 1;
+            }
+        }
+        if restored > 0 {
+            let text = format!(
+                "Restored unsaved changes in {restored} file{} from the last session",
+                if restored == 1 { "" } else { "s" }
+            );
+            window.push_notification(Notification::info(text), cx);
+        }
     }
 
     /// The state to write, if it changed since the last save.
