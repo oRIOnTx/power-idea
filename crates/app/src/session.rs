@@ -1,7 +1,8 @@
 //! Per-project workspace state restored when a project is reopened: open tabs
-//! with cursors, expanded folders, recent files and tool windows. Stored in
+//! with cursors, expanded folders, recent files, tool windows and breakpoints. Stored in
 //! `<project>/.power-idea/workspace.toml`, which is personal and git-ignored.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -22,6 +23,10 @@ pub struct Session {
     /// `project`, `commit` or `database`.
     pub sidebar: String,
     pub git_log_open: bool,
+    /// 1-based breakpoint lines per file relative to the project root. Last, because
+    /// TOML writes tables after plain values.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub breakpoints: BTreeMap<String, Vec<u32>>,
 }
 
 impl Default for Session {
@@ -34,6 +39,7 @@ impl Default for Session {
             show_sidebar: true,
             sidebar: "project".into(),
             git_log_open: false,
+            breakpoints: BTreeMap::new(),
         }
     }
 }
@@ -90,6 +96,8 @@ impl Session {
         self.active = active.and_then(|path| self.tabs.iter().position(|t| t.path == path));
         self.expanded.retain(|p| root.join(p).is_dir());
         self.recent_files.retain(|p| root.join(p).is_file());
+        self.breakpoints
+            .retain(|p, lines| !lines.is_empty() && root.join(p).is_file());
     }
 }
 
@@ -141,6 +149,7 @@ mod tests {
             expanded: vec!["src".into(), "old".into()],
             recent_files: vec!["src/main.rs".into(), "gone.rs".into()],
             git_log_open: true,
+            breakpoints: [("src/main.rs".into(), vec![1, 4]), ("gone.rs".into(), vec![2])].into(),
             ..Session::default()
         };
         session.save(&root).unwrap();
@@ -157,6 +166,7 @@ mod tests {
         assert_eq!(session.active, Some(0));
         assert_eq!(session.expanded, ["src"]);
         assert_eq!(session.recent_files, ["src/main.rs"]);
+        assert_eq!(session.breakpoints, [("src/main.rs".into(), vec![1, 4])].into());
 
         fs::write(root.join(".power-idea/workspace.toml"), "not = [valid").unwrap();
         assert_eq!(Session::load(&root), Session::default());

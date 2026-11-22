@@ -83,6 +83,14 @@ impl Workspace {
         }
         let mut expanded: Vec<String> = self.expanded.iter().cloned().collect();
         expanded.sort();
+        let breakpoints = self
+            .breakpoints
+            .iter()
+            .filter_map(|(path, lines)| {
+                let rel = path.strip_prefix(&self.root).ok()?.to_str()?;
+                Some((rel.to_string(), lines.iter().copied().collect()))
+            })
+            .collect();
         Session {
             tabs,
             active,
@@ -91,6 +99,7 @@ impl Workspace {
             show_sidebar: self.show_project_view,
             sidebar: panel_name(self.left_panel).into(),
             git_log_open: self.git_log_visible(),
+            breakpoints,
         }
     }
 
@@ -114,6 +123,13 @@ impl Workspace {
                 self.left_panel = LeftPanel::Project;
             }
         }
+
+        // Before the tabs open: opening an editor draws its breakpoint marks.
+        self.breakpoints = session
+            .breakpoints
+            .iter()
+            .map(|(rel, lines)| (self.root.join(rel), lines.iter().copied().collect()))
+            .collect();
 
         // Reopening tabs is not navigation, so keep it out of Back/Forward history.
         self.nav_paused = true;

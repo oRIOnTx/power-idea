@@ -111,6 +111,7 @@ is in the working tree only.
       sidebar panel (off by default, Settings → Insights): score + trend vs previous period (7d/30d/90d/All),
       project filter, score-per-session chart, block bars now vs before, top-3 tips with "Got it", session
       list and breakdown; "Clear all analytics data"
+- [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
 
 ## Backlog
 Agreed backlog is done. Candidates:
@@ -122,8 +123,8 @@ Database gaps below.
   report (stage 4); correction detection is keyword-based (UA/EN), no similarity to the previous prompt
 - Docker: logs use `docker logs -f` in a terminal tab (no in-panel search/highlight yet); no stats, no Info
   tab, no settings page (socket path, extra compose files, profiles); remote (ssh/tcp) hosts unsupported
-- Debug: breakpoints are toggled with ⌘F8 (no gutter click in the gpui-kit editor), not saved between sessions,
-  no conditional breakpoints or watches; Node.js (js-debug) not supported yet; debugpy/dlv not installed here,
+- Debug: breakpoints are toggled with ⌘F8 (no gutter click in the gpui-kit editor), their lines do not follow
+  edits, no conditional breakpoints or watches; Node.js (js-debug) not supported yet; debugpy/dlv not installed here,
   only their launch plans are unit-tested
 - Replace in Files searches files as saved on disk (unsaved edits in open editors are replaced but not previewed); no regex
 - `db` test `sqlite_queries_schema_and_limits` failed once; temp DB names now use a counter instead of the clock
