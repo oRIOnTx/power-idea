@@ -12,22 +12,22 @@ use crate::editor::CenterTab;
 
 pub type Reply = Box<dyn FnOnce(Result<String, String>) + Send>;
 
-fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
+pub(super) fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
     args.get(key).and_then(Value::as_str)
 }
 
-fn arg_usize(args: &Value, key: &str) -> Option<usize> {
+pub(super) fn arg_usize(args: &Value, key: &str) -> Option<usize> {
     args.get(key).and_then(Value::as_u64).map(|v| v as usize)
 }
 
-fn to_text(value: Value) -> Result<String, String> {
+pub(super) fn to_text(value: Value) -> Result<String, String> {
     serde_json::to_string_pretty(&value).map_err(|e| e.to_string())
 }
 
 impl Workspace {
     /// Normalizes a tool path argument to a path relative to the project root,
     /// rejecting anything outside the project.
-    fn project_rel(&self, path: &str) -> Result<String, String> {
+    pub(super) fn project_rel(&self, path: &str) -> Result<String, String> {
         let path = Path::new(path);
         let rel = if path.is_absolute() {
             let root = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
@@ -243,7 +243,7 @@ impl Workspace {
                     None => Err(format!("{rel} has no local changes")),
                 }
             }
-            _ => return Err(reply),
+            _ => return self.mcp_code_call(name, args, reply, cx),
         };
         Ok(Some((reply, result)))
     }

@@ -54,7 +54,7 @@ fn symbol_location(symbol: SymbolItem, path: &Path) -> LocationItem {
 }
 
 /// Usages grouped by file with their source lines; files are read once each.
-fn usage_groups(locations: Vec<lsp_types::Location>, root: &Path) -> Vec<UsageGroup> {
+pub(super) fn usage_groups(locations: Vec<lsp_types::Location>, root: &Path) -> Vec<UsageGroup> {
     let usages = locations
         .into_iter()
         .filter_map(|location| {
@@ -226,7 +226,7 @@ impl Workspace {
     }
 
     /// A running server that can search workspace symbols, preferring the active file's.
-    fn symbol_server(&self) -> Option<Arc<LanguageServer>> {
+    pub(super) fn symbol_server(&self) -> Option<Arc<LanguageServer>> {
         let active = self
             .active()
             .and_then(|tab| tab.lsp.as_ref())

@@ -319,6 +319,32 @@ fn tools() -> Vec<Tool> {
             input_schema: schema(json!({ "limit": { "type": "integer", "default": 30 } }), &[]),
         },
         Tool {
+            name: "get_diagnostics",
+            description: "Errors and warnings reported by language servers (1-based positions), for one file or all files that have any.",
+            input_schema: schema(json!({ "path": path }), &[]),
+        },
+        Tool {
+            name: "find_symbol",
+            description: "Find classes, methods, functions… by name via the language server (like Go to Symbol). Project symbols first.",
+            input_schema: schema(
+                json!({ "query": { "type": "string" }, "limit": { "type": "integer", "default": 50 } }),
+                &["query"],
+            ),
+        },
+        Tool {
+            name: "find_usages",
+            description: "Usages of the symbol at a 1-based line/column of a file, via the language server. Returns path, line, column and the line text.",
+            input_schema: schema(
+                json!({ "path": path, "line": { "type": "integer" }, "column": { "type": "integer" } }),
+                &["path", "line", "column"],
+            ),
+        },
+        Tool {
+            name: "get_file_structure",
+            description: "Outline of a file (classes, methods, … with nesting depth and 1-based lines). The file must be open in the IDE (see open_file).",
+            input_schema: schema(json!({ "path": path }), &["path"]),
+        },
+        Tool {
             name: "open_file",
             description: "Open a file in the IDE editor, optionally at a 1-based line and column, and focus the window.",
             input_schema: schema(

@@ -100,6 +100,12 @@ impl Workspace {
                 cx.notify();
             }
             LspEvent::Diagnostics { path, diagnostics } => {
+                // Kept for every file (open or not) so MCP clients can ask for them.
+                if diagnostics.is_empty() {
+                    self.diagnostics.remove(&path);
+                } else {
+                    self.diagnostics.insert(path.clone(), diagnostics.clone());
+                }
                 let Some(tab) = self
                     .tabs
                     .iter()

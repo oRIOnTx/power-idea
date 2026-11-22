@@ -11,7 +11,7 @@ is in the working tree only.
 - [x] Project tree, Search Everywhere (⇧⇧), Go to File (⌘⇧O), Recent Files (⌘E), Find in Files (⌘⇧F), Find Action (⌘⇧A), Go to Line (⌘L)
 - [x] Integrated terminal (⌥F12, tabs, copy/paste, selection, scrollback)
 - [x] Git: status colors, Commit tool window (⌘0), side-by-side diffs, push/pull/fetch, branches, rollback
-- [x] MCP server for Claude Code (13 tools, token in Keychain-like file, localhost only)
+- [x] MCP server for Claude Code (17 tools, token in Keychain-like file, localhost only)
 - [x] Neo theme (dark/light), app icon, `scripts/bundle-macos.sh`
 - [x] Settings tab (⌘,): appearance, editor, terminal, languages, MCP, keymap, project (`.power-idea/settings.toml`)
 - [x] Activity bar, file/tab context menus, unsaved-changes guard on tab/window close
@@ -74,6 +74,8 @@ is in the working tree only.
       ("Don't Save" on ⌘Q skips this)
 - [x] Redis TLS (`rediss://` when "Require TLS" is set; redis `tls-rustls` feature, no new crates)
 - [x] Git Log date filter: `after:YYYY-MM-DD` / `before:YYYY-MM-DD`, applied by git like `path:`
+- [x] MCP tools backed by language servers (read-only): `get_diagnostics`, `find_symbol`, `find_usages`,
+      `get_file_structure`
 
 ## Backlog
 Agreed backlog is done. Candidates:

@@ -30,6 +30,7 @@ mod fs_watch;
 mod git;
 mod git_log;
 mod git_panel;
+mod mcp_code_tools;
 mod mcp_tools;
 mod navigation;
 mod preview_view;
@@ -137,6 +138,8 @@ pub struct Workspace {
     /// Languages whose "install a language server" banner was dismissed.
     dismissed_language_hints: HashSet<String>,
     lsp: crate::language::LspStore,
+    /// Latest diagnostics per file, as published by language servers.
+    diagnostics: std::collections::HashMap<PathBuf, Vec<lsp::lsp_types::Diagnostic>>,
     nav: navigation::NavHistory,
     /// Suppresses history recording while navigating programmatically.
     nav_paused: bool,
@@ -177,6 +180,7 @@ impl Workspace {
             project,
             dismissed_language_hints: HashSet::new(),
             lsp,
+            diagnostics: Default::default(),
             databases,
             pending_console: None,
             pending_notices: Vec::new(),
