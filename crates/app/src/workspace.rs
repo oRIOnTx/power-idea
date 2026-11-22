@@ -22,6 +22,7 @@ use crate::terminal::TerminalView;
 
 mod action_handlers;
 mod branches;
+mod breadcrumbs;
 mod chrome;
 mod close_confirm;
 mod code_nav;

@@ -188,14 +188,11 @@ impl Workspace {
             })
             .child("MCP")
             .on_click(cx.listener(|_, _, window, cx| crate::mcp_bridge::copy_claude_command(window, cx)));
-        let left =
-            h_flex()
-                .gap_3()
-                .children(self.render_branch_label(cx))
-                .child(match self.index.is_empty() {
-                    true => "Indexing…".to_string(),
-                    false => format!("{} files", self.index.len()),
-                });
+        let left = h_flex()
+            .min_w_0()
+            .gap_3()
+            .child(self.render_breadcrumbs(cx))
+            .when(self.index.is_empty(), |el| el.child("Indexing…"));
         let right = self.active().map(|tab| {
             let pos = tab.state.read(cx).cursor_position();
             h_flex()

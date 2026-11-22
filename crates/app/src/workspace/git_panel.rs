@@ -15,30 +15,6 @@ use crate::editor::{CenterTab, DiffTab};
 use crate::style;
 
 impl Workspace {
-    pub(super) fn render_branch_label(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let git = self.git.as_ref()?;
-        let status = &git.status;
-        let mut label = format!("⎇ {}", status.branch.as_deref().unwrap_or("detached"));
-        if status.ahead > 0 {
-            label.push_str(&format!(" ↑{}", status.ahead));
-        }
-        if status.behind > 0 {
-            label.push_str(&format!(" ↓{}", status.behind));
-        }
-        Some(
-            div()
-                .id("branch")
-                .px_1()
-                .rounded_sm()
-                .cursor_pointer()
-                .text_color(cx.theme().primary)
-                .hover(|s| s.bg(cx.theme().muted))
-                .child(label)
-                .on_click(cx.listener(|ws, _, window, cx| ws.open_branches(window, cx)))
-                .into_any_element(),
-        )
-    }
-
     pub(super) fn render_branch_card(&self, git: &GitState, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
         let status = &git.status;

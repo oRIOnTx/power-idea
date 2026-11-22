@@ -153,6 +153,8 @@ is in the working tree only.
       (`image 2.png`, …) in the target folder, files copied in Finder are copied in; tree Copy/Cut puts the
       paths on the system clipboard as text, so an older screenshot there no longer wins
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
+- [x] Status bar shows JetBrains-style breadcrumbs (project › folders › file, with icons) instead of the
+      branch and file count; a click reveals the crumb in the project tree
 
 ## Backlog
 Agreed backlog is done. Candidates:
