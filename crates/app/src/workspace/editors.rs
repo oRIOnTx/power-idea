@@ -83,9 +83,12 @@ impl Workspace {
                     cx.observe(&state, |_, _, cx| cx.notify()),
                     cx.subscribe_in(&state, window, {
                         let language = language.clone();
+                        let pending = std::cell::RefCell::new(None);
                         move |_, state, event: &InputEditsEvent, window, cx| {
                             state.update(cx, |state, cx| {
-                                language_rules::close_block_after_enter(state, &language, event, window, cx);
+                                language_rules::reindent_after_typing(
+                                    state, &language, event, &pending, window, cx,
+                                );
                             });
                         }
                     }),

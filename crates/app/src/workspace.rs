@@ -55,6 +55,7 @@ mod session_state;
 mod sidebar;
 mod terminal_panel;
 mod tree_select;
+mod typing;
 mod unsaved;
 mod usages_panel;
 mod window_tabs;

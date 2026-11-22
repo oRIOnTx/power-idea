@@ -2,10 +2,14 @@
 //! the editor's Enter) and which keyword closes a block (`end`, `fi`, `done`, `esac`),
 //! inserted after Enter on a block's first line as JetBrains does.
 
+mod typing;
+
+pub use typing::{backspace_keys, reindent_after_typing, smart_enter};
+
 use std::sync::LazyLock;
 
 use gpui_kit::component::input::language_config::LanguageConfig;
-use gpui_kit::component::input::{EditorState, IndentationRules, InputEditsEvent, set_language_config};
+use gpui_kit::component::input::{IndentationRules, set_language_config};
 use gpui_kit::*;
 use regex::Regex;
 
@@ -132,7 +136,7 @@ pub fn block_closer(language: &str, line: &str) -> Option<&'static str> {
         .map(|c| c.keyword)
 }
 
-fn indent_of(line: &str) -> &str {
+pub(crate) fn indent_of(line: &str) -> &str {
     &line[..line.len() - line.trim_start().len()]
 }
 
@@ -160,7 +164,7 @@ pub fn closing_insert(language: &str, before: &str, after: &str) -> Option<Strin
 
 /// The block language of an editor language, for languages whose blocks end in keywords.
 /// ERB is Ruby inside HTML, where a closing `end` needs its own `<% %>`.
-fn block_language(editor_language: &str) -> Option<&'static str> {
+pub fn block_language(editor_language: &str) -> Option<&'static str> {
     match editor_language {
         "rb" | "ruby" => Some("ruby"),
         "lua" => Some("lua"),
@@ -168,46 +172,6 @@ fn block_language(editor_language: &str) -> Option<&'static str> {
         "sh" | "bash" => Some("sh"),
         _ => None,
     }
-}
-
-/// Closes the block after the editor's own Enter: an edit inserting a line break plus
-/// indentation at the end of a block's first line.
-pub fn close_block_after_enter(
-    state: &mut EditorState,
-    editor_language: &str,
-    event: &InputEditsEvent,
-    window: &mut Window,
-    cx: &mut Context<EditorState>,
-) {
-    let Some(language) = block_language(editor_language) else {
-        return;
-    };
-    let [(edit, _)] = event.edits() else { return };
-    if edit.old_end_byte != edit.start_byte || state.cursor() != edit.new_end_byte {
-        return;
-    }
-    let text = state.text().to_string();
-    let Some(inserted) = text.get(edit.start_byte..edit.new_end_byte) else {
-        return;
-    };
-    let Some(indent) = inserted.strip_prefix('\n') else {
-        return;
-    };
-    if !indent.chars().all(|c| c == ' ' || c == '\t') {
-        return;
-    }
-    let caret = edit.new_end_byte;
-    let line_end = text[caret..].find('\n').map_or(text.len(), |ix| caret + ix);
-    if !text[caret..line_end].trim().is_empty() {
-        return;
-    }
-    let after = text.get(line_end + 1..).unwrap_or("");
-    let Some(closing) = closing_insert(language, &text[..edit.start_byte], after) else {
-        return;
-    };
-    let position = state.cursor_position();
-    state.insert(closing, window, cx);
-    state.set_cursor_position(position, window, cx);
 }
 
 #[cfg(test)]
