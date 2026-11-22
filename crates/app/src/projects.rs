@@ -142,7 +142,11 @@ fn ask_placement(path: PathBuf, current: AnyWindowHandle, cx: &mut App) {
                     let accent = theme.primary;
                     v_flex()
                         .id(id)
+                        // Equal halves: without a zero basis and min width the longer
+                        // description widens its tile past the dialog edge.
                         .flex_1()
+                        .flex_basis(px(0.))
+                        .min_w_0()
                         .p_4()
                         .gap_2()
                         .rounded(theme.radius_lg)
