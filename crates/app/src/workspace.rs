@@ -23,6 +23,7 @@ use crate::terminal::TerminalView;
 mod action_handlers;
 mod branches;
 mod breadcrumbs;
+mod busy_terminals;
 mod chrome;
 mod close_confirm;
 mod code_nav;
@@ -199,6 +200,8 @@ pub struct Workspace {
     /// Watches the project folder for changes made outside the IDE.
     watcher: Option<notify::RecommendedWatcher>,
     terminals: Vec<Entity<TerminalView>>,
+    /// Result of the running-terminals check for the close in progress (`busy_terminals`).
+    terminals_checked: Option<bool>,
     active_terminal: usize,
     show_bottom: bool,
     bottom_panel: BottomPanel,
@@ -262,6 +265,7 @@ impl Workspace {
             usages: None,
             watcher: None,
             terminals: Vec::new(),
+            terminals_checked: None,
             active_terminal: 0,
             show_bottom: false,
             bottom_panel: BottomPanel::Terminal,

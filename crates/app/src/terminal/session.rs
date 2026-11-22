@@ -67,6 +67,8 @@ pub struct Session {
     pub(super) term: Arc<FairMutex<Term<Listener>>>,
     pub(super) notifier: Notifier,
     pub(super) listener: Listener,
+    /// PID of the shell (or the run command's login shell).
+    pub(super) pid: u32,
 }
 
 impl Session {
@@ -113,6 +115,7 @@ impl Session {
             ..Default::default()
         };
         let pty = tty::new(&options, window_size, 0)?;
+        let pid = pty.child().id();
 
         let listener = Listener::default();
         let config = term::Config {
@@ -127,6 +130,7 @@ impl Session {
             term,
             notifier,
             listener,
+            pid,
         })
     }
 }
@@ -193,6 +197,29 @@ mod tests {
                 std::time::Instant::now() < deadline,
                 "no output, screen:\n{screen}"
             );
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
+
+    #[test]
+    fn reports_the_foreground_program() {
+        use alacritty_terminal::event::Notify as _;
+
+        let session = Session::spawn(std::env::temp_dir(), Some("/bin/zsh".into())).expect("spawn shell");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let mut sent = false;
+        loop {
+            let programs = super::super::foreground_programs(&[session.pid]);
+            if programs == ["sleep"] {
+                break;
+            }
+            // Type the command once the shell owns the terminal (idle at its prompt).
+            if !sent && programs.is_empty() {
+                std::thread::sleep(std::time::Duration::from_millis(300));
+                session.notifier.notify(b"sleep 30\r".as_slice());
+                sent = true;
+            }
+            assert!(std::time::Instant::now() < deadline, "foreground: {programs:?}");
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
     }

@@ -1,6 +1,7 @@
 //! Integrated terminal: `alacritty_terminal` handles the PTY and VT parsing,
 //! this module renders the grid with gpui and translates input.
 
+mod activity;
 mod colors;
 mod input;
 mod mouse;
@@ -27,6 +28,7 @@ use gpui_kit::component::{ActiveTheme as _, WindowExt as _};
 use gpui_kit::*;
 use std::sync::Arc;
 
+pub use self::activity::foreground_programs;
 use self::colors::{ansi_color, to_rgb};
 use self::input::keystroke_to_bytes;
 pub use self::run_tab::{RunExit, RunState};
@@ -66,6 +68,7 @@ pub struct TerminalView {
     term: Arc<FairMutex<Term<Listener>>>,
     notifier: Notifier,
     listener: Listener,
+    shell_pid: u32,
     focus_handle: FocusHandle,
     pub title: String,
     size: TermSize,
@@ -96,6 +99,7 @@ impl TerminalView {
             term,
             notifier,
             listener,
+            pid: shell_pid,
         } = session;
         let events = listener.clone();
         let events_task = cx.spawn(async move |this, cx| {
@@ -130,6 +134,7 @@ impl TerminalView {
             term,
             notifier,
             listener,
+            shell_pid,
             focus_handle: cx.focus_handle(),
             title: "Local".into(),
             size: TermSize::new(80, 24),
@@ -146,6 +151,10 @@ impl TerminalView {
             _events_task: events_task,
             _blink_task: blink_task,
         }
+    }
+
+    pub fn shell_pid(&self) -> u32 {
+        self.shell_pid
     }
 
     pub fn focus_handle(&self) -> &FocusHandle {

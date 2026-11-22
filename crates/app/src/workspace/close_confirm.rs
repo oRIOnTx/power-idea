@@ -62,7 +62,11 @@ fn ask(
 }
 
 /// ⌘Q with nothing unsaved: asks in the active project window, then quits.
-pub(super) fn confirm_quit(cx: &mut App) {
+/// `confirmed`: the user already agreed to exit (running terminals dialog).
+pub(super) fn confirm_quit(confirmed: bool, cx: &mut App) {
+    if confirmed {
+        return cx.quit();
+    }
     let live = Workspaces::live(cx);
     let active = cx.active_window();
     let target = live
@@ -94,13 +98,17 @@ pub(super) fn confirm_quit(cx: &mut App) {
 }
 
 impl Workspace {
-    /// ⇧⌘W, the window's close button and project tabs: asks about unsaved files, then
-    /// "Close project?". Returns true when the window can close right away.
+    /// ⇧⌘W, the window's close button and project tabs: asks about running terminals,
+    /// unsaved files, then "Close project?". Returns true when the window can close right away.
     pub(crate) fn should_close_window(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let Some(asked) = self.terminals_allow_close(window, cx) else {
+            return false;
+        };
         if !self.can_close_window(window, cx) {
             return false;
         }
-        if !cx.global::<AppConfig>().0.confirm_close_project {
+        // "Terminate" in the running-terminals dialog already confirmed closing.
+        if asked || !cx.global::<AppConfig>().0.confirm_close_project {
             return true;
         }
         let confirmation = Confirmation {

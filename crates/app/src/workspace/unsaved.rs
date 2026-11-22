@@ -41,8 +41,14 @@ pub(crate) fn store_recovery(cx: &mut App) {
     }
 }
 
-/// ⌘Q: quits right away, or first asks about unsaved files in any project window.
+/// ⌘Q: quits right away, or first asks about running terminals and unsaved files
+/// in any project window.
 pub(crate) fn request_quit(cx: &mut App) {
+    super::busy_terminals::check_before_quit(quit_checking_unsaved, cx);
+}
+
+/// `confirmed`: the user already agreed to exit, so no "Exit Power IDEA?" follows.
+fn quit_checking_unsaved(confirmed: bool, cx: &mut App) {
     let live = Workspaces::live(cx);
     let mut dirty = Vec::new();
     for (handle, ws) in &live {
@@ -55,7 +61,7 @@ pub(crate) fn request_quit(cx: &mut App) {
         }
     }
     let Some((handle, ws, _)) = dirty.first().cloned() else {
-        return super::close_confirm::confirm_quit(cx);
+        return super::close_confirm::confirm_quit(confirmed, cx);
     };
     let total: usize = dirty.iter().map(|(_, _, n)| n).sum();
     let title = format!(
