@@ -328,6 +328,8 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("f7", StepInto, ws),
         KeyBinding::new("shift-f8", StepOut, ws),
         KeyBinding::new("cmd-shift-r", ReplaceInFiles, ed),
+        // JetBrains Basic Completion.
+        KeyBinding::new("ctrl-space", gpui_kit::component::input::ShowCompletions, ed),
         KeyBinding::new("cmd-shift-a", FindAction, ws),
         KeyBinding::new("cmd-l", GotoLine, ws),
         KeyBinding::new("cmd-s", SaveFile, ws),

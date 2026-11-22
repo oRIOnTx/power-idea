@@ -16,6 +16,7 @@ use super::{Notice, Workspace};
 use crate::config::AppConfig;
 use crate::editor::{self, CenterTab, EditorTab};
 use crate::language::{self, DocumentLsp, LspEvent, TabLsp};
+use crate::word_completion::WordCompletion;
 
 const MAX_HISTORY: usize = 100;
 
@@ -270,8 +271,18 @@ impl Workspace {
 
         let origin = language::DefinitionOrigin::default();
         let show_document = self.show_document_handler(tab.path.clone(), origin.clone(), cx);
+        // The server's completion replaces the editor's provider: put word completion back under it.
+        let (own, buffers, editor_language) = (
+            tab.state.entity_id(),
+            self.open_buffers.clone(),
+            tab.language.clone(),
+        );
+        let replaces_completion = server.supports("completionProvider");
         tab.state.update(cx, |state: &mut EditorState, _| {
             DocumentLsp::new(server.clone(), uri.clone(), origin).install(state);
+            if replaces_completion {
+                WordCompletion::install(state, &editor_language, own, buffers);
+            }
             state.lsp_mut().show_document = Some(show_document);
         });
         if let Some(CenterTab::Editor(tab)) = self.tabs.get_mut(ix) {

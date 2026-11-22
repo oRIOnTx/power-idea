@@ -17,6 +17,7 @@ use crate::actions::*;
 use crate::config::{AppConfig, LanguageServerConfig};
 use crate::editor::{self, CenterTab, EditorTab, LineEdit};
 use crate::preview::{self, Preview};
+use crate::word_completion::WordCompletion;
 use crate::{file_icons, style};
 
 impl Workspace {
@@ -68,6 +69,11 @@ impl Workspace {
                     .tab_size
                     .unwrap_or(cx.global::<AppConfig>().0.tab_size);
                 let state = editor::new_editor_state(text.clone(), &language, tab_size, window, cx);
+                self.open_buffers.borrow_mut().push(state.downgrade());
+                let (own, buffers) = (state.entity_id(), self.open_buffers.clone());
+                state.update(cx, |state, _| {
+                    WordCompletion::install(state, &language, own, buffers);
+                });
                 let subscriptions = vec![
                     cx.subscribe(&state, |this, state, event: &InputEvent, cx| {
                         if let InputEvent::Change = event {

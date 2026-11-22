@@ -2,8 +2,10 @@
 //! plain-text "find in files". UI-agnostic so it can be reused by any frontend.
 
 mod replace;
+mod words;
 
 pub use replace::{match_ranges, replace_all};
+pub use words::{is_word_char, word_before, word_completions};
 
 use std::fs;
 use std::path::{Path, PathBuf};

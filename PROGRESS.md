@@ -172,6 +172,10 @@ is in the working tree only.
       Branch…" picks the upstream from the remote branches or removes it
 - [x] Push dialog: the remote is a menu when there are several, the remote branch name is editable (click it;
       the commits and files reload for the new target); Push ▾ Force Push… (`--force-with-lease`, asks first)
+- [x] Word completion in every language: identifiers from the file (nearest to the caret first) and from
+      other open files (most used first), listed under the language server's items without duplicates, or
+      alone without a server; from 2 typed characters, prose (Markdown, text) only on ⌃Space (Basic
+      Completion, also forces the list anywhere) — `search::word_completions`, `word_completion.rs`
 - [x] ⌘Q and closing a project window warn when a terminal still runs something (a running run
       configuration, or a shell whose foreground job is not the shell itself — `ps` `tpgid`, off the UI
       thread): "Terminate" / Cancel, listing the programs; Terminate replaces "Exit?" / "Close project?"

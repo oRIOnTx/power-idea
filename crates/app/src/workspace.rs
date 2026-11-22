@@ -172,6 +172,8 @@ pub struct Workspace {
     git_log: Option<git_log::GitLogState>,
     /// The open Branches popup under the title bar's branch widget.
     branches_popup: Option<(Entity<crate::branches_popup::BranchesPopup>, Subscription)>,
+    /// Open editors, read by word completion.
+    open_buffers: crate::word_completion::OpenBuffers,
     /// Run configurations (user + detected) and the one Run (⌃R) starts.
     run_configs: Vec<run::RunConfig>,
     selected_run: Option<String>,
@@ -257,6 +259,7 @@ impl Workspace {
             git: None,
             git_log: None,
             branches_popup: None,
+            open_buffers: Default::default(),
             run_configs: Vec::new(),
             selected_run: None,
             breakpoints: Default::default(),

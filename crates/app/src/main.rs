@@ -23,6 +23,7 @@ mod tree_selection;
 mod usages;
 mod watcher;
 mod welcome;
+mod word_completion;
 mod workspace;
 
 use std::path::PathBuf;
