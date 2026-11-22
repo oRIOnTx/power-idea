@@ -37,6 +37,7 @@ mod session_state;
 mod sidebar;
 mod terminal_panel;
 mod unsaved;
+mod window_tabs;
 
 pub(crate) use unsaved::request_quit;
 
@@ -413,6 +414,7 @@ impl Render for Workspace {
             .bg(background)
             .text_color(foreground)
             .child(self.render_title_bar(window, cx))
+            .children(self.render_window_tabs(window, cx))
             .child(
                 h_flex()
                     .flex_1()

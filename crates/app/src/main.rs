@@ -197,6 +197,8 @@ fn main() {
             // closing the Welcome screen itself quits.
             cx.on_window_closed(|cx, id| {
                 let was_welcome = welcome::forget_closed(id, cx);
+                // Remaining project tabs redraw their tab strip.
+                cx.refresh_windows();
                 if cx.windows().is_empty() {
                     if was_welcome {
                         cx.quit();

@@ -52,12 +52,16 @@ is in the working tree only.
 - [x] macOS menu bar (JetBrains layout): Power IDEA (About, Settings, Hide, Quit), File (New Project, Open,
       Recent, Save, Close Tab, Close Project), Edit, View, Navigate, Code, Git, Window, Help; the title-bar
       close button moved to File → Close Project (⌘⇧W)
+- [x] Opening a project from Recent Projects / Welcome asks This Window / New Tab / Cancel again (the dialog
+      could not open inside the caller's window update and silently fell back to a new window); project tabs
+      are drawn under the title bar because the custom title bar hides the native macOS tab strip
 
 ## Backlog
 Agreed backlog is done. Candidates:
 Database gaps below, Find Usages as a tool window (JetBrains shows a tree, we use the picker).
 
 ## Known gaps
+- `db` test `sqlite_queries_schema_and_limits` failed once in a full run, not reproducible (15 reruns pass)
 - Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;
   Go to Symbol lists library symbols after project ones
 - Git Log: right-click does not select the row; dates older than a week are shown in UTC; history capped at 2000 commits; no author/date/path filters

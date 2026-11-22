@@ -38,6 +38,12 @@ enum Placement {
 /// Opens `path`, focusing it if it is already open; otherwise places it
 /// according to `OpenProjectMode` relative to the active project window.
 pub fn open_project(path: PathBuf, cx: &mut App) {
+    // Callers are often inside a window update (palette, Welcome list); the
+    // placement dialog and window juggling need that window free, so run later.
+    cx.defer(move |cx| open_project_now(path, cx));
+}
+
+fn open_project_now(path: PathBuf, cx: &mut App) {
     let path = path.canonicalize().unwrap_or(path);
     let workspaces = Workspaces::live(cx);
     if let Some((handle, _)) = workspaces.iter().find(|(_, ws)| ws.read(cx).root() == &path) {
