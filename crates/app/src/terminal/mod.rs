@@ -3,9 +3,12 @@
 
 mod colors;
 mod input;
+mod mouse;
+mod pointer;
 mod session;
 
 use std::borrow::Cow;
+use std::time::{Duration, Instant};
 
 use alacritty_terminal::event::{Event as TermEvent, Notify, WindowSize};
 use alacritty_terminal::event_loop::{Msg, Notifier};
@@ -31,6 +34,8 @@ use crate::config::AppConfig;
 actions!(terminal, [Copy, Paste, Clear]);
 
 const LINE_HEIGHT_FACTOR: f32 = 1.35;
+/// Cursor blink half-period, as in macOS text fields.
+const BLINK_INTERVAL: Duration = Duration::from_millis(530);
 
 pub enum TerminalEvent {
     TitleChanged,
@@ -56,7 +61,15 @@ pub struct TerminalView {
     /// Top-left of the grid in window coordinates, captured at layout.
     origin: Point<Pixels>,
     selecting: bool,
+    /// Last cell reported to a mouse-aware app, to report motion once per cell.
+    last_mouse_cell: Option<(usize, usize)>,
+    /// Blink phase of the cursor; it stays on while typing.
+    cursor_on: bool,
+    last_input: Instant,
+    /// Whether the view was focused at the last render (blinking only then).
+    was_focused: bool,
     _events_task: Task<()>,
+    _blink_task: Task<()>,
 }
 
 impl TerminalView {
@@ -78,6 +91,23 @@ impl TerminalView {
             }
         });
 
+        let blink_task = cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor().timer(BLINK_INTERVAL).await;
+                let alive = this.update(cx, |this, cx| {
+                    let typing = this.last_input.elapsed() < BLINK_INTERVAL;
+                    let next = !this.was_focused || typing || !this.cursor_on;
+                    if next != this.cursor_on {
+                        this.cursor_on = next;
+                        cx.notify();
+                    }
+                });
+                if alive.is_err() {
+                    break;
+                }
+            }
+        });
+
         Self {
             term,
             notifier,
@@ -88,7 +118,12 @@ impl TerminalView {
             metrics: None,
             origin: Point::default(),
             selecting: false,
+            last_mouse_cell: None,
+            cursor_on: true,
+            last_input: Instant::now(),
+            was_focused: false,
             _events_task: events_task,
+            _blink_task: blink_task,
         }
     }
 
@@ -216,6 +251,8 @@ impl TerminalView {
             return;
         };
         cx.stop_propagation();
+        self.cursor_on = true;
+        self.last_input = Instant::now();
         {
             let mut term = self.term.lock();
             term.selection = None;
@@ -352,8 +389,10 @@ impl Render for TerminalView {
         let (rows, cursor) = self.render_lines(cx);
         let theme = cx.theme();
         let focused = self.focus_handle.is_focused(window);
+        self.was_focused = focused;
         let this = cx.entity().downgrade();
 
+        let cursor = cursor.filter(|_| !focused || self.cursor_on);
         let cursor_el = cursor.map(|(row, col, shape)| {
             let base = div()
                 .absolute()
@@ -410,9 +449,36 @@ impl Render for TerminalView {
                     )
                     .children(cursor_el)
                     .on_mouse_down(
+                        MouseButton::Right,
+                        cx.listener(|this, event: &MouseDownEvent, _, _| {
+                            this.on_mouse_down_button(event);
+                        }),
+                    )
+                    .on_mouse_down(
+                        MouseButton::Middle,
+                        cx.listener(|this, event: &MouseDownEvent, _, _| {
+                            this.on_mouse_down_button(event);
+                        }),
+                    )
+                    .on_mouse_up(
+                        MouseButton::Right,
+                        cx.listener(|this, event: &MouseUpEvent, _, _| {
+                            this.on_mouse_up_button(event);
+                        }),
+                    )
+                    .on_mouse_up(
+                        MouseButton::Middle,
+                        cx.listener(|this, event: &MouseUpEvent, _, _| {
+                            this.on_mouse_up_button(event);
+                        }),
+                    )
+                    .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(|this, event: &MouseDownEvent, window, cx| {
                             this.focus_handle.focus(window, cx);
+                            if this.on_mouse_down_button(event) {
+                                return;
+                            }
                             let origin = this.origin;
                             let (point, side) = this.grid_point(event.position, origin);
                             let ty = match event.click_count {
@@ -426,6 +492,9 @@ impl Render for TerminalView {
                         }),
                     )
                     .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _, cx| {
+                        if !this.selecting && this.on_mouse_motion(event) {
+                            return;
+                        }
                         if !this.selecting || event.pressed_button != Some(MouseButton::Left) {
                             return;
                         }
@@ -438,7 +507,10 @@ impl Render for TerminalView {
                     }))
                     .on_mouse_up(
                         MouseButton::Left,
-                        cx.listener(|this, _: &MouseUpEvent, _, cx| {
+                        cx.listener(|this, event: &MouseUpEvent, _, cx| {
+                            if !this.selecting && this.on_mouse_up_button(event) {
+                                return;
+                            }
                             this.selecting = false;
                             let mut term = this.term.lock();
                             if term.selection.as_ref().is_some_and(|s| s.is_empty()) {
@@ -447,15 +519,7 @@ impl Render for TerminalView {
                             cx.notify();
                         }),
                     )
-                    .on_scroll(cx.listener(|this, event: &ScrollEvent, _, cx| {
-                        let Some(metrics) = this.metrics else { return };
-                        let lines =
-                            (event.delta.pixel_delta(metrics.height).y / metrics.height).round() as i32;
-                        if lines != 0 {
-                            this.term.lock().scroll_display(Scroll::Delta(lines));
-                            cx.notify();
-                        }
-                    })),
+                    .on_scroll(cx.listener(|this, event: &ScrollEvent, _, cx| this.on_wheel(event, cx))),
             )
     }
 }

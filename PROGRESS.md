@@ -61,6 +61,8 @@ is in the working tree only.
       Export CSV (read-only queries are re-run to export every row, up to 1M); editing cells of a
       single-table SELECT that includes the primary key: double-click → value / NULL, pending edits
       highlighted, Submit runs one UPDATE per cell and reloads, Revert drops them
+- [x] Terminal: mouse reporting for full-screen apps (xterm 1000/1002/1003, X10/UTF-8/SGR encodings;
+      Shift+drag still selects), wheel → arrow keys in `less`/`man` (alternate scroll), blinking cursor
 
 ## Backlog
 Agreed backlog is done. Candidates:
@@ -72,7 +74,6 @@ Database gaps below.
   Go to Symbol lists library symbols after project ones
 - Git Log: right-click does not select the row; dates older than a week are shown in UTC; history capped at 2000 commits; no author/date/path filters
 - Database: no TLS for Redis; editing is per cell (no insert/delete rows yet); completion ignores table aliases
-- Terminal: no mouse reporting for TUI apps, no cursor blink
 - Quitting from the Dock icon bypasses the unsaved-changes prompt (menu Quit and ⌘Q ask)
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end
 - The user's `lms` project needs `brew install libpq` + `bundle install` for full Ruby LSP (fallback mode works meanwhile)
