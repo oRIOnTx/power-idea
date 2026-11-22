@@ -49,6 +49,9 @@ pub struct Config {
     /// Language servers keyed by id (e.g. "ruby"), merged over the built-in list.
     pub language_servers: BTreeMap<String, LanguageServerConfig>,
     pub recent_projects: Vec<PathBuf>,
+    /// Project windows open when the app last quit, reopened at launch; empty means the
+    /// Welcome screen. `None` in configs written before this was recorded.
+    pub open_projects: Option<Vec<PathBuf>>,
     /// Claude Session Insights (reads ~/.claude transcripts locally); off by default.
     pub insights_enabled: bool,
     /// Ask before ⌘Q quits (unsaved files are always asked about).
@@ -152,6 +155,7 @@ impl Default for Config {
             bottom_panel_full_width: true,
             language_servers: default_language_servers(),
             recent_projects: Vec::new(),
+            open_projects: None,
             insights_enabled: false,
             confirm_exit: true,
             confirm_close_project: true,
@@ -192,6 +196,15 @@ impl Config {
         self.recent_projects.retain(|p| p != project);
         self.recent_projects.insert(0, project.to_path_buf());
         self.recent_projects.truncate(MAX_RECENT_PROJECTS);
+    }
+
+    /// Projects to open at launch: those open when the app last quit (none → Welcome);
+    /// for older configs, the most recent project.
+    pub fn startup_projects(&self) -> Vec<PathBuf> {
+        match &self.open_projects {
+            Some(open) => open.clone(),
+            None => self.recent_projects.iter().take(1).cloned().collect(),
+        }
     }
 }
 
@@ -240,6 +253,23 @@ mod tests {
         config.touch_recent_project(Path::new("/b"));
         config.touch_recent_project(Path::new("/a"));
         assert_eq!(config.recent_projects, [PathBuf::from("/a"), PathBuf::from("/b")]);
+    }
+
+    #[test]
+    fn launch_reopens_what_was_open_at_quit() {
+        let mut config = Config::default();
+        config.touch_recent_project(Path::new("/a"));
+        assert_eq!(config.startup_projects(), [PathBuf::from("/a")]);
+        // Quit from the Welcome screen: nothing reopens, even with recent projects.
+        config.open_projects = Some(Vec::new());
+        assert!(config.startup_projects().is_empty());
+        config.open_projects = Some(vec![PathBuf::from("/b"), PathBuf::from("/c")]);
+        assert_eq!(
+            config.startup_projects(),
+            [PathBuf::from("/b"), PathBuf::from("/c")]
+        );
+        let saved: Config = toml::from_str(&toml::to_string(&config).unwrap()).unwrap();
+        assert_eq!(saved.open_projects, config.open_projects);
     }
 
     #[test]

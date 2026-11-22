@@ -204,6 +204,7 @@ fn main() {
 
             cx.on_action(|_: &Quit, cx| workspace::request_quit(cx));
             cx.on_app_quit(|cx| {
+                projects::remember_open_projects(cx);
                 workspace::store_recovery(cx);
                 async {}
             })
@@ -235,11 +236,18 @@ fn main() {
             })
             .detach();
 
-            let last_project = cx.global::<AppConfig>().0.recent_projects.first().cloned();
-            match arg_project.or(last_project).filter(|p| p.is_dir()) {
-                // Not deferred: nothing would flush a deferred call during launch.
+            // Not deferred: nothing would flush a deferred call during launch.
+            match arg_project.filter(|p| p.is_dir()) {
                 Some(path) => projects::open_project_now(path, cx),
-                None => welcome::show(cx),
+                None => {
+                    let mut paths = cx.global::<AppConfig>().0.startup_projects();
+                    paths.retain(|p| p.is_dir());
+                    if paths.is_empty() {
+                        welcome::show(cx);
+                    } else {
+                        projects::reopen_projects(paths, cx);
+                    }
+                }
             }
             cx.activate(true);
         });

@@ -161,6 +161,8 @@ is in the working tree only.
 - [x] ⌘Q and closing a project window warn when a terminal still runs something (a running run
       configuration, or a shell whose foreground job is not the shell itself — `ps` `tpgid`, off the UI
       thread): "Terminate" / Cancel, listing the programs; Terminate replaces "Exit?" / "Close project?"
+- [x] Launch reopens the projects that were open at quit (`open_projects` in `config.toml`, as tabs of one
+      window); quitting from the Welcome screen brings the Welcome screen back. Welcome content is top-aligned
 
 ## Backlog
 Agreed backlog is done. Candidates:

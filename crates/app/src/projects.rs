@@ -36,6 +36,34 @@ enum Placement {
     Replace(AnyWindowHandle),
 }
 
+/// Launch: reopens the projects that were open at quit, grouped as tabs of one window.
+pub fn reopen_projects(paths: Vec<PathBuf>, cx: &mut App) {
+    for (ix, path) in paths.iter().enumerate() {
+        let placement = if ix == 0 {
+            Placement::NewWindow
+        } else {
+            Placement::NewTab
+        };
+        open_window(path.clone(), placement, cx);
+    }
+    // Opening touched each one; keep the first as the most recent project.
+    let config = &mut cx.global_mut::<AppConfig>().0;
+    for path in paths.iter().rev() {
+        config.touch_recent_project(path);
+    }
+    crate::save_config(cx);
+}
+
+/// Records the open project windows for the next launch (runs while quitting).
+pub fn remember_open_projects(cx: &mut App) {
+    let open: Vec<PathBuf> = Workspaces::live(cx)
+        .iter()
+        .map(|(_, ws)| ws.read(cx).root().clone())
+        .collect();
+    cx.global_mut::<AppConfig>().0.open_projects = Some(open);
+    crate::save_config(cx);
+}
+
 /// Opens `path`, focusing it if it is already open; otherwise places it
 /// according to `OpenProjectMode` relative to the active project window.
 pub fn open_project(path: PathBuf, cx: &mut App) {
