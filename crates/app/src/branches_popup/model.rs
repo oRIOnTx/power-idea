@@ -191,13 +191,21 @@ pub fn aims_at_submenu(from: (f32, f32), to: (f32, f32), left: f32, top: f32, bo
     sides.iter().all(|s| *s >= 0.) || sides.iter().all(|s| *s <= 0.)
 }
 
+/// Menu-aim prediction: the pointer, moving from `from` (a few events back) to `to`, travels
+/// right and into the submenu's triangle, widened by some slack because hands don't move
+/// in straight lines.
+pub fn heads_for_submenu(from: (f32, f32), to: (f32, f32), left: f32, top: f32, bottom: f32) -> bool {
+    const SLACK: f32 = 100.;
+    to.0 > from.0 && aims_at_submenu(from, to, left, top - SLACK, bottom + SLACK)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
 
     use vcs::Branch;
 
-    use super::{GitCommand, Group, Row, aims_at_submenu, branch_ops, rows};
+    use super::{GitCommand, Group, Row, aims_at_submenu, branch_ops, heads_for_submenu, rows};
     use crate::actions::GitLogOp;
 
     fn branch(name: &str, is_remote: bool, is_current: bool) -> Branch {
@@ -300,5 +308,19 @@ mod tests {
         assert!(!aims((300., 280.)), "straight up: choosing another row");
         assert!(!aims((290., 290.)), "away from the submenu");
         assert!(!aims((320., 320.)), "down, below the submenu");
+    }
+
+    #[test]
+    fn predicts_wobbly_diagonal_moves() {
+        // Pointer at (200, 245) under a submenu at x=400, y=30..130 (as in the popup).
+        let heads = |to| heads_for_submenu((200., 245.), to, 400., 30., 130.);
+        assert!(
+            heads((230., 200.)),
+            "steeper than the exact triangle, within the slack"
+        );
+        assert!(heads((240., 240.)), "mostly right");
+        assert!(!heads((200., 200.)), "straight up: choosing another row");
+        assert!(!heads((190., 230.)), "moving left");
+        assert!(!heads((230., 290.)), "down, away from the submenu");
     }
 }

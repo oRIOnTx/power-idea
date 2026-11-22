@@ -23,7 +23,7 @@ const MAX_LIST_HEIGHT: f32 = 520.;
 const ROW_HEIGHT: f32 = 26.;
 /// How long the pointer may rest on another row, while heading for the submenu, before
 /// that row takes over.
-const AIM_DELAY: std::time::Duration = std::time::Duration::from_millis(300);
+const AIM_DELAY: std::time::Duration = std::time::Duration::from_millis(250);
 
 pub enum BranchesPopupEvent {
     Dismiss,
@@ -48,8 +48,8 @@ pub struct BranchesPopup {
     submenu: Option<(usize, usize)>,
     /// Where the open submenu is drawn, for the safe-triangle check.
     submenu_bounds: Option<Bounds<Pixels>>,
-    /// Last pointer position over the list.
-    pointer: Option<Point<Pixels>>,
+    /// Recent pointer positions over the popup, oldest first: the direction of travel.
+    trail: std::collections::VecDeque<Point<Pixels>>,
     /// A row hovered on the way to the submenu; selected only if the pointer stays.
     _aim_task: Option<Task<()>>,
     scroll: ScrollHandle,
@@ -79,7 +79,7 @@ impl BranchesPopup {
             selected: 0,
             submenu: None,
             submenu_bounds: None,
-            pointer: None,
+            trail: Default::default(),
             _aim_task: None,
             scroll: ScrollHandle::new(),
             focused_once: false,
@@ -137,12 +137,12 @@ impl BranchesPopup {
         }
     }
 
-    /// The pointer moved over row `ix`. While it heads for the open submenu, crossing
-    /// other rows doesn't move or close the submenu unless the pointer rests there.
+    /// The pointer moved over row `ix`. While it heads for the open submenu (predicted from
+    /// its recent trail), crossing other rows doesn't move or close the submenu; a row takes
+    /// over only once the pointer rests on it.
     fn hover_row(&mut self, ix: usize, position: Point<Pixels>, cx: &mut Context<Self>) {
-        let from = self.pointer.replace(position);
-        let heading_to_submenu = match (from, self.submenu, self.submenu_bounds) {
-            (Some(from), Some((row, _)), Some(target)) if row != ix => model::aims_at_submenu(
+        let heading_to_submenu = match (self.trail.front(), self.submenu, self.submenu_bounds) {
+            (Some(from), Some((row, _)), Some(target)) if row != ix => model::heads_for_submenu(
                 (f32::from(from.x), f32::from(from.y)),
                 (f32::from(position.x), f32::from(position.y)),
                 f32::from(target.origin.x),
@@ -155,10 +155,20 @@ impl BranchesPopup {
             self._aim_task = None;
             return self.select(ix, cx);
         }
+        // Each move restarts the wait, so the switch happens only when the pointer stops.
         self._aim_task = Some(cx.spawn(async move |this, cx| {
             cx.background_executor().timer(AIM_DELAY).await;
             this.update(cx, |this, cx| this.select(ix, cx)).ok();
         }));
+    }
+
+    /// Runs after the row handlers (bubble phase), so they compare against earlier positions.
+    fn track_pointer(&mut self, position: Point<Pixels>) {
+        const TRAIL: usize = 5;
+        if self.trail.len() == TRAIL {
+            self.trail.pop_front();
+        }
+        self.trail.push_back(position);
     }
 
     fn step(&mut self, forward: bool, cx: &mut Context<Self>) {
@@ -495,6 +505,9 @@ impl Render for BranchesPopup {
 
         h_flex()
             .key_context(BRANCHES_CONTEXT)
+            .on_mouse_move(
+                cx.listener(|this, event: &MouseMoveEvent, _, _| this.track_pointer(event.position)),
+            )
             .capture_key_down(cx.listener(Self::on_key))
             .on_action(cx.listener(Self::select_next))
             .on_action(cx.listener(Self::select_prev))
