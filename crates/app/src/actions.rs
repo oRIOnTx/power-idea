@@ -25,6 +25,8 @@ pub const TERMINAL_CONTEXT: &str = "Terminal";
 pub const GIT_LOG_CONTEXT: &str = "GitLog";
 /// The Find Usages results (arrows select, Enter jumps).
 pub const USAGES_CONTEXT: &str = "Usages";
+/// The project tree (⌘X / ⌘C / ⌘V act on the selected files).
+pub const PROJECT_TREE_CONTEXT: &str = "ProjectTree";
 
 actions!(
     ide,
@@ -60,6 +62,9 @@ actions!(
         ShowGitLog,
         Branches,
         CopyMcpCommand,
+        CutFiles,
+        CopyFiles,
+        PasteFiles,
         OpenSettings,
         NavigateBack,
         NavigateForward,
@@ -266,6 +271,9 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Back", Box::new(NavigateBack)),
         ("Forward", Box::new(NavigateForward)),
         ("Copy Claude MCP Command", Box::new(CopyMcpCommand)),
+        ("Cut Selected Files", Box::new(CutFiles)),
+        ("Copy Selected Files", Box::new(CopyFiles)),
+        ("Paste Files", Box::new(PasteFiles)),
         ("Quit", Box::new(Quit)),
     ]
 }
@@ -357,6 +365,9 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-c", crate::terminal::Copy, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-v", crate::terminal::Paste, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-k", crate::terminal::Clear, Some(TERMINAL_CONTEXT)),
+        KeyBinding::new("cmd-x", CutFiles, Some(PROJECT_TREE_CONTEXT)),
+        KeyBinding::new("cmd-c", CopyFiles, Some(PROJECT_TREE_CONTEXT)),
+        KeyBinding::new("cmd-v", PasteFiles, Some(PROJECT_TREE_CONTEXT)),
         KeyBinding::new("up", SelectPrev, Some(USAGES_CONTEXT)),
         KeyBinding::new("down", SelectNext, Some(USAGES_CONTEXT)),
         KeyBinding::new("enter", OpenSelectedUsage, Some(USAGES_CONTEXT)),

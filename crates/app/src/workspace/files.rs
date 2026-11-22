@@ -157,8 +157,8 @@ impl Workspace {
                 });
             }
             FileOp::Delete => self.confirm_delete(rel, window, cx),
-            FileOp::Cut => self.clip_file(rel, ClipMode::Cut, window, cx),
-            FileOp::CopyFile => self.clip_file(rel, ClipMode::Copy, window, cx),
+            FileOp::Cut => self.clip_paths(self.menu_targets(&rel), ClipMode::Cut, window, cx),
+            FileOp::CopyFile => self.clip_paths(self.menu_targets(&rel), ClipMode::Copy, window, cx),
             // Into the clicked folder, or the folder of the clicked file.
             FileOp::Paste => self.paste_files(dir, window, cx),
             FileOp::CopyPath | FileOp::CopyRelativePath => {

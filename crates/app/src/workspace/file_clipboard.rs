@@ -7,25 +7,57 @@ use gpui_kit::*;
 
 use super::Workspace;
 use crate::file_ops::{self, ClipMode, FileClipboard};
+use crate::tree_selection::outermost;
 
 impl Workspace {
-    pub(super) fn clip_file(
+    /// Puts `paths` (relative to the root) on the file clipboard.
+    pub(super) fn clip_paths(
         &mut self,
-        rel: String,
+        paths: Vec<String>,
         mode: ClipMode,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let name = rel.rsplit('/').next().unwrap_or(&rel).to_string();
+        let paths = outermost(&paths);
+        let what = match paths.as_slice() {
+            [] => return,
+            [rel] => rel.rsplit('/').next().unwrap_or(rel).to_string(),
+            _ => format!("{} items", paths.len()),
+        };
         let verb = if mode == ClipMode::Cut { "Cut" } else { "Copied" };
-        self.file_clipboard = Some(FileClipboard {
-            paths: vec![rel],
-            mode,
-        });
+        self.file_clipboard = Some(FileClipboard { paths, mode });
         window.push_notification(
-            Notification::info(format!("{verb} {name} — Paste it into a folder")),
+            Notification::info(format!("{verb} {what} — Paste into a folder with ⌘V")),
             cx,
         );
+    }
+
+    /// ⌘X / ⌘C in the project tree: the selected files and folders.
+    pub(super) fn clip_selection(&mut self, mode: ClipMode, window: &mut Window, cx: &mut Context<Self>) {
+        let paths = self.tree_selection.paths.clone();
+        self.clip_paths(paths, mode, window, cx);
+    }
+
+    /// The files a tree context menu acts on: the whole selection when `rel` is part of it.
+    pub(super) fn menu_targets(&self, rel: &str) -> Vec<String> {
+        if self.tree_selection.contains(rel) {
+            self.tree_selection.paths.clone()
+        } else {
+            vec![rel.to_string()]
+        }
+    }
+
+    /// ⌘V in the project tree: into the selected folder, the selected file's folder, or the root.
+    pub(super) fn paste_into_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let dir = self.tree_selection.paths.first().map_or_else(String::new, |rel| {
+            if self.root.join(rel).is_dir() {
+                rel.clone()
+            } else {
+                rel.rsplit_once('/')
+                    .map_or_else(String::new, |(dir, _)| dir.to_string())
+            }
+        });
+        self.paste_files(dir, window, cx);
     }
 
     pub(super) fn can_paste_files(&self) -> bool {
@@ -61,14 +93,14 @@ impl Workspace {
                 })
                 .await;
             this.update_in(cx, |ws, window, cx| {
-                let mut pasted = 0;
+                let mut pasted = Vec::new();
                 for result in results {
                     match result {
                         Ok((from, to)) => {
                             if clipboard.mode == ClipMode::Cut {
                                 ws.retarget_tabs(&from, &to);
                             }
-                            pasted += 1;
+                            pasted.push(to);
                         }
                         Err(err) => window.push_notification(
                             Notification::error(format!("{err:#}")).title("Paste failed"),
@@ -77,8 +109,11 @@ impl Workspace {
                     }
                 }
                 // A cut is pasted once; copies can be pasted again.
-                if clipboard.mode == ClipMode::Cut && pasted > 0 {
+                if clipboard.mode == ClipMode::Cut && !pasted.is_empty() {
                     ws.file_clipboard = None;
+                }
+                if !pasted.is_empty() {
+                    ws.tree_selection.set(pasted);
                 }
                 if !dir.is_empty() {
                     ws.expanded.insert(dir.clone());

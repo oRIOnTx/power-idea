@@ -5,6 +5,7 @@ use gpui_kit::*;
 use super::{LeftPanel, Workspace};
 use crate::actions::*;
 use crate::editor;
+use crate::file_ops::ClipMode;
 use crate::palette::PaletteMode;
 
 impl Workspace {
@@ -68,6 +69,9 @@ impl Workspace {
         .on_action(cx.listener(|_, _: &CopyMcpCommand, w, cx| crate::mcp_bridge::copy_claude_command(w, cx)))
         .on_action(cx.listener(|this, _: &OpenSettings, w, cx| this.open_settings(w, cx)))
         .on_action(cx.listener(|this, action: &FileAction, w, cx| this.handle_file_action(action, w, cx)))
+        .on_action(cx.listener(|this, _: &CutFiles, w, cx| this.clip_selection(ClipMode::Cut, w, cx)))
+        .on_action(cx.listener(|this, _: &CopyFiles, w, cx| this.clip_selection(ClipMode::Copy, w, cx)))
+        .on_action(cx.listener(|this, _: &PasteFiles, w, cx| this.paste_into_selection(w, cx)))
         .on_action(cx.listener(|this, _: &NavigateBack, w, cx| this.navigate(false, w, cx)))
         .on_action(
             cx.listener(|this, action: &DatabaseAction, w, cx| this.handle_database_action(action, w, cx)),

@@ -111,6 +111,9 @@ is in the working tree only.
       sidebar panel (off by default, Settings → Insights): score + trend vs previous period (7d/30d/90d/All),
       project filter, score-per-session chart, block bars now vs before, top-3 tips with "Got it", session
       list and breakdown; "Clear all analytics data"
+- [x] Project tree multi-selection (⌘+click toggles, ⇧+click selects a range, arrows move it) and
+      ⌘X / ⌘C / ⌘V for the selected files and folders (also Edit menu, Find Action and the context menu,
+      which acts on the whole selection); pasted items become the selection
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
 
 ## Backlog
@@ -118,6 +121,7 @@ Agreed backlog is done. Candidates:
 Database gaps below.
 
 ## Known gaps
+- Project tree: Delete and drag-and-drop still act on one item; right-click does not select the row
 - Insights: no event timeline in session details, no "tip resolved" tracking, weights/excluded
   projects/tip language not configurable in the UI, no file watcher (periodic re-index), no weekly LLM
   report (stage 4); correction detection is keyword-based (UA/EN), no similarity to the previous prompt

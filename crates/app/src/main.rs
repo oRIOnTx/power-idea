@@ -18,6 +18,7 @@ mod session;
 mod settings;
 mod style;
 mod terminal;
+mod tree_selection;
 mod usages;
 mod watcher;
 mod welcome;

@@ -46,6 +46,7 @@ mod run_configs;
 mod session_state;
 mod sidebar;
 mod terminal_panel;
+mod tree_select;
 mod unsaved;
 mod usages_panel;
 mod window_tabs;
@@ -139,6 +140,10 @@ pub struct Workspace {
     expanded: HashSet<String>,
     /// Files waiting for Paste in the project tree.
     file_clipboard: Option<crate::file_ops::FileClipboard>,
+    tree_selection: crate::tree_selection::TreeSelection,
+    /// The tree row the keyboard cursor was last put on by us; any other row
+    /// selected in the tree (arrow keys) replaces the multi-selection.
+    tree_cursor: Option<String>,
     index: Arc<FileIndex>,
     tabs: Vec<CenterTab>,
     active_tab: Option<usize>,
@@ -195,6 +200,7 @@ impl Workspace {
             };
             this.refresh_tree(cx);
         });
+        let tree_cursor_subscription = cx.observe(&tree, |this, tree, cx| this.follow_tree_cursor(&tree, cx));
 
         let project = ProjectSettings::load(&root);
         let lsp = crate::language::LspStore::new(root.clone());
@@ -215,6 +221,8 @@ impl Workspace {
             tree,
             expanded,
             file_clipboard: None,
+            tree_selection: Default::default(),
+            tree_cursor: None,
             index: Arc::default(),
             tabs: Vec::new(),
             active_tab: None,
@@ -235,7 +243,7 @@ impl Workspace {
             active_terminal: 0,
             show_bottom: false,
             bottom_panel: BottomPanel::Terminal,
-            _subscriptions: vec![tree_subscription],
+            _subscriptions: vec![tree_subscription, tree_cursor_subscription],
         };
         workspace.focus_handle.focus(window, cx);
         workspace.reindex(cx);
@@ -306,7 +314,15 @@ impl Workspace {
 
     fn refresh_tree(&mut self, cx: &mut Context<Self>) {
         let items = project_tree::build_items(&self.root, "", &self.expanded);
-        self.tree.update(cx, |tree, cx| tree.set_items(items, cx));
+        let root = self.root.clone();
+        self.tree_selection.retain(|rel| root.join(rel).exists());
+        let cursor = self.tree_cursor.clone();
+        // `set_items` drops the tree's own selection; keep the keyboard cursor in place.
+        self.tree.update(cx, |tree, cx| {
+            tree.set_items(items, cx);
+            let ix = cursor.and_then(|id| tree.index_of(&id.into()));
+            tree.set_selected_index(ix, cx);
+        });
     }
 
     fn notify_error(&self, message: String, window: &mut Window, cx: &mut App) {

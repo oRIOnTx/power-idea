@@ -1,5 +1,6 @@
 //! Left sidebar: Project tree (Cmd+1) and Commit tool window (Cmd+0), plus the activity bar.
 
+use gpui_kit::component::input;
 use gpui_kit::component::list::ListItem;
 use gpui_kit::component::tree::tree;
 use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Selectable as _, Sizable as _, h_flex, v_flex};
@@ -7,6 +8,8 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use super::{LeftPanel, Workspace, git};
+use crate::actions::PROJECT_TREE_CONTEXT;
+use crate::file_ops::ClipMode;
 use crate::{file_icons, style};
 
 /// Click callback for an activity bar slot.
@@ -214,80 +217,101 @@ impl Workspace {
         let menu_workspace = cx.entity().downgrade();
         let workspace = cx.entity().downgrade();
         let active_rel = self.active().map(|tab| tab.rel.clone());
+        let selection = self.tree_selection.paths.clone();
 
-        v_flex().size_full().bg(theme.sidebar).child(
-            div().flex_1().child(
-                tree(&self.tree, move |ix, entry, _selected, _, cx| {
-                    let item = entry.item();
-                    let id = item.id.to_string();
-                    let is_folder = entry.is_folder();
-                    let icon = if is_folder {
-                        let glyph = if entry.is_expanded() {
-                            IconName::FolderOpen
-                        } else {
-                            IconName::Folder
-                        };
-                        Icon::new(glyph).text_color(file_icons::folder_tint(&item.label).color(cx))
-                    } else {
-                        file_icons::icon_for_file(&item.label, cx)
-                    };
-                    // Fixed-size slot so long names never squeeze the indentation.
-                    let chevron_slot = div().flex_none().w(style::TREE_CHEVRON).flex().items_center();
-                    let chevron = match (is_folder, entry.is_expanded()) {
-                        (true, expanded) => chevron_slot.child(
-                            Icon::new(if expanded {
-                                IconName::ChevronDown
+        v_flex()
+            .size_full()
+            .bg(theme.sidebar)
+            .key_context(PROJECT_TREE_CONTEXT)
+            // Edit → Cut / Copy / Paste from the menu bar while the tree has focus.
+            .on_action(cx.listener(|this, _: &input::Cut, w, cx| this.clip_selection(ClipMode::Cut, w, cx)))
+            .on_action(cx.listener(|this, _: &input::Copy, w, cx| this.clip_selection(ClipMode::Copy, w, cx)))
+            .on_action(cx.listener(|this, _: &input::Paste, w, cx| this.paste_into_selection(w, cx)))
+            .child(
+                div().flex_1().child(
+                    tree(&self.tree, move |ix, entry, _selected, _, cx| {
+                        let item = entry.item();
+                        let id = item.id.to_string();
+                        let is_folder = entry.is_folder();
+                        let icon = if is_folder {
+                            let glyph = if entry.is_expanded() {
+                                IconName::FolderOpen
                             } else {
-                                IconName::ChevronRight
-                            })
-                            .with_size(style::TREE_CHEVRON)
-                            .text_color(cx.theme().muted_foreground),
-                        ),
-                        (false, _) => chevron_slot,
-                    };
-                    let is_active = active_rel.as_deref() == Some(id.as_str());
-                    let label_color = workspace
-                        .upgrade()
-                        .and_then(|ws| ws.read(cx).git.as_ref().and_then(|g| g.kind_for(&id, is_folder)))
-                        .map_or(cx.theme().foreground, |kind| git::kind_color(kind, cx));
-                    let workspace = workspace.clone();
-                    ListItem::new(ix)
-                        .selected(is_active)
-                        .py(px(1.))
-                        .pl(px(6.) + px(14.) * entry.depth() as f32)
-                        .child(
-                            h_flex()
-                                .w_full()
-                                .min_w_0()
-                                .gap_1p5()
-                                .text_sm()
-                                .child(chevron)
-                                .child(div().flex_none().child(icon.with_size(style::TREE_ICON)))
-                                .child(
-                                    div()
-                                        .min_w_0()
-                                        .overflow_hidden()
-                                        .text_ellipsis()
-                                        .whitespace_nowrap()
-                                        .text_color(label_color)
-                                        .child(item.label.clone()),
-                                ),
-                        )
-                        .on_click(move |_, window, cx| {
-                            if !is_folder {
+                                IconName::Folder
+                            };
+                            Icon::new(glyph).text_color(file_icons::folder_tint(&item.label).color(cx))
+                        } else {
+                            file_icons::icon_for_file(&item.label, cx)
+                        };
+                        // Fixed-size slot so long names never squeeze the indentation.
+                        let chevron_slot = div().flex_none().w(style::TREE_CHEVRON).flex().items_center();
+                        let chevron = match (is_folder, entry.is_expanded()) {
+                            (true, expanded) => chevron_slot.child(
+                                Icon::new(if expanded {
+                                    IconName::ChevronDown
+                                } else {
+                                    IconName::ChevronRight
+                                })
+                                .with_size(style::TREE_CHEVRON)
+                                .text_color(cx.theme().muted_foreground),
+                            ),
+                            (false, _) => chevron_slot,
+                        };
+                        let is_selected = if selection.is_empty() {
+                            active_rel.as_deref() == Some(id.as_str())
+                        } else {
+                            selection.contains(&id)
+                        };
+                        let label_color = workspace
+                            .upgrade()
+                            .and_then(|ws| ws.read(cx).git.as_ref().and_then(|g| g.kind_for(&id, is_folder)))
+                            .map_or(cx.theme().foreground, |kind| git::kind_color(kind, cx));
+                        let workspace = workspace.clone();
+                        ListItem::new(ix)
+                            .selected(is_selected)
+                            .py(px(1.))
+                            .pl(px(6.) + px(14.) * entry.depth() as f32)
+                            .child(
+                                h_flex()
+                                    .w_full()
+                                    .min_w_0()
+                                    .gap_1p5()
+                                    .text_sm()
+                                    .child(chevron)
+                                    .child(div().flex_none().child(icon.with_size(style::TREE_ICON)))
+                                    .child(
+                                        div()
+                                            .min_w_0()
+                                            .overflow_hidden()
+                                            .text_ellipsis()
+                                            .whitespace_nowrap()
+                                            .text_color(label_color)
+                                            .child(item.label.clone()),
+                                    ),
+                            )
+                            .on_click(move |event, window, cx| {
+                                let modifiers = event.modifiers();
                                 workspace
-                                    .update(cx, |ws, cx| ws.open_file(&id, None, window, cx))
+                                    .update(cx, |ws, cx| {
+                                        if ws.click_tree_entry(ix, &id, modifiers, cx) {
+                                            cx.stop_propagation();
+                                        } else if !is_folder {
+                                            ws.open_file(&id, None, window, cx);
+                                        }
+                                    })
                                     .ok();
+                            })
+                    })
+                    .context_menu(move |_, entry, menu, _, cx| {
+                        match menu_workspace.upgrade() {
+                            Some(ws) => {
+                                ws.read(cx)
+                                    .file_context_menu(menu, &entry.item().id, entry.is_folder())
                             }
-                        })
-                })
-                .context_menu(move |_, entry, menu, _, cx| match menu_workspace.upgrade() {
-                    Some(ws) => ws
-                        .read(cx)
-                        .file_context_menu(menu, &entry.item().id, entry.is_folder()),
-                    None => menu,
-                }),
-            ),
-        )
+                            None => menu,
+                        }
+                    }),
+                ),
+            )
     }
 }
