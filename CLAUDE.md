@@ -33,14 +33,17 @@ crates/
     workspace.rs        Workspace entity: state + layout composition only
     workspace/*.rs      one concern per module (editors, files, git, git_panel,
                         sidebar, chrome, terminal_panel, unsaved, mcp_tools,
-                        navigation, action_handlers, git_log/)
+                        navigation, code_nav, preview_view,
+                        session_state, action_handlers, git_log/)
     language.rs         language servers per project + editor LSP providers
     database/           Database tool window: data sources, consoles, results grid
     projects.rs         opening projects (windows grouped as native tabs)
     file_icons.rs       file-type icon + tint mapping
     inbox.rs            background-thread → UI event queue
     terminal/           session (PTY), input (keys→bytes), colors, view
-    palette.rs          modal pickers (Search Everywhere, Go to File, …)
+    palette/            modal pickers (Search Everywhere, Go to File, usages, symbols, …)
+    preview.rs          Markdown/SVG/image preview rules
+    session.rs          per-project workspace state (.power-idea/workspace.toml)
     settings.rs         Settings tab (Cmd+,)
     actions.rs          every action + the default JetBrains keymap
     mcp_bridge.rs       MCP server thread ⇄ UI thread

@@ -90,7 +90,7 @@ impl Workspace {
                     "tb-open",
                     IconName::FolderOpen,
                     Box::new(OpenProject),
-                    "Open Project… (⌘O)",
+                    "Open Project…",
                 ))
                 .child(tool(
                     "tb-close",

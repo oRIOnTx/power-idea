@@ -323,7 +323,7 @@ impl Workspace {
     }
 
     /// Opens an absolute path, using a project-relative name when possible.
-    fn open_path(
+    pub(super) fn open_path(
         &mut self,
         path: &Path,
         position: Option<(usize, usize)>,

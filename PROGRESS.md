@@ -1,6 +1,6 @@
 # Power IDEA — progress
 
-Updated: 2026-11-22. Last commit: `bda932c`. Everything below marked *uncommitted*
+Updated: 2026-11-22. Last commit: see `git log`. Everything below marked *uncommitted*
 is in the working tree only.
 
 ## Done
@@ -26,24 +26,26 @@ is in the working tree only.
 - [x] Bundle code signing + `scripts/create-signing-cert.sh`; larger icons; tab padding fix
 - [x] Crash fix: ⌘+Click re-entrancy; panic log at `~/Library/Logs/Power IDEA/panic.log`
 
-### Uncommitted
-- [x] **Git Log tool window (RubyMine-style, ⌘9, activity bar)** — bottom panel next to Terminal
-  - [x] Commit graph (`vcs/src/graph.rs`), history/details/ops (`vcs/src/history.rs`); ops covered by temp-repo tests
-  - [x] Branch list with upstream ahead/behind/gone (`vcs::Branch`)
-  - [x] UI (`app/src/workspace/git_log/`): branches panel (All / HEAD / Local / Remote, folders by prefix),
-        log with graph and ref labels, text/author/hash filter, ↑/↓ selection, details pane with
-        changed files → diff tab, conflict banner (Continue / Abort)
-  - [x] Context menus: commit (copy hash, branch/tag here, checkout, cherry-pick, revert, reset soft/mixed/hard)
-        and branch (checkout, new branch, merge, rebase, push, rename, delete with force fallback)
-  - [ ] Not verified by hand in the running app yet (no UI automation available)
+### Committed 2026-11-22 (second batch)
+- [x] **Git Log tool window** (⌘9, bottom panel): graph, branches panel with ahead/behind, filter, details → diffs,
+      commit/branch context menus (cherry-pick, revert, reset, merge, rebase, rename, delete…), conflict banner
+- [x] **Previews**: Markdown and SVG get editor / split / preview modes (stay editable, live update,
+      local images in Markdown resolve relative to the file); PNG/JPG/GIF/WebP/… open in an image viewer (Fit / 100%)
+- [x] **Workspace state** in `.power-idea/workspace.toml` (auto git-ignored): open tabs with cursors and
+      preview modes, active tab, expanded folders, recent files, sidebar panel, Git Log; saved every 2 s and on close
+- [x] **Code navigation via LSP**: Find Usages (⌥F7), Go to Class (⌘O), Go to Symbol (⌘⌥O),
+      File Structure (⌘F12), Rename (⇧F6, updates open editors, rewrites other project files),
+      Reformat Code (⌥⌘L). Open Project lost ⌘O (title bar button / Find Action)
+- [ ] Previews, Git Log and navigation UI not clicked through by hand (no UI automation here);
+      LSP requests verified against real ruby-lsp (`cargo test -p lsp -- --ignored`)
 
-## Backlog (agreed order)
-1. Check the Git Log by hand and commit it
-2. Preview for Markdown, images, SVG (Markdown and SVG stay editable)
-3. Persist workspace state in `.power-idea/` (open tabs, expanded folders, panel layout)
-4. Navigation: Find Usages (⌥F7), Go to Class/Symbol (⌘O / ⌘⌥O — ⌘O currently opens a project), File Structure (⌘F12), Rename (⇧F6), Reformat (⌥⌘L)
+## Backlog
+Agreed backlog is done. Candidates: ⌘Q unsaved-changes prompt, file watching (`notify`, needs approval),
+Database gaps below, Find Usages as a tool window (JetBrains shows a tree, we use the picker).
 
 ## Known gaps
+- Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;
+  Go to Symbol lists library symbols after project ones
 - Git Log: right-click does not select the row; dates older than a week are shown in UTC; history capped at 2000 commits; no author/date/path filters
 - Database: no inline data editing, no table/column completion in consoles, no export, no TLS for Redis
 - Terminal: no mouse reporting for TUI apps, no cursor blink

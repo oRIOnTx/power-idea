@@ -4,6 +4,7 @@
 //! routes responses to waiting callers and hands notifications to a callback.
 //! Requests block the calling thread, so call them from background tasks.
 
+pub mod nav;
 mod uri;
 
 use std::collections::{HashMap, VecDeque};

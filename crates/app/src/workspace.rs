@@ -22,6 +22,7 @@ use crate::terminal::TerminalView;
 
 mod action_handlers;
 mod chrome;
+mod code_nav;
 mod database_panel;
 mod editors;
 mod files;
@@ -289,21 +290,27 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let mut recent_files = self.recent_files.clone();
+        let mut source = self.palette_source(cx);
+        source.branches = branches;
         // Like JetBrains, the current file is listed last in Recent Files.
-        if mode == PaletteMode::RecentFiles && !recent_files.is_empty() {
-            recent_files.rotate_left(1);
+        if mode == PaletteMode::RecentFiles && !source.recent_files.is_empty() {
+            source.recent_files.rotate_left(1);
         }
-        let source = PaletteSource {
+        Palette::open(mode, source, window, cx);
+    }
+
+    fn palette_source(&self, cx: &Context<Self>) -> PaletteSource {
+        PaletteSource {
             workspace: cx.entity().downgrade(),
             root: self.root.clone(),
             index: self.index.clone(),
-            recent_files,
+            recent_files: self.recent_files.clone(),
             recent_projects: cx.global::<AppConfig>().0.recent_projects.clone(),
-            branches,
+            branches: Vec::new(),
             exclude: self.project.exclude.clone(),
-        };
-        Palette::open(mode, source, window, cx);
+            locations: Vec::new(),
+            symbol_search: None,
+        }
     }
 }
 

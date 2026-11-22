@@ -1,5 +1,8 @@
 //! Modal picker used by Search Everywhere, Go to File, Recent Files,
-//! Find in Files, Find Action, Go to Line and Recent Projects.
+//! Find in Files, Find Action, Go to Line, Recent Projects and the
+//! code navigation pickers (usages, file structure, symbols).
+
+mod locations;
 
 use std::ops::Range;
 use std::path::PathBuf;
@@ -16,6 +19,7 @@ use vcs::Branch;
 
 use crate::actions::{self, PALETTE_CONTEXT, SelectNext, SelectPrev, WORKSPACE_CONTEXT};
 use crate::workspace::Workspace;
+pub use locations::{LocationItem, SymbolSearch};
 
 const MAX_RESULTS: usize = 200;
 const SEARCH_DEBOUNCE: Duration = Duration::from_millis(120);
@@ -30,6 +34,10 @@ pub enum PaletteMode {
     GotoLine,
     RecentProjects,
     Branches,
+    Usages,
+    FileStructure,
+    GotoSymbol,
+    GotoClass,
 }
 
 impl PaletteMode {
@@ -43,6 +51,10 @@ impl PaletteMode {
             Self::GotoLine => "Go to line[:column]",
             Self::RecentProjects => "Recent projects",
             Self::Branches => "Checkout branch, or type a name to create one",
+            Self::Usages => "Usages",
+            Self::FileStructure => "File structure",
+            Self::GotoSymbol => "Go to symbol",
+            Self::GotoClass => "Go to class",
         }
     }
 }
@@ -57,6 +69,10 @@ pub struct PaletteSource {
     pub branches: Vec<Branch>,
     /// Project paths excluded from search.
     pub exclude: Vec<String>,
+    /// Fixed results of Usages and File Structure.
+    pub locations: Vec<LocationItem>,
+    /// Live symbol lookup for Go to Symbol / Class.
+    pub symbol_search: Option<SymbolSearch>,
 }
 
 enum PaletteItem {
@@ -69,6 +85,7 @@ enum PaletteItem {
     Project(PathBuf),
     Branch(Branch),
     NewBranch(String),
+    Location(LocationItem),
 }
 
 pub struct Palette {
@@ -177,6 +194,33 @@ impl Palette {
                 }
                 self.items = items;
             }
+            PaletteMode::Usages | PaletteMode::FileStructure => {
+                let locations = self.source.locations.clone();
+                self.items = fuzzy_filter(&query, locations, |l| l.label.as_str())
+                    .into_iter()
+                    .map(PaletteItem::Location)
+                    .collect();
+            }
+            PaletteMode::GotoSymbol | PaletteMode::GotoClass => {
+                let Some(search) = self.source.symbol_search.clone() else {
+                    return;
+                };
+                if query.is_empty() {
+                    self.items.clear();
+                    self.search_task = Task::ready(());
+                    return cx.notify();
+                }
+                self.search_task = cx.spawn(async move |this, cx| {
+                    cx.background_executor().timer(SEARCH_DEBOUNCE).await;
+                    let found = cx.background_spawn(async move { search(&query) }).await;
+                    this.update(cx, |this, cx| {
+                        this.items = found.into_iter().map(PaletteItem::Location).collect();
+                        this.selected = 0;
+                        cx.notify();
+                    })
+                    .ok();
+                });
+            }
             PaletteMode::FindInFiles => {
                 let root = self.source.root.clone();
                 let exclude = self.source.exclude.clone();
@@ -277,6 +321,14 @@ impl Palette {
                     .update(cx, |ws, cx| ws.create_branch(name, window, cx))
                     .ok();
             }
+            PaletteItem::Location(item) => {
+                let item = item.clone();
+                workspace
+                    .update(cx, |ws, cx| {
+                        ws.jump_to(&item.path, item.line, item.column, window, cx);
+                    })
+                    .ok();
+            }
         }
     }
 
@@ -350,6 +402,10 @@ impl Palette {
                 .gap_2()
                 .child(div().text_color(theme.primary).child("+ New branch"))
                 .child(name.clone()),
+            PaletteItem::Location(item) => {
+                let show_place = self.mode != PaletteMode::FileStructure;
+                locations::render_location(item, &self.source.root, show_place, cx)
+            }
         };
         ListItem::new(ix)
             .selected(ix == self.selected)
