@@ -1419,6 +1419,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "docker"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "serde_json",
+]
+
+[[package]]
 name = "document-features"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
