@@ -1,5 +1,5 @@
-//! Copy / Cut / Paste of project files and folders (project tree menu).
-//! UI-free: the workspace keeps the clipboard and calls `paste` off the UI thread.
+//! Copy / Cut / Paste of project files and folders (project tree menu), and saving
+//! pasted images. UI-free: the workspace keeps the clipboard and calls these off the UI thread.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -74,6 +74,24 @@ fn copy_recursive(from: &Path, to: &Path) -> Result<()> {
     }
 }
 
+/// `image.png`, then `image 2.png`, … — the first name not taken in `dir`.
+fn free_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
+    (1..)
+        .map(|n| match n {
+            1 => dir.join(format!("{stem}.{ext}")),
+            n => dir.join(format!("{stem} {n}.{ext}")),
+        })
+        .find(|candidate| !candidate.exists())
+        .unwrap_or_else(|| dir.join(format!("{stem}.{ext}")))
+}
+
+/// Saves image bytes from the system clipboard (e.g. a screenshot) as a new file in `dir`.
+pub fn save_image(dir: &Path, ext: &str, bytes: &[u8]) -> Result<PathBuf> {
+    let target = free_path(dir, "image", ext);
+    fs::write(&target, bytes).with_context(|| format!("writing {}", target.display()))?;
+    Ok(target)
+}
+
 /// Pastes `source` into `dir`; returns where it ended up.
 pub fn paste(source: &Path, dir: &Path, mode: ClipMode) -> Result<PathBuf> {
     if !source.exists() {
@@ -102,7 +120,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use super::{ClipMode, copy_name, destination, paste};
+    use super::{ClipMode, copy_name, destination, paste, save_image};
 
     #[test]
     fn names_copies_like_finder() {
@@ -145,5 +163,17 @@ mod tests {
         assert!(destination(&models.join("user.rb"), &models, ClipMode::Cut).is_err());
         assert!(paste(Path::new("/nonexistent/x"), &models, ClipMode::Copy).is_err());
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn saves_pasted_images_under_free_names() {
+        let dir = std::env::temp_dir().join(format!("power-idea-paste-image-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        assert_eq!(save_image(&dir, "png", b"one").unwrap(), dir.join("image.png"));
+        assert_eq!(save_image(&dir, "png", b"two").unwrap(), dir.join("image 2.png"));
+        assert_eq!(fs::read(dir.join("image 2.png")).unwrap(), b"two");
+        assert!(save_image(&dir.join("missing"), "png", b"x").is_err());
+        let _ = fs::remove_dir_all(&dir);
     }
 }

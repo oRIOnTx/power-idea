@@ -145,6 +145,9 @@ is in the working tree only.
       `confirm_close_project`). Unsaved files keep their Save / Don't Save / Cancel dialog instead
 - [x] Terminal ⌘V pastes copied files and images (screenshots) as shell-escaped paths; images are saved to
       `$TMPDIR/power-idea-paste/`, so Claude Code in the terminal attaches them
+- [x] Project tree ⌘V / Paste takes the system clipboard first: an image (screenshot) becomes `image.png`
+      (`image 2.png`, …) in the target folder, files copied in Finder are copied in; tree Copy/Cut puts the
+      paths on the system clipboard as text, so an older screenshot there no longer wins
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
 
 ## Backlog

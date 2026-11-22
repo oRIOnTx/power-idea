@@ -322,10 +322,12 @@ impl Workspace {
                         })
                         .context_menu(move |_, entry, menu, _, cx| {
                             match menu_workspace.upgrade() {
-                                Some(ws) => {
-                                    ws.read(cx)
-                                        .file_context_menu(menu, &entry.item().id, entry.is_folder())
-                                }
+                                Some(ws) => ws.read(cx).file_context_menu(
+                                    menu,
+                                    &entry.item().id,
+                                    entry.is_folder(),
+                                    cx,
+                                ),
                                 None => menu,
                             }
                         }),

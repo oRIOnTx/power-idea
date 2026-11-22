@@ -1,5 +1,7 @@
 //! Copy / Cut / Paste in the project tree: the clipboard of files waiting to
-//! be pasted, and pasting them (off the UI thread) into a folder.
+//! be pasted, and pasting them (or an image from the system clipboard) into a folder.
+
+use std::path::PathBuf;
 
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::notification::Notification;
@@ -25,6 +27,14 @@ impl Workspace {
             _ => format!("{} items", paths.len()),
         };
         let verb = if mode == ClipMode::Cut { "Cut" } else { "Copied" };
+        // Text on the system clipboard replaces an older screenshot there, so ⌘V pastes these
+        // files rather than the image; as in JetBrains IDEs, it also pastes their paths as text.
+        let text = paths
+            .iter()
+            .map(|rel| self.root.join(rel).display().to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        cx.write_to_clipboard(ClipboardItem::new_string(text));
         self.file_clipboard = Some(FileClipboard { paths, mode });
         window.push_notification(
             Notification::info(format!("{verb} {what} — Paste into a folder with ⌘V")),
@@ -60,14 +70,46 @@ impl Workspace {
         self.paste_files(dir, window, cx);
     }
 
-    pub(super) fn can_paste_files(&self) -> bool {
-        self.file_clipboard.is_some()
+    pub(super) fn can_paste_files(&self, cx: &App) -> bool {
+        self.paste_source(cx).is_some()
     }
 
-    /// Pastes the clipboard into `dir` (relative to the root, `""` for the root).
+    /// What ⌘V pastes: an image (a screenshot) or files copied in Finder from the system
+    /// clipboard, otherwise the files copied in the tree.
+    fn paste_source(&self, cx: &App) -> Option<PasteSource> {
+        let item = cx.read_from_clipboard();
+        let entries = item.as_ref().map_or(&[][..], |item| item.entries());
+        for entry in entries {
+            match entry {
+                ClipboardEntry::Image(image) => {
+                    return Some(PasteSource::Image {
+                        ext: image.format.extension(),
+                        bytes: image.bytes.clone(),
+                    });
+                }
+                ClipboardEntry::ExternalPaths(paths) if !paths.paths().is_empty() => {
+                    return Some(PasteSource::Files {
+                        sources: paths.paths().to_vec(),
+                        mode: ClipMode::Copy,
+                    });
+                }
+                _ => {}
+            }
+        }
+        self.file_clipboard.as_ref().map(|clipboard| PasteSource::Files {
+            sources: clipboard.paths.iter().map(|rel| self.root.join(rel)).collect(),
+            mode: clipboard.mode,
+        })
+    }
+
+    /// Pastes into `dir` (relative to the root, `""` for the root).
     pub(super) fn paste_files(&mut self, dir: String, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(clipboard) = self.file_clipboard.clone() else {
+        let Some(source) = self.paste_source(cx) else {
             return;
+        };
+        let mode = match &source {
+            PasteSource::Files { mode, .. } => *mode,
+            PasteSource::Image { .. } => ClipMode::Copy,
         };
         let root = self.root.clone();
         cx.spawn_in(window, async move |this, cx| {
@@ -76,19 +118,26 @@ impl Workspace {
                 .background_spawn({
                     let root = root.clone();
                     async move {
-                        clipboard
-                            .paths
-                            .iter()
-                            .map(|rel| {
-                                let to = file_ops::paste(&root.join(rel), &target_dir, clipboard.mode)?;
-                                let to_rel = to
-                                    .strip_prefix(&root)
-                                    .unwrap_or(&to)
-                                    .to_string_lossy()
-                                    .into_owned();
-                                anyhow::Ok((rel.clone(), to_rel))
-                            })
-                            .collect::<Vec<_>>()
+                        let rel = |path: &std::path::Path| {
+                            path.strip_prefix(&root)
+                                .unwrap_or(path)
+                                .to_string_lossy()
+                                .into_owned()
+                        };
+                        match source {
+                            PasteSource::Image { ext, bytes } => {
+                                vec![
+                                    file_ops::save_image(&target_dir, ext, &bytes).map(|to| (None, rel(&to))),
+                                ]
+                            }
+                            PasteSource::Files { sources, mode } => sources
+                                .iter()
+                                .map(|from| {
+                                    let to = file_ops::paste(from, &target_dir, mode)?;
+                                    anyhow::Ok((Some(rel(from)), rel(&to)))
+                                })
+                                .collect::<Vec<_>>(),
+                        }
                     }
                 })
                 .await;
@@ -97,7 +146,7 @@ impl Workspace {
                 for result in results {
                     match result {
                         Ok((from, to)) => {
-                            if clipboard.mode == ClipMode::Cut {
+                            if let (ClipMode::Cut, Some(from)) = (mode, from) {
                                 ws.retarget_tabs(&from, &to);
                             }
                             pasted.push(to);
@@ -109,7 +158,7 @@ impl Workspace {
                     }
                 }
                 // A cut is pasted once; copies can be pasted again.
-                if clipboard.mode == ClipMode::Cut && !pasted.is_empty() {
+                if mode == ClipMode::Cut && !pasted.is_empty() {
                     ws.file_clipboard = None;
                 }
                 if !pasted.is_empty() {
@@ -124,4 +173,9 @@ impl Workspace {
         })
         .detach();
     }
+}
+
+enum PasteSource {
+    Image { ext: &'static str, bytes: Vec<u8> },
+    Files { sources: Vec<PathBuf>, mode: ClipMode },
 }

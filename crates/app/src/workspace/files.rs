@@ -117,7 +117,7 @@ fn parent_rel(rel: &str) -> &str {
 
 impl Workspace {
     /// Context menu for a project tree entry (`rel` relative to the root).
-    pub(super) fn file_context_menu(&self, menu: PopupMenu, rel: &str, is_dir: bool) -> PopupMenu {
+    pub(super) fn file_context_menu(&self, menu: PopupMenu, rel: &str, is_dir: bool, cx: &App) -> PopupMenu {
         let has_changes = self
             .git
             .as_ref()
@@ -131,7 +131,7 @@ impl Workspace {
             .separator()
             .menu("Cut", action(FileOp::Cut))
             .menu("Copy", action(FileOp::CopyFile))
-            .menu_with_disabled("Paste", action(FileOp::Paste), !self.can_paste_files())
+            .menu_with_disabled("Paste", action(FileOp::Paste), !self.can_paste_files(cx))
             .separator()
             .menu("Rename…", action(FileOp::Rename))
             .menu("Delete…", action(FileOp::Delete))
