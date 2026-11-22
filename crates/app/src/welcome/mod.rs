@@ -1,6 +1,6 @@
 //! Welcome screen, JetBrains style: shown when no project is open (on start
 //! without a recent project, or after closing the last project window).
-//! Lists recent projects and offers New Project / Open.
+//! Lists recent projects (↑/↓ to choose, Enter to open) and offers New Project / Open.
 
 mod new_project;
 mod paths;
@@ -19,8 +19,12 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use search::fuzzy_filter;
 
+use crate::actions::{SelectNext, SelectPrev};
 use crate::config::AppConfig;
 use crate::style;
+
+/// Key context of the Welcome window (arrows move through recent projects).
+pub const WELCOME_CONTEXT: &str = "Welcome";
 use paths::tilde;
 
 /// The open Welcome window, if any.
@@ -92,21 +96,51 @@ fn initials(name: &str) -> String {
 
 pub struct Welcome {
     search: Entity<InputState>,
+    /// Highlighted row among the filtered projects.
+    selected: usize,
     _subscription: Subscription,
 }
 
 impl Welcome {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search = cx.new(|cx| InputState::new(window, cx).placeholder("Search projects"));
-        let subscription = cx.subscribe(&search, |_, _, event: &InputEvent, cx| {
-            if let InputEvent::Change = event {
-                cx.notify();
-            }
-        });
+        let subscription =
+            cx.subscribe_in(
+                &search,
+                window,
+                |this, _, event: &InputEvent, window, cx| match event {
+                    InputEvent::Change => {
+                        this.selected = 0;
+                        cx.notify();
+                    }
+                    InputEvent::PressEnter { .. } => {
+                        if let Some(path) = this.projects(cx).get(this.selected).cloned() {
+                            Self::open(path, window, cx);
+                        }
+                    }
+                    _ => {}
+                },
+            );
         search.update(cx, |input, cx| input.focus(window, cx));
         Self {
             search,
+            selected: 0,
             _subscription: subscription,
+        }
+    }
+
+    /// Recent projects matching the search, best first.
+    fn projects(&self, cx: &App) -> Vec<PathBuf> {
+        let query = self.search.read(cx).value().to_string();
+        let recent = cx.global::<AppConfig>().0.recent_projects.clone();
+        fuzzy_filter(&query, recent, |p| p.to_str().unwrap_or_default())
+    }
+
+    fn step(&mut self, delta: isize, cx: &mut Context<Self>) {
+        let count = self.projects(cx).len();
+        if count > 0 {
+            self.selected = self.selected.saturating_add_signed(delta).min(count - 1);
+            cx.notify();
         }
     }
 
@@ -127,7 +161,14 @@ impl Welcome {
         cx.refresh_windows();
     }
 
-    fn render_project(&self, ix: usize, path: PathBuf, home: &std::path::Path, cx: &App) -> AnyElement {
+    fn render_project(
+        &self,
+        ix: usize,
+        path: PathBuf,
+        home: &std::path::Path,
+        selected: bool,
+        cx: &App,
+    ) -> AnyElement {
         let theme = cx.theme();
         let name = path
             .file_name()
@@ -146,20 +187,21 @@ impl Welcome {
         h_flex()
             .id(("recent", ix))
             .group("recent")
+            .h(px(48.))
             .px_3()
-            .py_2()
             .gap_3()
-            .rounded(theme.radius_lg)
+            .rounded(px(8.))
             .cursor_pointer()
+            .when(selected, |el| el.bg(theme.list_hover))
             .hover(|s| s.bg(theme.list_hover))
             .child(
                 div()
                     .flex_none()
                     .size(px(32.))
-                    .rounded(theme.radius)
+                    .rounded(px(6.))
                     .bg(color.opacity(0.18))
                     .text_color(color)
-                    .text_sm()
+                    .text_size(px(12.))
                     .font_weight(FontWeight::SEMIBOLD)
                     .flex()
                     .items_center()
@@ -170,13 +212,19 @@ impl Welcome {
                 v_flex()
                     .flex_1()
                     .min_w_0()
-                    .child(div().text_sm().font_weight(FontWeight::MEDIUM).child(name))
+                    .gap_0p5()
+                    .child(
+                        div()
+                            .text_size(px(13.))
+                            .font_weight(FontWeight::MEDIUM)
+                            .child(name),
+                    )
                     .child(
                         div()
                             .overflow_hidden()
                             .text_ellipsis()
                             .whitespace_nowrap()
-                            .text_xs()
+                            .text_size(px(11.))
                             .text_color(if missing {
                                 theme.danger
                             } else {
@@ -186,14 +234,18 @@ impl Welcome {
                             .when(missing, |el| el.child(" · not found")),
                     ),
             )
-            .child(div().invisible().group_hover("recent", |s| s.visible()).child(
-                style::icon_button(("forget", ix), IconName::Close, "Remove from Recent Projects").on_click(
-                    move |_, _, cx| {
-                        cx.stop_propagation();
-                        Self::forget(&forget_path, cx);
-                    },
-                ),
-            ))
+            .child(
+                div()
+                    .when(!selected, |el| el.invisible())
+                    .group_hover("recent", |s| s.visible())
+                    .child(
+                        style::icon_button(("forget", ix), IconName::Close, "Remove from Recent Projects")
+                            .on_click(move |_, _, cx| {
+                                cx.stop_propagation();
+                                Self::forget(&forget_path, cx);
+                            }),
+                    ),
+            )
             .on_click(move |_, window, cx| Self::open(open_path.clone(), window, cx))
             .into_any_element()
     }
@@ -202,14 +254,13 @@ impl Welcome {
 impl Render for Welcome {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let home = dirs::home_dir().unwrap_or_default();
-        let query = self.search.read(cx).value().to_string();
-        let recent = cx.global::<AppConfig>().0.recent_projects.clone();
-        let has_recent = !recent.is_empty();
-        let projects = fuzzy_filter(&query, recent, |p| p.to_str().unwrap_or_default());
+        let has_recent = !cx.global::<AppConfig>().0.recent_projects.is_empty();
+        let projects = self.projects(cx);
+        self.selected = self.selected.min(projects.len().saturating_sub(1));
         let rows: Vec<AnyElement> = projects
             .into_iter()
             .enumerate()
-            .map(|(ix, path)| self.render_project(ix, path, &home, cx))
+            .map(|(ix, path)| self.render_project(ix, path, &home, ix == self.selected, cx))
             .collect();
         let theme = cx.theme();
 
@@ -224,10 +275,15 @@ impl Render for Welcome {
             .child(
                 h_flex().gap_2().child(style::signal_dot(theme.primary)).child(
                     v_flex()
-                        .child(div().font_weight(FontWeight::SEMIBOLD).child("Power IDEA"))
                         .child(
                             div()
-                                .text_xs()
+                                .text_size(px(13.))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child("Power IDEA"),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(10.))
                                 .text_color(theme.muted_foreground)
                                 .child(crate::APP_VERSION),
                         ),
@@ -235,13 +291,13 @@ impl Render for Welcome {
             )
             .child(
                 h_flex()
-                    .px_2()
-                    .py_1()
+                    .h(px(28.))
+                    .px_2p5()
                     .gap_2()
-                    .rounded(theme.radius)
+                    .rounded(px(6.))
                     .bg(theme.list_active)
-                    .text_sm()
-                    .child(Icon::new(IconName::Folder).small())
+                    .text_size(px(12.))
+                    .child(Icon::new(IconName::Folder).with_size(px(16.)))
                     .child("Projects"),
             );
 
@@ -263,9 +319,9 @@ impl Render for Welcome {
             .flex_1()
             .min_w_0()
             .px_6()
-            .pt_5()
+            .pt_6()
             .pb_4()
-            .gap_3()
+            .gap_4()
             .child(
                 div()
                     .text_lg()
@@ -309,19 +365,34 @@ impl Render for Welcome {
             .child(if rows.is_empty() {
                 empty.into_any_element()
             } else {
-                div()
+                v_flex()
                     .id("recent-projects")
                     .flex_1()
+                    .gap_1p5()
                     .overflow_y_scroll()
                     .children(rows)
                     .into_any_element()
             });
 
         v_flex()
+            .key_context(WELCOME_CONTEXT)
+            .on_action(cx.listener(|this, _: &SelectNext, _, cx| this.step(1, cx)))
+            .on_action(cx.listener(|this, _: &SelectPrev, _, cx| this.step(-1, cx)))
             .size_full()
             .bg(theme.background)
             .text_color(theme.foreground)
-            .child(TitleBar::new().child(div().text_sm().child("Welcome to Power IDEA")))
+            .child(
+                // Centered over the whole window, not just the space after the traffic lights.
+                TitleBar::new().child(
+                    div()
+                        .flex_1()
+                        .pr(px(80.))
+                        .text_center()
+                        .text_size(px(12.))
+                        .text_color(theme.muted_foreground)
+                        .child("Welcome to Power IDEA"),
+                ),
+            )
             .child(h_flex().flex_1().overflow_hidden().child(sidebar).child(main))
     }
 }

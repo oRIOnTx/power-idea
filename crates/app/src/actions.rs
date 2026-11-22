@@ -356,6 +356,8 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("f4", OpenSelectedUsage, Some(USAGES_CONTEXT)),
         KeyBinding::new("up", SelectPrev, Some(GIT_LOG_CONTEXT)),
         KeyBinding::new("down", SelectNext, Some(GIT_LOG_CONTEXT)),
+        KeyBinding::new("up", SelectPrev, Some("Welcome > Input")),
+        KeyBinding::new("down", SelectNext, Some("Welcome > Input")),
         KeyBinding::new("up", SelectPrev, Some("Palette > Input")),
         KeyBinding::new("down", SelectNext, Some("Palette > Input")),
     ]
