@@ -21,6 +21,9 @@ pub struct EditorTab {
     pub lsp: Option<crate::language::TabLsp>,
     /// Live preview for Markdown and SVG.
     pub preview: Option<crate::preview::Preview>,
+    /// Breakpoint marks in the gutter and the debugger's paused-line highlight.
+    pub breakpoint_marks: Option<gpui_kit::component::input::GutterDecorationCollection>,
+    pub execution_mark: Option<gpui_kit::component::input::RangeDecorationCollection>,
     pub _subscriptions: Vec<Subscription>,
 }
 
@@ -53,6 +56,8 @@ pub struct ImageTab {
     pub actual_size: bool,
 }
 
+// A handful of tabs per window: boxing the editor variant would not save anything noticeable.
+#[allow(clippy::large_enum_variant)]
 pub enum CenterTab {
     Editor(EditorTab),
     Image(ImageTab),

@@ -1254,6 +1254,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
+name = "dap"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "serde_json",
+]
+
+[[package]]
 name = "data-url"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5029,6 +5037,7 @@ version = "0.2.0"
 dependencies = [
  "alacritty_terminal",
  "anyhow",
+ "dap",
  "db",
  "dirs 7.0.0",
  "gpui-kit",

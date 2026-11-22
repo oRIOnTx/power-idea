@@ -84,13 +84,21 @@ is in the working tree only.
       in its own terminal tab through the login shell (colors, input, pry/byebug work), the tab stays with the
       exit code; title-bar widget (picker ▶ ■), Run ⌃R, Run… ⌃⌥R, Stop ⌘F2, Run menu, Edit Configurations
 - [x] ⌘+click on `file:line[:col]` in any terminal opens it (Ruby, Rust, Go, Node, Python tracebacks…)
+- [x] Debugging for any language via the Debug Adapter Protocol (`crates/dap`): rdbg (Ruby: debugs the run
+      command itself, e.g. rails server / rspec), lldb-dap (Rust, C/C++; `cargo build` first), debugpy (Python,
+      program or module), dlv (Go). Breakpoints ⌘F8 (red gutter marks), Debug ⌃D, Resume ⌥⌘R, Step Over F8 /
+      Into F7 / Out ⇧F8, Pause, Stop ⌘F2; debug tool window with frames, expandable variables, console and
+      expression evaluation; paused line highlighted. `[config.debug]` in run.toml; detected for Rails/RSpec,
+      cargo run, go run, Django, pytest. Verified live against rdbg and lldb-dap (`cargo test -p dap -- --ignored`)
 
 ## Backlog
-Next: Debug via the Debug Adapter Protocol (`crates/dap`; rdbg, lldb-dap, debugpy, dlv, js-debug).
 Agreed backlog is done. Candidates:
 Database gaps below.
 
 ## Known gaps
+- Debug: breakpoints are toggled with ⌘F8 (no gutter click in the gpui-kit editor), not saved between sessions,
+  no conditional breakpoints or watches; Node.js (js-debug) not supported yet; debugpy/dlv not installed here,
+  only their launch plans are unit-tested
 - Replace in Files searches files as saved on disk (unsaved edits in open editors are replaced but not previewed); no regex
 - `db` test `sqlite_queries_schema_and_limits` failed once; temp DB names now use a counter instead of the clock
 - Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;

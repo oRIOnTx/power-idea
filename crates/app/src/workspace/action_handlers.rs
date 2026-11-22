@@ -80,7 +80,21 @@ impl Workspace {
         .on_action(cx.listener(|this, _: &ReplaceInFiles, w, cx| this.open_replace_in_files(w, cx)))
         .on_action(cx.listener(|this, _: &RunConfiguration, w, cx| this.run_selected(w, cx)))
         .on_action(cx.listener(|this, _: &ChooseRunConfiguration, w, cx| this.choose_run_config(w, cx)))
-        .on_action(cx.listener(|this, _: &StopRun, _, cx| this.stop_run(cx)))
+        // Stop ends a debug session first, then run tabs.
+        .on_action(cx.listener(|this, _: &StopRun, _, cx| {
+            if this.debug_active() {
+                this.stop_debug(cx);
+            } else {
+                this.stop_run(cx);
+            }
+        }))
+        .on_action(cx.listener(|this, _: &DebugConfiguration, w, cx| this.debug_selected(w, cx)))
+        .on_action(cx.listener(|this, _: &ToggleBreakpoint, _, cx| this.toggle_breakpoint(cx)))
+        .on_action(cx.listener(|this, _: &DebugResume, _, cx| this.debug_step("continue", cx)))
+        .on_action(cx.listener(|this, _: &DebugPause, _, cx| this.debug_step("pause", cx)))
+        .on_action(cx.listener(|this, _: &StepOver, _, cx| this.debug_step("next", cx)))
+        .on_action(cx.listener(|this, _: &StepInto, _, cx| this.debug_step("stepIn", cx)))
+        .on_action(cx.listener(|this, _: &StepOut, _, cx| this.debug_step("stepOut", cx)))
         .on_action(cx.listener(|this, _: &EditRunConfigurations, w, cx| this.edit_run_configs(w, cx)))
         .on_action(cx.listener(|this, _: &FindUsages, w, cx| this.find_usages(w, cx)))
         .on_action(cx.listener(|this, _: &GotoClass, w, cx| this.goto_symbol(true, w, cx)))

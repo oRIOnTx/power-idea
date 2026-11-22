@@ -161,7 +161,16 @@ impl Workspace {
             )
             .on_click(cx.listener(|ws, _, window, cx| ws.run_selected(window, cx))),
         );
-        if running {
+        row = row.child(
+            style::icon_button_sized(
+                "debug-start",
+                style::lucide("bug").text_color(theme.green),
+                "Debug (⌃D)",
+                style::BUTTON_TITLE_BAR,
+            )
+            .on_click(cx.listener(|ws, _, window, cx| ws.debug_selected(window, cx))),
+        );
+        if running || self.debug_active() {
             row = row.child(
                 style::icon_button_sized(
                     "run-stop",
@@ -169,7 +178,13 @@ impl Workspace {
                     "Stop (⌘F2)",
                     style::BUTTON_TITLE_BAR,
                 )
-                .on_click(cx.listener(|ws, _, _, cx| ws.stop_run(cx))),
+                .on_click(cx.listener(|ws, _, _, cx| {
+                    if ws.debug_active() {
+                        ws.stop_debug(cx);
+                    } else {
+                        ws.stop_run(cx);
+                    }
+                })),
             );
         }
         row

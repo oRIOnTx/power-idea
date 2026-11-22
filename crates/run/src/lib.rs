@@ -26,9 +26,39 @@ pub struct RunConfig {
     pub cwd: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub env: BTreeMap<String, String>,
+    /// How to debug it; `None` when no debugger fits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub debug: Option<DebugSpec>,
     /// Found by `detect` rather than written by the user.
     #[serde(skip)]
     pub detected: bool,
+}
+
+/// The debugger part of a run configuration (`[config.debug]` in run.toml).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DebugSpec {
+    /// `ruby`, `lldb` (Rust, C/C++), `python` or `go`.
+    pub adapter: String,
+    /// Binary or script to debug, relative to `cwd` (lldb, python, go). Ruby debugs `command`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub program: Option<String>,
+    /// Python module to run instead of a program (e.g. `pytest`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub module: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub args: Vec<String>,
+    /// Command to run first (e.g. `cargo build`); debugging starts only if it succeeds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build: Option<String>,
+}
+
+impl DebugSpec {
+    pub fn adapter(adapter: &str) -> Self {
+        Self {
+            adapter: adapter.into(),
+            ..Self::default()
+        }
+    }
 }
 
 impl RunConfig {
@@ -38,8 +68,14 @@ impl RunConfig {
             command: command.into(),
             cwd: None,
             env: BTreeMap::new(),
+            debug: None,
             detected: true,
         }
+    }
+
+    pub fn with_debug(mut self, debug: DebugSpec) -> Self {
+        self.debug = Some(debug);
+        self
     }
 
     /// Absolute working folder.
@@ -104,6 +140,21 @@ pub fn template(root: &Path) -> String {
         sample.name, sample.command
     ));
     text.push_str("# cwd = \"subfolder\"\n# env = { RAILS_ENV = \"development\" }\n");
+    match &sample.debug {
+        Some(debug) => {
+            text.push_str(&format!(
+                "\n[config.debug]   # Debug ⌃D\nadapter = {:?}\n",
+                debug.adapter
+            ));
+            if let Some(program) = &debug.program {
+                text.push_str(&format!("program = {program:?}\n"));
+            }
+            if let Some(build) = &debug.build {
+                text.push_str(&format!("build = {build:?}\n"));
+            }
+        }
+        None => text.push_str("# [config.debug]   # adapter = \"ruby\" | \"lldb\" | \"python\" | \"go\"\n"),
+    }
     for other in examples.iter().skip(1) {
         text.push_str(&format!(
             "\n# [[config]]\n# name = {:?}\n# command = {:?}\n",

@@ -32,11 +32,12 @@ crates/
   lsp/     LSP client over stdio (live test: cargo test -p lsp -- --ignored)
   db/      PostgreSQL/MySQL/SQLite (sqlx) and Redis; passwords in macOS Keychain
   run/     run configurations (run.toml + detection), file:line links in output
+  dap/     Debug Adapter Protocol client + adapter plans (live test: cargo test -p dap -- --ignored)
   app/     the gpui application; the only crate that depends on gpui-kit
     workspace.rs        Workspace entity: state + layout composition only
     workspace/*.rs      one concern per module (editors, files, git, git_panel,
                         sidebar, chrome, terminal_panel, unsaved, mcp_tools,
-                        navigation, code_nav, preview_view, run_configs,
+                        navigation, code_nav, preview_view, run_configs, debug/,
                         session_state, action_handlers, git_log/)
     language.rs         language servers per project + editor LSP providers
     database/           Database tool window: data sources, consoles, results grid

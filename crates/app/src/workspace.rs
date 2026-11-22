@@ -24,6 +24,7 @@ mod action_handlers;
 mod chrome;
 mod code_nav;
 mod database_panel;
+mod debug;
 mod editors;
 mod files;
 mod fs_watch;
@@ -112,6 +113,7 @@ enum BottomPanel {
     Terminal,
     GitLog,
     Usages,
+    Debug,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -138,6 +140,8 @@ pub struct Workspace {
     /// Run configurations (user + detected) and the one Run (⌃R) starts.
     run_configs: Vec<run::RunConfig>,
     selected_run: Option<String>,
+    breakpoints: debug::Breakpoints,
+    debug: Option<debug::DebugSession>,
     usages: Option<usages_panel::UsagesState>,
     project: ProjectSettings,
     /// Languages whose "install a language server" banner was dismissed.
@@ -205,6 +209,8 @@ impl Workspace {
             git_log: None,
             run_configs: Vec::new(),
             selected_run: None,
+            breakpoints: Default::default(),
+            debug: None,
             usages: None,
             watcher: None,
             terminals: Vec::new(),
@@ -409,6 +415,7 @@ impl Render for Workspace {
             }
             BottomPanel::GitLog => self.render_git_log(cx),
             BottomPanel::Usages => self.render_usages(cx),
+            BottomPanel::Debug => self.render_debug_panel(cx),
             BottomPanel::Terminal => None,
         };
         let center = match bottom {

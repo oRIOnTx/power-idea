@@ -86,10 +86,14 @@ impl Workspace {
                     saved_text: text.into(),
                     lsp: None,
                     preview,
+                    breakpoint_marks: None,
+                    execution_mark: None,
                     _subscriptions: subscriptions,
                 }));
                 let ix = self.tabs.len() - 1;
                 self.attach_language_server(ix, cx);
+                let path = self.root.join(rel);
+                self.refresh_breakpoint_marks(&path, cx);
                 ix
             }
         };

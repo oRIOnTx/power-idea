@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::Path;
 
-use super::RunConfig;
+use super::{DebugSpec, RunConfig};
 
 /// Make targets listed at most (large Makefiles have dozens of helpers).
 const MAX_MAKE_TARGETS: usize = 15;
@@ -64,59 +64,97 @@ pub(crate) fn make_targets(text: &str) -> Vec<String> {
 /// Configurations that fit the project at `root`.
 pub fn detect(root: &Path) -> Vec<RunConfig> {
     let mut configs = Vec::new();
-    let mut add = |name: String, command: String| configs.push(RunConfig::new(name, command));
+    let mut add = |config: RunConfig| configs.push(config);
+    let ruby = || DebugSpec::adapter("ruby");
 
-    // Ruby / Rails
+    // Ruby / Rails: rdbg debugs the command itself.
     if has(root, "Gemfile") {
         if has(root, "bin/rails") {
-            add("Rails server".into(), "bin/rails server".into());
-            add("Rails console".into(), "bin/rails console".into());
+            add(RunConfig::new("Rails server", "bin/rails server").with_debug(ruby()));
+            add(RunConfig::new("Rails console", "bin/rails console").with_debug(ruby()));
             if has(root, "test") {
-                add("Rails tests".into(), "bin/rails test".into());
+                add(RunConfig::new("Rails tests", "bin/rails test").with_debug(ruby()));
             }
         }
         if has(root, "spec") {
-            add("RSpec".into(), "bundle exec rspec".into());
+            add(RunConfig::new("RSpec", "bundle exec rspec").with_debug(ruby()));
         }
     }
-    // Rust
+    // Rust: lldb-dap debugs the binary that `cargo build` produces.
     if has(root, "Cargo.toml") {
-        add("cargo run".into(), "cargo run".into());
-        add("cargo test".into(), "cargo test".into());
+        let run = RunConfig::new("cargo run", "cargo run");
+        add(match cargo_binary(root) {
+            Some(binary) => run.with_debug(DebugSpec {
+                program: Some(format!("target/debug/{binary}")),
+                build: Some("cargo build".into()),
+                ..DebugSpec::adapter("lldb")
+            }),
+            None => run,
+        });
+        add(RunConfig::new("cargo test", "cargo test"));
     }
     // JavaScript / TypeScript
     if let Ok(text) = fs::read_to_string(root.join("package.json")) {
         let runner = js_runner(root);
         for script in package_scripts(&text) {
-            add(format!("{runner} {script}"), format!("{runner} {script}"));
+            add(RunConfig::new(
+                format!("{runner} {script}"),
+                format!("{runner} {script}"),
+            ));
         }
     }
     // Go
     if has(root, "go.mod") {
-        add("go run".into(), "go run .".into());
-        add("go test".into(), "go test ./...".into());
+        add(RunConfig::new("go run", "go run .").with_debug(DebugSpec {
+            program: Some(".".into()),
+            ..DebugSpec::adapter("go")
+        }));
+        add(RunConfig::new("go test", "go test ./..."));
     }
     // Python
     if has(root, "manage.py") {
-        add("Django server".into(), "python manage.py runserver".into());
+        add(
+            RunConfig::new("Django server", "python manage.py runserver").with_debug(DebugSpec {
+                program: Some("manage.py".into()),
+                args: vec!["runserver".into(), "--noreload".into()],
+                ..DebugSpec::adapter("python")
+            }),
+        );
     }
     if has(root, "pytest.ini")
         || has(root, "conftest.py")
         || (has(root, "pyproject.toml") && has(root, "tests"))
     {
-        add("pytest".into(), "pytest".into());
+        add(RunConfig::new("pytest", "pytest").with_debug(DebugSpec {
+            module: Some("pytest".into()),
+            ..DebugSpec::adapter("python")
+        }));
     }
     // Elixir
     if has(root, "mix.exs") {
-        add("mix test".into(), "mix test".into());
+        add(RunConfig::new("mix test", "mix test"));
     }
     // Make
     if let Ok(text) = fs::read_to_string(root.join("Makefile")) {
         for target in make_targets(&text) {
-            add(format!("make {target}"), format!("make {target}"));
+            add(RunConfig::new(format!("make {target}"), format!("make {target}")));
         }
     }
     configs
+}
+
+/// Name of the binary `cargo build` writes for a single-package project.
+fn cargo_binary(root: &Path) -> Option<String> {
+    let text = fs::read_to_string(root.join("Cargo.toml")).ok()?;
+    let manifest: toml::Value = toml::from_str(&text).ok()?;
+    let bins = manifest.get("bin").and_then(|b| b.as_array());
+    let first_bin = bins
+        .and_then(|b| b.first())
+        .and_then(|b| b.get("name"))
+        .and_then(|n| n.as_str());
+    first_bin
+        .or_else(|| manifest.get("package")?.get("name")?.as_str())
+        .map(str::to_string)
 }
 
 #[cfg(test)]
@@ -146,7 +184,20 @@ mod tests {
         ] {
             fs::write(dir.join(file), text).unwrap();
         }
-        let names: Vec<String> = detect(&dir).into_iter().map(|c| c.name).collect();
+        let configs = detect(&dir);
+        assert_eq!(
+            configs[0].debug.as_ref().map(|d| d.adapter.as_str()),
+            Some("ruby")
+        );
+        assert!(
+            configs
+                .iter()
+                .find(|c| c.name == "go run")
+                .unwrap()
+                .debug
+                .is_some()
+        );
+        let names: Vec<String> = configs.into_iter().map(|c| c.name).collect();
         assert_eq!(
             names,
             [
@@ -160,6 +211,31 @@ mod tests {
                 "make test",
                 "make build"
             ]
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn finds_the_cargo_binary() {
+        let dir = std::env::temp_dir().join(format!("power-idea-cargo-bin-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("Cargo.toml"), "[package]\nname = \"tool\"\n").unwrap();
+        let run = detect(&dir).into_iter().find(|c| c.name == "cargo run").unwrap();
+        let debug = run.debug.unwrap();
+        assert_eq!(
+            (debug.adapter.as_str(), debug.program.as_deref()),
+            ("lldb", Some("target/debug/tool"))
+        );
+        assert_eq!(debug.build.as_deref(), Some("cargo build"));
+        // A workspace manifest has no single binary to debug.
+        fs::write(dir.join("Cargo.toml"), "[workspace]\nmembers = [\"a\"]\n").unwrap();
+        assert!(
+            detect(&dir)
+                .into_iter()
+                .find(|c| c.name == "cargo run")
+                .unwrap()
+                .debug
+                .is_none()
         );
         let _ = fs::remove_dir_all(&dir);
     }
