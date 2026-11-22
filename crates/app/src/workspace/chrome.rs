@@ -15,6 +15,7 @@ use crate::style;
 
 impl Workspace {
     pub(super) fn render_title_bar(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let run_widget = self.render_run_widget(cx).into_any_element();
         let theme = cx.theme();
         let file = self.active().map(|tab| tab.rel.clone());
         let branch = self
@@ -79,6 +80,8 @@ impl Workspace {
                         .text_color(theme.muted_foreground)
                         .children(file),
                 )
+                .child(run_widget)
+                .child(div().w(px(1.)).h(px(16.)).mx_1().bg(theme.border))
                 .child(tool(
                     "tb-search",
                     IconName::Search,

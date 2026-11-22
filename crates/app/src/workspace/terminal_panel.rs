@@ -9,7 +9,7 @@ use gpui_kit::*;
 use super::{BottomPanel, Workspace};
 use crate::config::AppConfig;
 use crate::style;
-use crate::terminal::{Session, TerminalEvent, TerminalView};
+use crate::terminal::{RunExit, Session, TerminalEvent, TerminalView};
 
 impl Workspace {
     pub(super) fn terminal_focused(&self, window: &Window, cx: &App) -> bool {
@@ -54,20 +54,36 @@ impl Workspace {
     pub(super) fn new_terminal_in(&mut self, cwd: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
         let shell =
             Some(cx.global::<AppConfig>().0.terminal_shell.trim().to_string()).filter(|s| !s.is_empty());
-        let session = match Session::spawn(cwd, shell) {
+        let session = match Session::spawn(cwd.clone(), shell) {
             Ok(session) => session,
             Err(err) => return self.notify_error(format!("Cannot start terminal: {err:#}"), window, cx),
         };
-        let terminal = cx.new(|cx| TerminalView::new(session, cx));
+        let root = self.root.clone();
+        let terminal = cx.new(|cx| TerminalView::new(session, cx).with_links(root, cwd));
+        self.add_terminal(terminal, window, cx);
+    }
+
+    /// Adds a terminal tab, shows the panel and focuses it.
+    pub(super) fn add_terminal(
+        &mut self,
+        terminal: Entity<TerminalView>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let subscription = cx.subscribe_in(
             &terminal,
             window,
             |this, terminal, event, window, cx| match event {
-                TerminalEvent::TitleChanged => cx.notify(),
+                TerminalEvent::TitleChanged | TerminalEvent::Finished => cx.notify(),
                 TerminalEvent::Exited => {
                     if let Some(ix) = this.terminals.iter().position(|t| t == terminal) {
                         this.close_terminal(ix, window, cx);
                     }
+                }
+                TerminalEvent::OpenLocation { path, line, column } => {
+                    let (path, line, column) =
+                        (path.clone(), line.saturating_sub(1), column.saturating_sub(1));
+                    this.jump_to(&path, line, column, window, cx);
                 }
             },
         );
@@ -137,7 +153,7 @@ impl Workspace {
                 } else {
                     theme.muted_foreground
                 })
-                .child(terminal.read(cx).title.clone())
+                .child(terminal_label(terminal.read(cx)))
                 .child(
                     style::icon_button(("close-terminal", ix), IconName::Close, "Close (⌘W)").on_click(
                         cx.listener(move |this, _, window, cx| {
@@ -194,4 +210,18 @@ impl Workspace {
                     .children(self.terminals.get(self.active_terminal).cloned()),
             )
     }
+}
+
+/// Tab label; run tabs show whether their process is running or how it ended.
+fn terminal_label(terminal: &TerminalView) -> String {
+    let Some(run) = terminal.run_state() else {
+        return terminal.title.clone();
+    };
+    let mark = match run.exit {
+        None => "▶",
+        Some(RunExit::Code(Some(0))) => "✓",
+        Some(RunExit::Stopped) => "■",
+        Some(RunExit::Code(_)) => "✗",
+    };
+    format!("{mark} {}", run.name)
 }

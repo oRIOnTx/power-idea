@@ -10,6 +10,7 @@ vcs = { path = "../vcs" }
 mcp = { path = "../mcp" }
 lsp = { path = "../lsp" }
 db = { path = "../db" }
+run = { path = "../run" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 notify.workspace = true

@@ -5,6 +5,7 @@ mod colors;
 mod input;
 mod mouse;
 mod pointer;
+mod run_tab;
 mod session;
 
 use std::borrow::Cow;
@@ -26,6 +27,7 @@ use std::sync::Arc;
 
 use self::colors::{ansi_color, to_rgb};
 use self::input::keystroke_to_bytes;
+pub use self::run_tab::{RunExit, RunState};
 use self::session::Listener;
 pub use self::session::Session;
 use crate::actions::TERMINAL_CONTEXT;
@@ -40,6 +42,14 @@ const BLINK_INTERVAL: Duration = Duration::from_millis(530);
 pub enum TerminalEvent {
     TitleChanged,
     Exited,
+    /// A run tab's process ended; the tab stays open with its output.
+    Finished,
+    /// ⌘+click on a `file:line` reference.
+    OpenLocation {
+        path: std::path::PathBuf,
+        line: u32,
+        column: u32,
+    },
 }
 
 impl EventEmitter<TerminalEvent> for TerminalView {}
@@ -68,6 +78,10 @@ pub struct TerminalView {
     last_input: Instant,
     /// Whether the view was focused at the last render (blinking only then).
     was_focused: bool,
+    /// Set for tabs that run a configuration.
+    run: Option<RunState>,
+    /// Project root and working folder for `file:line` links.
+    link_dirs: Option<(std::path::PathBuf, std::path::PathBuf)>,
     _events_task: Task<()>,
     _blink_task: Task<()>,
 }
@@ -122,6 +136,8 @@ impl TerminalView {
             cursor_on: true,
             last_input: Instant::now(),
             was_focused: false,
+            run: None,
+            link_dirs: None,
             _events_task: events_task,
             _blink_task: blink_task,
         }
@@ -135,6 +151,8 @@ impl TerminalView {
     fn handle_events(&mut self, events: Vec<TermEvent>, cx: &mut Context<Self>) -> bool {
         for event in events {
             match event {
+                // Run tabs keep the configuration name as their title.
+                TermEvent::Title(_) | TermEvent::ResetTitle if self.run.is_some() => {}
                 TermEvent::Title(title) => {
                     self.title = title;
                     cx.emit(TerminalEvent::TitleChanged);
@@ -159,6 +177,16 @@ impl TerminalView {
                 TermEvent::TextAreaSizeRequest(format) => {
                     let size = self.window_size();
                     self.write(format(size).into_bytes());
+                }
+                TermEvent::ChildExit(status) if self.run.is_some() => {
+                    self.listener.close();
+                    self.finish(RunExit::Code(status.code()), cx);
+                    return false;
+                }
+                TermEvent::Exit if self.run.is_some() => {
+                    self.listener.close();
+                    self.finish(RunExit::Code(None), cx);
+                    return false;
                 }
                 TermEvent::Exit | TermEvent::ChildExit(_) => {
                     self.listener.close();
@@ -476,6 +504,9 @@ impl Render for TerminalView {
                         MouseButton::Left,
                         cx.listener(|this, event: &MouseDownEvent, window, cx| {
                             this.focus_handle.focus(window, cx);
+                            if event.modifiers.platform && this.open_link_at(event.position, cx) {
+                                return;
+                            }
                             if this.on_mouse_down_button(event) {
                                 return;
                             }

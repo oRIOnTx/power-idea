@@ -37,6 +37,7 @@ pub enum PaletteMode {
     FileStructure,
     GotoSymbol,
     GotoClass,
+    RunConfigs,
 }
 
 impl PaletteMode {
@@ -53,6 +54,7 @@ impl PaletteMode {
             Self::FileStructure => "File structure",
             Self::GotoSymbol => "Go to symbol",
             Self::GotoClass => "Go to class",
+            Self::RunConfigs => "Run configuration",
         }
     }
 }
@@ -71,6 +73,7 @@ pub struct PaletteSource {
     pub locations: Vec<LocationItem>,
     /// Live symbol lookup for Go to Symbol / Class.
     pub symbol_search: Option<SymbolSearch>,
+    pub run_configs: Vec<run::RunConfig>,
 }
 
 enum PaletteItem {
@@ -84,6 +87,8 @@ enum PaletteItem {
     Branch(Branch),
     NewBranch(String),
     Location(LocationItem),
+    Run(run::RunConfig),
+    EditRunConfigs,
 }
 
 pub struct Palette {
@@ -190,6 +195,15 @@ impl Palette {
                 if !query.is_empty() && !exact && !query.contains(char::is_whitespace) {
                     items.push(PaletteItem::NewBranch(query));
                 }
+                self.items = items;
+            }
+            PaletteMode::RunConfigs => {
+                let configs = self.source.run_configs.clone();
+                let mut items: Vec<PaletteItem> = fuzzy_filter(&query, configs, |c| c.name.as_str())
+                    .into_iter()
+                    .map(PaletteItem::Run)
+                    .collect();
+                items.push(PaletteItem::EditRunConfigs);
                 self.items = items;
             }
             PaletteMode::FileStructure => {
@@ -319,6 +333,17 @@ impl Palette {
                     .update(cx, |ws, cx| ws.create_branch(name, window, cx))
                     .ok();
             }
+            PaletteItem::Run(config) => {
+                let config = config.clone();
+                workspace
+                    .update(cx, |ws, cx| ws.run_config(config, window, cx))
+                    .ok();
+            }
+            PaletteItem::EditRunConfigs => {
+                workspace
+                    .update(cx, |ws, cx| ws.edit_run_configs(window, cx))
+                    .ok();
+            }
             PaletteItem::Location(item) => {
                 let item = item.clone();
                 workspace
@@ -400,6 +425,38 @@ impl Palette {
                 .gap_2()
                 .child(div().text_color(theme.primary).child("+ New branch"))
                 .child(name.clone()),
+            PaletteItem::Run(config) => h_flex()
+                .w_full()
+                .gap_3()
+                .child(div().flex_none().child(config.name.clone()))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .overflow_hidden()
+                        .text_ellipsis()
+                        .whitespace_nowrap()
+                        .font_family(theme.mono_font_family.clone())
+                        .text_xs()
+                        .text_color(theme.muted_foreground)
+                        .child(config.command.clone()),
+                )
+                .child(
+                    div()
+                        .flex_none()
+                        .text_xs()
+                        .text_color(theme.muted_foreground)
+                        .child(if config.detected { "detected" } else { "run.toml" }),
+                ),
+            PaletteItem::EditRunConfigs => h_flex()
+                .gap_2()
+                .child(div().text_color(theme.primary).child("Edit Configurations…"))
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(theme.muted_foreground)
+                        .child(".power-idea/run.toml"),
+                ),
             PaletteItem::Location(item) => {
                 let show_place = self.mode != PaletteMode::FileStructure;
                 locations::render_location(item, &self.source.root, show_place, cx)

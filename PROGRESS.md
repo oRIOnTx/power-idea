@@ -79,8 +79,14 @@ is in the working tree only.
 - [x] Replace in Files (⌘⇧R): find/replace inputs, Match case / Words, live preview of every matching line with
       the replacement, Replace All after a confirming second click; open files change in their editors
       (unsaved), others on disk. `search::{match_ranges, replace_all}` share Find in Files' matching rules
+- [x] Run configurations, any language (`crates/run`): `.power-idea/run.toml` plus detected ones (Rails server/
+      console/tests, RSpec, cargo, npm/yarn/pnpm/bun scripts, go, pytest, Django, mix, make targets). Each runs
+      in its own terminal tab through the login shell (colors, input, pry/byebug work), the tab stays with the
+      exit code; title-bar widget (picker ▶ ■), Run ⌃R, Run… ⌃⌥R, Stop ⌘F2, Run menu, Edit Configurations
+- [x] ⌘+click on `file:line[:col]` in any terminal opens it (Ruby, Rust, Go, Node, Python tracebacks…)
 
 ## Backlog
+Next: Debug via the Debug Adapter Protocol (`crates/dap`; rdbg, lldb-dap, debugpy, dlv, js-debug).
 Agreed backlog is done. Candidates:
 Database gaps below.
 

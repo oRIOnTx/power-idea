@@ -1,6 +1,7 @@
 //! Shell process: PTY + `alacritty_terminal` event loop, and the bridge that
 //! wakes the UI when the PTY thread produces events.
 
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -71,6 +72,30 @@ pub struct Session {
 impl Session {
     /// Starts `shell` (or the user's default shell when `None`) in `cwd`.
     pub fn spawn(cwd: PathBuf, shell: Option<String>) -> anyhow::Result<Self> {
+        let shell = shell.map(|program| tty::Shell::new(program, vec!["-l".into()]));
+        Self::spawn_with(cwd, shell, &BTreeMap::new())
+    }
+
+    /// Runs `command` through a login shell (so rbenv, nvm, asdf… are set up),
+    /// with extra environment variables; the session ends when it exits.
+    pub fn spawn_command(
+        cwd: PathBuf,
+        shell: Option<String>,
+        command: &str,
+        env: &BTreeMap<String, String>,
+    ) -> anyhow::Result<Self> {
+        let program = shell
+            .or_else(|| std::env::var("SHELL").ok())
+            .unwrap_or_else(|| "/bin/zsh".into());
+        let shell = tty::Shell::new(program, vec!["-l".into(), "-c".into(), command.into()]);
+        Self::spawn_with(cwd, Some(shell), env)
+    }
+
+    fn spawn_with(
+        cwd: PathBuf,
+        shell: Option<tty::Shell>,
+        env: &BTreeMap<String, String>,
+    ) -> anyhow::Result<Self> {
         let size = TermSize::new(80, 24);
         let window_size = WindowSize {
             num_lines: 24,
@@ -78,10 +103,13 @@ impl Session {
             cell_width: 8,
             cell_height: 16,
         };
+        let mut vars: std::collections::HashMap<String, String> =
+            env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+        vars.insert("TERM".into(), "xterm-256color".into());
         let options = tty::Options {
             working_directory: Some(cwd),
-            shell: shell.map(|program| tty::Shell::new(program, vec!["-l".into()])),
-            env: [("TERM".to_string(), "xterm-256color".to_string())].into(),
+            shell,
+            env: vars,
             ..Default::default()
         };
         let pty = tty::new(&options, window_size, 0)?;
@@ -106,6 +134,34 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::Session;
+
+    #[test]
+    fn runs_a_command_with_env_and_exits() {
+        let env = [("POWER_VALUE".to_string(), "42".to_string())].into();
+        let session = Session::spawn_command(std::env::temp_dir(), None, "echo value=$POWER_VALUE", &env)
+            .expect("spawn command");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let mut exited = false;
+        while !exited {
+            let events = std::mem::take(&mut session.listener.0.lock().unwrap().events);
+            exited = events.iter().any(|e| {
+                matches!(
+                    e,
+                    alacritty_terminal::event::Event::ChildExit(_) | alacritty_terminal::event::Event::Exit
+                )
+            });
+            assert!(std::time::Instant::now() < deadline, "command did not exit");
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        use alacritty_terminal::grid::Dimensions as _;
+        use alacritty_terminal::index::{Column, Line};
+        let term = session.term.lock();
+        let screen: String = (0..term.screen_lines() as i32)
+            .flat_map(|line| (0..term.columns()).map(move |col| (line, col)))
+            .map(|(line, col)| term.grid()[Line(line)][Column(col)].c)
+            .collect();
+        assert!(screen.contains("value=42"), "{screen}");
+    }
 
     #[test]
     fn runs_a_shell_command() {

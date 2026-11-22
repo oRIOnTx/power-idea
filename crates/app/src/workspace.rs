@@ -35,6 +35,7 @@ mod mcp_tools;
 mod navigation;
 mod preview_view;
 mod replace_in_files;
+mod run_configs;
 mod session_state;
 mod sidebar;
 mod terminal_panel;
@@ -134,6 +135,9 @@ pub struct Workspace {
     left_panel: LeftPanel,
     git: Option<git::GitState>,
     git_log: Option<git_log::GitLogState>,
+    /// Run configurations (user + detected) and the one Run (⌃R) starts.
+    run_configs: Vec<run::RunConfig>,
+    selected_run: Option<String>,
     usages: Option<usages_panel::UsagesState>,
     project: ProjectSettings,
     /// Languages whose "install a language server" banner was dismissed.
@@ -199,6 +203,8 @@ impl Workspace {
             left_panel: LeftPanel::Project,
             git: None,
             git_log: None,
+            run_configs: Vec::new(),
+            selected_run: None,
             usages: None,
             watcher: None,
             terminals: Vec::new(),
@@ -211,6 +217,7 @@ impl Workspace {
         workspace.reindex(cx);
         workspace.init_git(window, cx);
         workspace.start_watching(window, cx);
+        workspace.load_run_configs(false, window, cx);
         workspace.guard_window_close(window, cx);
         workspace.start_lsp_event_loop(cx);
         workspace.preload_language_servers(cx);
@@ -327,6 +334,7 @@ impl Workspace {
             exclude: self.project.exclude.clone(),
             locations: Vec::new(),
             symbol_search: None,
+            run_configs: Vec::new(),
         }
     }
 }

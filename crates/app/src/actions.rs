@@ -80,6 +80,10 @@ actions!(
         ZoomWindow,
         OpenSelectedUsage,
         ReplaceInFiles,
+        RunConfiguration,
+        ChooseRunConfiguration,
+        StopRun,
+        EditRunConfigurations,
     ]
 );
 
@@ -192,6 +196,10 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Recent Files", Box::new(RecentFiles)),
         ("Find in Files…", Box::new(FindInFiles)),
         ("Replace in Files…", Box::new(ReplaceInFiles)),
+        ("Run", Box::new(RunConfiguration)),
+        ("Run…", Box::new(ChooseRunConfiguration)),
+        ("Stop", Box::new(StopRun)),
+        ("Edit Run Configurations…", Box::new(EditRunConfigurations)),
         ("Go to Line…", Box::new(GotoLine)),
         ("Go to Class…", Box::new(GotoClass)),
         ("Go to Symbol…", Box::new(GotoSymbol)),
@@ -252,6 +260,14 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-shift-f", FindInFiles, ws),
         KeyBinding::new("cmd-shift-f", FindInFiles, ed),
         KeyBinding::new("cmd-shift-r", ReplaceInFiles, ws),
+        // Not in the terminal, where Ctrl-R is the shell's history search.
+        KeyBinding::new("ctrl-r", RunConfiguration, Some("Workspace && !Terminal")),
+        KeyBinding::new(
+            "ctrl-alt-r",
+            ChooseRunConfiguration,
+            Some("Workspace && !Terminal"),
+        ),
+        KeyBinding::new("cmd-f2", StopRun, ws),
         KeyBinding::new("cmd-shift-r", ReplaceInFiles, ed),
         KeyBinding::new("cmd-shift-a", FindAction, ws),
         KeyBinding::new("cmd-l", GotoLine, ws),

@@ -30,7 +30,7 @@ fn mods(modifiers: &Modifiers) -> Mods {
 
 impl TerminalView {
     /// Viewport cell (column, line) under a window position.
-    fn cell_at(&self, position: Point<Pixels>) -> (usize, usize) {
+    pub(super) fn cell_at(&self, position: Point<Pixels>) -> (usize, usize) {
         let metrics = self.metrics.unwrap_or(super::CellMetrics {
             width: px(8.),
             height: px(16.),

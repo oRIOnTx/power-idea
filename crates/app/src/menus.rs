@@ -115,6 +115,13 @@ fn menus() -> Vec<Menu> {
             MenuItem::action("Reformat Code", ReformatCode),
             MenuItem::action("Rename…", RenameSymbol),
         ]),
+        Menu::new("Run").items([
+            MenuItem::action("Run", RunConfiguration),
+            MenuItem::action("Run…", ChooseRunConfiguration),
+            MenuItem::action("Stop", StopRun),
+            MenuItem::separator(),
+            MenuItem::action("Edit Configurations…", EditRunConfigurations),
+        ]),
         Menu::new("Git").items([
             MenuItem::action("Commit…", CommitChanges),
             MenuItem::action("Push…", Push),
