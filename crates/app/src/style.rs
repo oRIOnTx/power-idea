@@ -1,7 +1,8 @@
 //! Shared visual accents of the "Neo" look: restrained glow and hairlines.
 
-use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::{Icon, IconName, Sizable as _};
+use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
+use gpui_kit::component::dialog::AlertDialog;
+use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Sizable as _};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
@@ -97,4 +98,15 @@ pub fn icon_button_sized(
 /// Small borderless icon button used in tab strips and panel headers.
 pub fn icon_button(id: impl Into<ElementId>, icon: IconName, tooltip: &'static str) -> Button {
     icon_button_sized(id, icon, tooltip, BUTTON_SMALL)
+}
+
+/// A destructive confirmation: a red `icon`, Cancel (also Esc) and a red `ok_text` button.
+pub fn danger_confirm(dialog: AlertDialog, icon: &str, ok_text: &'static str, cx: &App) -> AlertDialog {
+    dialog
+        .confirm()
+        .width(px(440.))
+        .icon(lucide(icon).text_color(cx.theme().danger))
+        .ok_text(ok_text)
+        .ok_variant(ButtonVariant::Danger)
+        .cancel_text("Cancel")
 }

@@ -156,9 +156,9 @@ impl Workspace {
             DatabaseOp::Remove => {
                 let name = self.databases.config(&id).map_or_default(|c| c.name.clone());
                 let workspace = cx.entity().downgrade();
-                window.open_alert_dialog(cx, move |dialog, _, _| {
+                window.open_alert_dialog(cx, move |dialog, _, cx| {
                     let (workspace, id) = (workspace.clone(), id.clone());
-                    dialog
+                    style::danger_confirm(dialog, "trash", "Remove", cx)
                         .title(format!("Remove data source {name}?"))
                         .child("Its saved password is deleted from the Keychain too.")
                         .on_ok(move |_, window, cx| {

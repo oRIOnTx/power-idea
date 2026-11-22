@@ -138,6 +138,8 @@ is in the working tree only.
 - [x] Project tree keeps keyboard focus: a single click previews a file without moving focus to the editor
       (double click edits), the context menu returns focus to the tree, so ⌘X / ⌘C / ⌘V work on the
       selection; every row of a multi-selection is highlighted (the Tree only paints its cursor row)
+- [x] Destructive confirmations (Rollback, Hard Reset, Abort, Delete Branch, Remove container / data source,
+      Clear analytics) share `style::danger_confirm`: red icon, Cancel (Esc) and a red named action button
 - [x] Terminal ⌘V pastes copied files and images (screenshots) as shell-escaped paths; images are saved to
       `$TMPDIR/power-idea-paste/`, so Claude Code in the terminal attaches them
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen

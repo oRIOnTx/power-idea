@@ -311,10 +311,10 @@ impl Workspace {
     pub(super) fn rollback(&mut self, change: FileChange, window: &mut Window, cx: &mut Context<Self>) {
         let workspace = cx.entity().downgrade();
         let path = change.path.clone();
-        window.open_alert_dialog(cx, move |dialog, _, _| {
+        window.open_alert_dialog(cx, move |dialog, _, cx| {
             let workspace = workspace.clone();
             let change = change.clone();
-            dialog
+            crate::style::danger_confirm(dialog, "undo-2", "Rollback", cx)
                 .title("Rollback changes?")
                 .child(format!("All local changes in {path} will be lost."))
                 .on_ok(move |_, window, cx| {

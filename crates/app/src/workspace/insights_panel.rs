@@ -67,8 +67,8 @@ fn load(store: &Store) -> Result<(Vec<SessionSummary>, Vec<String>)> {
 
 /// Settings → Insights → "Clear all analytics data" (asks first).
 pub fn clear_insights(window: &mut Window, cx: &mut App) {
-    window.open_alert_dialog(cx, |dialog, _, _| {
-        dialog
+    window.open_alert_dialog(cx, |dialog, _, cx| {
+        crate::style::danger_confirm(dialog, "eraser", "Clear", cx)
             .title("Clear all analytics data?")
             .child("Indexed sessions, scores and dismissed tips are deleted. Claude transcripts are not touched.")
             .on_ok(|_, window, cx| {

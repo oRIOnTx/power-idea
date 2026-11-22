@@ -39,15 +39,16 @@ impl Workspace {
         &mut self,
         title: String,
         body: String,
+        ok_text: &'static str,
         window: &mut Window,
         cx: &mut Context<Self>,
         on_ok: impl Fn(&mut Workspace, &mut Window, &mut Context<Workspace>) + 'static,
     ) {
         let workspace = cx.entity().downgrade();
         let on_ok = Rc::new(on_ok);
-        window.open_alert_dialog(cx, move |dialog, _, _| {
+        window.open_alert_dialog(cx, move |dialog, _, cx| {
             let (workspace, on_ok) = (workspace.clone(), on_ok.clone());
-            dialog
+            crate::style::danger_confirm(dialog, "triangle-alert", ok_text, cx)
                 .title(title.clone())
                 .child(body.clone())
                 .on_ok(move |_, window, cx| {
@@ -180,6 +181,7 @@ impl Workspace {
                 self.confirm(
                     format!("Hard reset {branch} to {short}?"),
                     "All uncommitted changes and later commits on this branch will be lost.".into(),
+                    "Reset",
                     window,
                     cx,
                     move |ws, window, cx| {
@@ -281,6 +283,7 @@ impl Workspace {
                     self.confirm(
                         format!("Abort {}?", operation.label().to_lowercase()),
                         "Conflict resolutions made so far will be discarded.".into(),
+                        "Abort",
                         window,
                         cx,
                         move |ws, window, cx| {
@@ -314,6 +317,7 @@ impl Workspace {
         self.confirm(
             format!("Delete branch {name}?"),
             body,
+            "Delete",
             window,
             cx,
             move |ws, window, cx| {
@@ -352,6 +356,7 @@ impl Workspace {
         self.confirm(
             format!("{name} is not fully merged"),
             "Delete it anyway? Its unmerged commits will only be reachable through the reflog.".into(),
+            "Delete Anyway",
             window,
             cx,
             move |ws, window, cx| {

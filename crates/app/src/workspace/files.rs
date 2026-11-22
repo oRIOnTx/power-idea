@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context as _, Result, bail};
-use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
+use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::PopupMenu;
 use gpui_kit::component::notification::Notification;
@@ -327,16 +327,11 @@ impl Workspace {
         let workspace = cx.entity().downgrade();
         window.open_alert_dialog(cx, move |dialog, _, cx| {
             let (workspace, paths) = (workspace.clone(), paths.clone());
-            dialog
-                .confirm()
+            style::danger_confirm(dialog, "trash", "Move to Trash", cx)
                 .width(px(460.))
-                .icon(style::lucide("trash").text_color(cx.theme().danger))
                 .title(title.clone())
                 .description("Moved to the Trash: you can put it back from Finder.")
                 .child(delete_list(&items, cx))
-                .ok_text("Move to Trash")
-                .ok_variant(ButtonVariant::Danger)
-                .cancel_text("Cancel")
                 .on_ok(move |_, window, cx| {
                     workspace
                         .update(cx, |ws, cx| ws.trash_paths(&paths, window, cx))
