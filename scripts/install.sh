@@ -30,7 +30,11 @@ fi
 
 # `ps`, not `pgrep`: pgrep sees no processes in some sandboxed shells, and then the old
 # app kept running and `open` only brought it to the front instead of restarting it.
-running() { ps -axo command= | grep -F "${TARGET}/Contents/MacOS/" >/dev/null; }
+# Match the executable at the start of the command line: a `grep` for the path would
+# also match its own command line and report the app as always running.
+running() {
+  ps -axo command= | awk -v exe="${TARGET}/Contents/MacOS/" 'index($0, exe) == 1 { found = 1 } END { exit !found }'
+}
 
 # Quit gracefully so unsaved work is handled by the app's own prompt.
 if running; then
