@@ -188,16 +188,31 @@ fn editor_page(cx: &App) -> SettingPage {
 
 fn terminal_page() -> SettingPage {
     SettingPage::new("Terminal").icon(IconName::SquareTerminal).group(
-        SettingGroup::new().item(
-            SettingItem::new(
-                "Shell",
-                SettingField::input(
-                    |cx| config(cx).terminal_shell.clone().into(),
-                    |value, cx| update_config(cx, |c| c.terminal_shell = value.trim().to_string()),
-                ),
+        SettingGroup::new()
+            .item(
+                SettingItem::new(
+                    "Shell",
+                    SettingField::input(
+                        |cx| config(cx).terminal_shell.clone().into(),
+                        |value, cx| update_config(cx, |c| c.terminal_shell = value.trim().to_string()),
+                    ),
+                )
+                .description("Path to the shell for new terminal tabs. Leave empty to use $SHELL."),
             )
-            .description("Path to the shell for new terminal tabs. Leave empty to use $SHELL."),
-        ),
+            .item(
+                SettingItem::new(
+                    "Full window width",
+                    SettingField::switch(
+                        |cx| config(cx).bottom_panel_full_width,
+                        |value, cx| update_config(cx, |c| c.bottom_panel_full_width = value),
+                    )
+                    .default_value(true),
+                )
+                .description(
+                    "The terminal and other bottom tool windows span the whole window, \
+                     below the Project tree, as in JetBrains IDEs.",
+                ),
+            ),
     )
 }
 

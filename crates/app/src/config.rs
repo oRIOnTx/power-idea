@@ -43,6 +43,9 @@ pub struct Config {
     pub open_project_mode: crate::projects::OpenProjectMode,
     /// Shell for integrated terminals; empty means `$SHELL`.
     pub terminal_shell: String,
+    /// Bottom tool windows (Terminal, Git Log…) span the whole window, below the
+    /// Project tree, as in JetBrains IDEs; otherwise they sit under the editor only.
+    pub bottom_panel_full_width: bool,
     /// Language servers keyed by id (e.g. "ruby"), merged over the built-in list.
     pub language_servers: BTreeMap<String, LanguageServerConfig>,
     pub recent_projects: Vec<PathBuf>,
@@ -142,6 +145,7 @@ impl Default for Config {
             mcp_port: 7419,
             open_project_mode: Default::default(),
             terminal_shell: String::new(),
+            bottom_panel_full_width: true,
             language_servers: default_language_servers(),
             recent_projects: Vec::new(),
             insights_enabled: false,

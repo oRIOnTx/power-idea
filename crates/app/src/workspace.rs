@@ -436,19 +436,27 @@ impl Render for Workspace {
             BottomPanel::Debug => self.render_debug_panel(cx),
             BottomPanel::Terminal => None,
         };
-        let center = match bottom {
-            Some(bottom) => v_resizable("center")
-                .child(resizable_panel().child(center))
+        let with_bottom = |top: AnyElement, bottom: AnyElement| {
+            v_resizable("center")
+                .child(resizable_panel().child(top))
                 .child(
                     resizable_panel()
                         .size(px(280.))
                         .size_range(px(80.)..px(1600.))
                         .child(bottom),
                 )
-                .into_any_element(),
-            None => center,
+                .into_any_element()
         };
-        body = body.child(resizable_panel().child(center));
+        let body = match bottom {
+            Some(bottom) if cx.global::<AppConfig>().0.bottom_panel_full_width => with_bottom(
+                body.child(resizable_panel().child(center)).into_any_element(),
+                bottom,
+            ),
+            Some(bottom) => body
+                .child(resizable_panel().child(with_bottom(center, bottom)))
+                .into_any_element(),
+            None => body.child(resizable_panel().child(center)).into_any_element(),
+        };
 
         let root = v_flex()
             .key_context(WORKSPACE_CONTEXT)

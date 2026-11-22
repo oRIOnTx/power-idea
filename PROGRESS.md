@@ -10,6 +10,7 @@ is in the working tree only.
 - [x] Editor with tree-sitter highlighting (~35 languages), tabs, JetBrains line operations
 - [x] Project tree, Search Everywhere (⇧⇧), Go to File (⌘⇧O), Recent Files (⌘E), Find in Files (⌘⇧F), Find Action (⌘⇧A), Go to Line (⌘L)
 - [x] Integrated terminal (⌥F12, tabs, copy/paste, selection, scrollback)
+- [x] Bottom tool windows span the full window width under the Project tree (Settings → Terminal → Full window width; on by default)
 - [x] Git: status colors, Commit tool window (⌘0), side-by-side diffs, push/pull/fetch, branches, rollback
 - [x] MCP server for Claude Code (17 tools, token in Keychain-like file, localhost only)
 - [x] Neo theme (dark/light), app icon, `scripts/bundle-macos.sh`
