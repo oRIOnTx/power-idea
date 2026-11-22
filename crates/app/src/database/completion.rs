@@ -104,16 +104,54 @@ pub fn word_before(before: &str) -> (&str, Option<&str>) {
     (word, qualifier.filter(|q| !q.is_empty()))
 }
 
-/// Candidates for the text before the cursor, best matches first.
-pub fn sql_completions(schema: &[SchemaNode], before: &str) -> Vec<Candidate> {
+const NOT_ALIASES: &[&str] = &[
+    "where", "join", "left", "right", "inner", "outer", "full", "cross", "on", "using", "order", "group",
+    "limit", "having", "union", "set", "values", "natural",
+];
+
+/// `alias → table` pairs from `FROM users u` / `JOIN roles AS r` in `sql` (lowercase).
+pub fn aliases(sql: &str) -> Vec<(String, String)> {
+    let words: Vec<String> = sql
+        .split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '.'))
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect();
+    let mut found = Vec::new();
+    for (ix, word) in words.iter().enumerate() {
+        if word != "from" && word != "join" && word != "update" && word != "into" {
+            continue;
+        }
+        let Some(table) = words.get(ix + 1) else { continue };
+        let table = table.rsplit('.').next().unwrap_or(table).to_string();
+        let mut next = ix + 2;
+        if words.get(next).is_some_and(|w| w == "as") {
+            next += 1;
+        }
+        if let Some(alias) = words
+            .get(next)
+            .filter(|a| !NOT_ALIASES.contains(&a.as_str()) && !a.contains('.'))
+        {
+            found.push((alias.clone(), table));
+        }
+    }
+    found
+}
+
+/// Candidates for `before` (the line up to the cursor); `full` is the whole
+/// console text, used to resolve table aliases. Best matches first.
+pub fn sql_completions(schema: &[SchemaNode], before: &str, full: &str) -> Vec<Candidate> {
     let (word, qualifier) = word_before(before);
     let prefix = word.to_lowercase();
     let matches = |label: &str| label.to_lowercase().starts_with(&prefix);
 
     if let Some(qualifier) = qualifier {
         let qualifier = qualifier.to_lowercase();
+        let table = aliases(full)
+            .into_iter()
+            .find(|(alias, _)| *alias == qualifier)
+            .map_or(qualifier, |(_, table)| table);
         return tables(schema)
-            .filter(|t| t.name.to_lowercase() == qualifier)
+            .filter(|t| t.name.to_lowercase() == table)
             .flat_map(columns)
             .filter(|c| matches(&c.label))
             .take(MAX_ITEMS)
@@ -167,7 +205,7 @@ impl CompletionProvider for SqlCompletion {
             text.offset_to_position(offset - word.len()),
             text.offset_to_position(offset),
         );
-        let items = sql_completions(&self.schema, line)
+        let items = sql_completions(&self.schema, line, &all)
             .into_iter()
             .map(|c| lsp_types::CompletionItem {
                 kind: Some(match c.kind {
@@ -198,7 +236,7 @@ impl CompletionProvider for SqlCompletion {
 mod tests {
     use db::{NodeKind, SchemaNode};
 
-    use super::{CandidateKind, sql_completions, word_before};
+    use super::{CandidateKind, aliases, sql_completions, word_before};
 
     fn schema() -> Vec<SchemaNode> {
         let column = |name: &str, ty: &str| SchemaNode {
@@ -232,7 +270,7 @@ mod tests {
     #[test]
     fn completes_tables_columns_and_keywords() {
         let labels = |before| -> Vec<(CandidateKind, String)> {
-            sql_completions(&schema(), before)
+            sql_completions(&schema(), before, before)
                 .into_iter()
                 .map(|c| (c.kind, c.label))
                 .collect()
@@ -254,5 +292,29 @@ mod tests {
         );
         assert!(labels("sel").contains(&(CandidateKind::Keyword, "SELECT".into())));
         assert!(labels("select ").is_empty());
+        // Aliases resolve to their table, anywhere in the console text.
+        assert_eq!(
+            sql_completions(
+                &schema(),
+                "select u.em",
+                "select u.em from public.users u where u.id = 1"
+            )
+            .into_iter()
+            .map(|c| c.label)
+            .collect::<Vec<_>>(),
+            ["email"]
+        );
+    }
+
+    #[test]
+    fn finds_table_aliases() {
+        assert_eq!(
+            aliases("SELECT * FROM users u JOIN user_roles AS r ON r.user_id = u.id, orders WHERE 1"),
+            [
+                ("u".to_string(), "users".to_string()),
+                ("r".to_string(), "user_roles".to_string())
+            ]
+        );
+        assert!(aliases("select * from users where id = 1").is_empty());
     }
 }

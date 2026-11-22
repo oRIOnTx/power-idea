@@ -156,9 +156,17 @@ pub fn qualified(kind: DbKind, table: &TableRef) -> String {
 
 /// `UPDATE table SET column = value WHERE key = original …` for one edited cell.
 pub fn update_statement(kind: DbKind, table: &TableRef, edit: &CellEdit) -> String {
-    let conditions: Vec<String> = edit
-        .key
-        .iter()
+    format!(
+        "UPDATE {} SET {} = {} WHERE {}",
+        qualified(kind, table),
+        quote_ident(kind, &edit.column),
+        quote_literal(kind, edit.value.as_deref()),
+        key_condition(kind, &edit.key)
+    )
+}
+
+fn key_condition(kind: DbKind, key: &[(String, Option<String>)]) -> String {
+    key.iter()
         .map(|(column, value)| match value {
             None => format!("{} IS NULL", quote_ident(kind, column)),
             Some(_) => format!(
@@ -167,13 +175,37 @@ pub fn update_statement(kind: DbKind, table: &TableRef, edit: &CellEdit) -> Stri
                 quote_literal(kind, value.as_deref())
             ),
         })
+        .collect::<Vec<_>>()
+        .join(" AND ")
+}
+
+/// `INSERT` of a new row; columns left out get their defaults.
+pub fn insert_statement(kind: DbKind, table: &TableRef, values: &[(String, Option<String>)]) -> String {
+    let table = qualified(kind, table);
+    if values.is_empty() {
+        return match kind {
+            DbKind::MySql => format!("INSERT INTO {table} () VALUES ()"),
+            _ => format!("INSERT INTO {table} DEFAULT VALUES"),
+        };
+    }
+    let columns: Vec<String> = values.iter().map(|(c, _)| quote_ident(kind, c)).collect();
+    let literals: Vec<String> = values
+        .iter()
+        .map(|(_, v)| quote_literal(kind, v.as_deref()))
         .collect();
     format!(
-        "UPDATE {} SET {} = {} WHERE {}",
+        "INSERT INTO {table} ({}) VALUES ({})",
+        columns.join(", "),
+        literals.join(", ")
+    )
+}
+
+/// `DELETE` of the row with this primary key.
+pub fn delete_statement(kind: DbKind, table: &TableRef, key: &[(String, Option<String>)]) -> String {
+    format!(
+        "DELETE FROM {} WHERE {}",
         qualified(kind, table),
-        quote_ident(kind, &edit.column),
-        quote_literal(kind, edit.value.as_deref()),
-        conditions.join(" AND ")
+        key_condition(kind, key)
     )
 }
 
@@ -250,6 +282,30 @@ mod tests {
                 &edit
             ),
             "UPDATE `users` SET `name` = 'O''Brien \\\\ x' WHERE `id` = '7' AND `tenant` IS NULL"
+        );
+        let users = TableRef {
+            schema: None,
+            name: "users".into(),
+        };
+        assert_eq!(
+            insert_statement(
+                DbKind::Postgres,
+                &users,
+                &[("name".into(), Some("ann".into())), ("age".into(), None)]
+            ),
+            "INSERT INTO \"users\" (\"name\", \"age\") VALUES ('ann', NULL)"
+        );
+        assert_eq!(
+            insert_statement(DbKind::MySql, &users, &[]),
+            "INSERT INTO `users` () VALUES ()"
+        );
+        assert_eq!(
+            insert_statement(DbKind::Sqlite, &users, &[]),
+            "INSERT INTO \"users\" DEFAULT VALUES"
+        );
+        assert_eq!(
+            delete_statement(DbKind::Sqlite, &users, &edit.key),
+            "DELETE FROM \"users\" WHERE \"id\" = '7' AND \"tenant\" IS NULL"
         );
         let null = CellEdit { value: None, ..edit };
         assert!(

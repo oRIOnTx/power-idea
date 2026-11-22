@@ -1,10 +1,10 @@
-//! Editing and exporting console results. Cells of a single-table SELECT that
-//! includes the primary key can be edited (double-click); edits stay pending,
-//! highlighted, until Submit runs one UPDATE per cell, like JetBrains.
+//! Editing and exporting console results. Results of a single-table SELECT
+//! that includes the primary key can be edited (double-click a cell), and rows
+//! added or deleted; changes stay pending, highlighted, until Submit.
 
 use std::path::PathBuf;
 
-use db::edit::{CellEdit, TableRef, editable_table, is_read_only, update_statement};
+use db::edit::{TableRef, editable_table, is_read_only};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Textarea, TextareaState};
@@ -81,9 +81,42 @@ impl QueryConsole {
     }
 
     pub(super) fn pending_edits(&self, cx: &App) -> usize {
-        self.table
-            .as_ref()
-            .map_or(0, |t| t.read(cx).delegate().edits.len())
+        self.table.as_ref().map_or(0, |t| t.read(cx).delegate().pending())
+    }
+
+    fn is_editable(&self) -> bool {
+        matches!(self.editability, Editability::Editable { .. })
+    }
+
+    /// Appends an empty row to fill in; it is inserted on Submit.
+    pub(super) fn add_row(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(table) = self.table.clone().filter(|_| self.is_editable()) else {
+            return;
+        };
+        let row = table.update(cx, |table, cx| {
+            let row = table.delegate_mut().add_row();
+            table.refresh(cx);
+            cx.notify();
+            row
+        });
+        self.selected_row = Some(row);
+        // Start with the first column so typing a value is one step away.
+        self.edit_cell(row, 0, window, cx);
+    }
+
+    /// Marks the selected row for deletion (or unmarks it).
+    pub(super) fn delete_selected_row(&mut self, cx: &mut Context<Self>) {
+        let (Some(table), Some(row)) = (
+            self.table.clone().filter(|_| self.is_editable()),
+            self.selected_row,
+        ) else {
+            return;
+        };
+        table.update(cx, |table, cx| {
+            table.delegate_mut().toggle_delete(row);
+            cx.notify();
+        });
+        cx.notify();
     }
 
     /// Opens the value editor for a cell (double-click).
@@ -175,36 +208,21 @@ impl QueryConsole {
     pub(super) fn revert_edits(&mut self, cx: &mut Context<Self>) {
         if let Some(table) = &self.table {
             table.update(cx, |table, cx| {
-                table.delegate_mut().edits.clear();
+                table.delegate_mut().revert();
+                table.refresh(cx);
                 cx.notify();
             });
         }
         cx.notify();
     }
 
-    /// Runs one UPDATE per edited cell, then reloads the results.
+    /// Runs the pending DELETE / UPDATE / INSERT statements, then reloads the results.
     pub(super) fn submit_edits(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let (Editability::Editable { table: target, key }, Some(table)) = (&self.editability, &self.table)
         else {
             return;
         };
-        let delegate = table.read(cx).delegate();
-        let statements: Vec<String> = delegate
-            .edits
-            .iter()
-            .filter_map(|(&(row, col), value)| {
-                let cells = delegate.set.rows.get(row)?;
-                let edit = CellEdit {
-                    column: delegate.set.columns.get(col)?.clone(),
-                    value: value.clone(),
-                    key: key
-                        .iter()
-                        .map(|&k| (delegate.set.columns[k].clone(), cells.get(k).cloned().flatten()))
-                        .collect(),
-                };
-                Some(update_statement(self.kind, target, &edit))
-            })
-            .collect();
+        let statements = table.read(cx).delegate().statements(self.kind, target, key);
         let db = self.db.clone();
         cx.spawn_in(window, async move |this, cx| {
             let result = cx
@@ -218,7 +236,10 @@ impl QueryConsole {
                 .await;
             this.update_in(cx, |this, window, cx| match result {
                 Ok(changed) => {
-                    let text = format!("Updated {changed} row{}", if changed == 1 { "" } else { "s" });
+                    let text = format!(
+                        "Saved: {changed} row{} changed",
+                        if changed == 1 { "" } else { "s" }
+                    );
                     window.push_notification(Notification::success(text), cx);
                     this.rerun_last(window, cx);
                 }
@@ -276,12 +297,29 @@ impl QueryConsole {
     }
 
     pub(super) fn render_edit_toolbar(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let pending = self.pending_edits(cx);
-        if pending == 0 {
+        if !self.is_editable() {
             return None;
         }
+        let pending = self.pending_edits(cx);
         let theme = cx.theme();
-        Some(
+        let row_buttons = h_flex()
+            .child(
+                Button::new("add-row")
+                    .ghost()
+                    .xsmall()
+                    .label("+ Row")
+                    .tooltip("Add a row (inserted on Submit)")
+                    .on_click(cx.listener(|this, _, window, cx| this.add_row(window, cx))),
+            )
+            .child(
+                Button::new("delete-row")
+                    .ghost()
+                    .xsmall()
+                    .label("− Row")
+                    .tooltip("Delete the selected row (on Submit); click again to undo")
+                    .on_click(cx.listener(|this, _, _, cx| this.delete_selected_row(cx))),
+            );
+        let pending_controls = (pending > 0).then(|| {
             h_flex()
                 .gap_1()
                 .child(
@@ -307,6 +345,12 @@ impl QueryConsole {
                         .label("Revert")
                         .on_click(cx.listener(|this, _, _, cx| this.revert_edits(cx))),
                 )
+        });
+        Some(
+            h_flex()
+                .gap_2()
+                .child(row_buttons)
+                .children(pending_controls)
                 .into_any_element(),
         )
     }

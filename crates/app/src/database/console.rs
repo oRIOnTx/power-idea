@@ -41,6 +41,8 @@ pub struct QueryConsole {
     /// The query that produced the results (for edits, export and refresh).
     pub(super) last_query: String,
     pub(super) editability: Editability,
+    /// Row of the last selected cell (for "− Row").
+    pub(super) selected_row: Option<usize>,
     _table_events: Option<Subscription>,
     status: Status,
     run_task: Task<()>,
@@ -81,6 +83,7 @@ impl QueryConsole {
             table: None,
             last_query: String::new(),
             editability: Editability::Unknown,
+            selected_row: None,
             _table_events: None,
             status: Status::Idle,
             run_task: Task::ready(()),
@@ -135,10 +138,17 @@ impl QueryConsole {
                                     .cell_selectable(true)
                             })
                         });
+                        this.selected_row = None;
                         this._table_events = this.table.as_ref().map(|table| {
                             cx.subscribe_in(table, window, |this, _, event: &TableEvent, window, cx| {
-                                if let TableEvent::DoubleClickedCell(row, col) = event {
-                                    this.edit_cell(*row, *col, window, cx);
+                                match event {
+                                    TableEvent::DoubleClickedCell(row, col) => {
+                                        this.edit_cell(*row, *col, window, cx);
+                                    }
+                                    TableEvent::SelectCell(row, _) | TableEvent::SelectRow(row) => {
+                                        this.selected_row = Some(*row);
+                                    }
+                                    _ => {}
                                 }
                             })
                         });

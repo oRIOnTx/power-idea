@@ -406,6 +406,28 @@ mod tests {
             roles.sets[0].rows,
             [[Some("member".to_string())], [Some("o'wner".to_string())]]
         );
+
+        use crate::edit::{delete_statement, insert_statement};
+        let key = |user: &str| {
+            vec![
+                ("org".to_string(), Some("acme".to_string())),
+                ("user_id".to_string(), Some(user.to_string())),
+            ]
+        };
+        db.execute(&delete_statement(DbKind::Sqlite, &table, &key("1")), 0)
+            .unwrap();
+        db.execute(&insert_statement(DbKind::Sqlite, &table, &key("3")), 0)
+            .unwrap();
+        let rows = db
+            .execute("SELECT user_id, role FROM memberships ORDER BY user_id", 10)
+            .unwrap();
+        assert_eq!(
+            rows.sets[0].rows,
+            [
+                [Some("2".to_string()), Some("o'wner".to_string())],
+                [Some("3".to_string()), None]
+            ]
+        );
         let _ = std::fs::remove_file(path);
     }
 
