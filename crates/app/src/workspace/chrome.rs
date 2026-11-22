@@ -91,12 +91,6 @@ impl Workspace {
                     IconName::FolderOpen,
                     Box::new(OpenProject),
                     "Open Project…",
-                ))
-                .child(tool(
-                    "tb-close",
-                    IconName::WindowClose,
-                    Box::new(CloseWindow),
-                    "Close Project (⌘⇧W)",
                 )),
         )
     }

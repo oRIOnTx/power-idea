@@ -49,6 +49,9 @@ is in the working tree only.
 
 - [x] File watching (`notify`, FSEvents): tree + search index refresh, clean editors reload, warning for edited ones;
       `.git`, `target`, `node_modules`, `tmp`, `log`, `.power-idea` and excluded paths are ignored
+- [x] macOS menu bar (JetBrains layout): Power IDEA (About, Settings, Hide, Quit), File (New Project, Open,
+      Recent, Save, Close Tab, Close Project), Edit, View, Navigate, Code, Git, Window, Help; the title-bar
+      close button moved to File → Close Project (⌘⇧W)
 
 ## Backlog
 Agreed backlog is done. Candidates:
@@ -60,6 +63,6 @@ Database gaps below, Find Usages as a tool window (JetBrains shows a tree, we us
 - Git Log: right-click does not select the row; dates older than a week are shown in UTC; history capped at 2000 commits; no author/date/path filters
 - Database: no inline data editing, no table/column completion in consoles, no export, no TLS for Redis
 - Terminal: no mouse reporting for TUI apps, no cursor blink
-- Quitting from the Dock bypasses the ⌘Q unsaved-changes prompt (no app menu yet)
+- Quitting from the Dock icon bypasses the unsaved-changes prompt (menu Quit and ⌘Q ask)
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end
 - The user's `lms` project needs `brew install libpq` + `bundle install` for full Ruby LSP (fallback mode works meanwhile)

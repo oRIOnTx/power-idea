@@ -47,6 +47,8 @@ crates/
     preview.rs          Markdown/SVG/image preview rules
     session.rs          per-project workspace state (.power-idea/workspace.toml)
     welcome/            Welcome window: recent projects, New Project
+    menus.rs            macOS menu bar (every menu item is an action)
+    watcher.rs          classifies file system events (project folder watching)
     settings.rs         Settings tab (Cmd+,)
     actions.rs          every action + the default JetBrains keymap
     mcp_bridge.rs       MCP server thread ⇄ UI thread

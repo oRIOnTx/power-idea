@@ -69,6 +69,13 @@ actions!(
         FileStructure,
         RenameSymbol,
         ReformatCode,
+        About,
+        NewProject,
+        HideApp,
+        HideOtherApps,
+        ShowAllApps,
+        MinimizeWindow,
+        ZoomWindow,
     ]
 );
 
@@ -192,7 +199,10 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Next Tab", Box::new(NextTab)),
         ("Previous Tab", Box::new(PrevTab)),
         ("Toggle Project View", Box::new(ToggleProjectView)),
+        ("New Project…", Box::new(NewProject)),
         ("Open Project…", Box::new(OpenProject)),
+        ("Close Project", Box::new(CloseWindow)),
+        ("About Power IDEA", Box::new(About)),
         ("Recent Projects…", Box::new(RecentProjects)),
         ("Toggle Light/Dark Theme", Box::new(ToggleTheme)),
         ("Comment Line", Box::new(ToggleLineComment)),
@@ -222,7 +232,6 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Back", Box::new(NavigateBack)),
         ("Forward", Box::new(NavigateForward)),
         ("Copy Claude MCP Command", Box::new(CopyMcpCommand)),
-        ("Close Window", Box::new(CloseWindow)),
         ("Quit", Box::new(Quit)),
     ]
 }
@@ -255,6 +264,9 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-alt-l", ReformatCode, ed),
         KeyBinding::new("cmd-shift-w", CloseWindow, ws),
         KeyBinding::new("cmd-q", Quit, None),
+        KeyBinding::new("cmd-h", HideApp, None),
+        KeyBinding::new("cmd-alt-h", HideOtherApps, None),
+        KeyBinding::new("cmd-m", MinimizeWindow, None),
         KeyBinding::new("cmd-/", ToggleLineComment, ed),
         KeyBinding::new("cmd-b", gpui_kit::component::input::GoToDefinition, ed),
         KeyBinding::new(

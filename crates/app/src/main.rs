@@ -6,6 +6,7 @@ mod file_icons;
 mod inbox;
 mod language;
 mod mcp_bridge;
+mod menus;
 mod palette;
 mod preview;
 mod project_tree;
@@ -178,6 +179,7 @@ fn main() {
             apply_theme(None, cx);
             actions::bind_keys(cx);
             mcp_bridge::start(cx);
+            menus::install(cx);
 
             cx.on_action(|_: &Quit, cx| workspace::request_quit(cx));
             cx.on_action(|_: &OpenProject, cx| projects::prompt_open_project(cx));

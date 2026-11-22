@@ -5,6 +5,8 @@
 mod new_project;
 mod paths;
 
+pub use new_project::open_new_project_dialog;
+
 use std::path::PathBuf;
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
