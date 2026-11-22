@@ -171,6 +171,7 @@ is in the working tree only.
 - [x] Ruby LSP via rbenv: when the project's Ruby lacks the server gem or isn't installed, it runs on the
       global Ruby, else the newest installed one that has it (`RBENV_VERSION`), with a fallback-mode notice and
       "Fix in Terminal" (`gem install ruby-lsp` / `rbenv install --skip-existing`)
+- [x] Line edits (⌘D duplicate, ⌘/ comment, delete / move line) keep the editor's scroll position
 
 ## Backlog
 Agreed backlog is done. Candidates:

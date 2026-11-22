@@ -202,8 +202,11 @@ impl Workspace {
             let cursor = state.cursor_position();
             let text = state.value();
             if let Some(edit) = op(&text, cursor.line, &language) {
+                // `replace_all` scrolls to the top; keep the view where it was (⌘D, ⌘/, …).
+                let scroll = state.scroll_offset();
                 state.replace_all(edit.text, window, cx);
                 state.set_cursor_position(Position::new(edit.cursor_line, cursor.character), window, cx);
+                state.set_scroll_offset(scroll, cx);
             }
         });
     }
