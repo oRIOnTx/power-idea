@@ -163,6 +163,8 @@ is in the working tree only.
       thread): "Terminate" / Cancel, listing the programs; Terminate replaces "Exit?" / "Close project?"
 - [x] Launch reopens the projects that were open at quit (`open_projects` in `config.toml`, as tabs of one
       window); quitting from the Welcome screen brings the Welcome screen back. Welcome content is top-aligned
+- [x] Branches popup: moving the pointer diagonally to a branch's submenu keeps it open (menu "safe
+      triangle"); a row crossed on the way takes over only if the pointer rests on it for 300 ms
 
 ## Backlog
 Agreed backlog is done. Candidates:

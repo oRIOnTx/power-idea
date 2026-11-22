@@ -179,13 +179,25 @@ pub fn branch_ops(branch: &Branch) -> Vec<Option<(&'static str, GitLogOp)>> {
     ops
 }
 
+/// Menu "safe triangle": whether the pointer, moving from `from` to `to`, heads into a
+/// submenu whose left edge spans `top..bottom` at `left`. Rows crossed on the way must
+/// not steal the submenu.
+pub fn aims_at_submenu(from: (f32, f32), to: (f32, f32), left: f32, top: f32, bottom: f32) -> bool {
+    // Side of `p` relative to the line a→b; `to` is inside when all signs agree.
+    let side =
+        |a: (f32, f32), b: (f32, f32), p: (f32, f32)| (b.0 - a.0) * (p.1 - a.1) - (b.1 - a.1) * (p.0 - a.0);
+    let (top, bottom) = ((left, top), (left, bottom));
+    let sides = [side(from, top, to), side(top, bottom, to), side(bottom, from, to)];
+    sides.iter().all(|s| *s >= 0.) || sides.iter().all(|s| *s <= 0.)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
 
     use vcs::Branch;
 
-    use super::{GitCommand, Group, Row, branch_ops, rows};
+    use super::{GitCommand, Group, Row, aims_at_submenu, branch_ops, rows};
     use crate::actions::GitLogOp;
 
     fn branch(name: &str, is_remote: bool, is_current: bool) -> Branch {
@@ -273,5 +285,20 @@ mod tests {
         let remote = ops(&branch("origin/x", true, false));
         assert!(!remote.contains(&GitLogOp::RenameBranch));
         assert!(remote.contains(&GitLogOp::DeleteBranch));
+    }
+
+    #[test]
+    fn diagonal_moves_toward_the_submenu_keep_it() {
+        // Submenu to the right: left edge x=400, from y=0 to y=200; pointer on a row at y=300.
+        let aims = |to| aims_at_submenu((300., 300.), to, 400., 0., 200.);
+        assert!(aims((320., 280.)), "up and to the right, across the rows above");
+        assert!(!aims((340., 300.)), "straight right, below the short submenu");
+        assert!(
+            aims_at_submenu((300., 300.), (340., 300.), 400., 0., 400.),
+            "right, into a tall one"
+        );
+        assert!(!aims((300., 280.)), "straight up: choosing another row");
+        assert!(!aims((290., 290.)), "away from the submenu");
+        assert!(!aims((320., 320.)), "down, below the submenu");
     }
 }

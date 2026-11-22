@@ -21,6 +21,9 @@ const LIST_WIDTH: f32 = 400.;
 const SUBMENU_WIDTH: f32 = 240.;
 const MAX_LIST_HEIGHT: f32 = 520.;
 const ROW_HEIGHT: f32 = 26.;
+/// How long the pointer may rest on another row, while heading for the submenu, before
+/// that row takes over.
+const AIM_DELAY: std::time::Duration = std::time::Duration::from_millis(300);
 
 pub enum BranchesPopupEvent {
     Dismiss,
@@ -43,6 +46,12 @@ pub struct BranchesPopup {
     selected: usize,
     /// The branch row (index into `rows`) whose submenu is open, and its selected item.
     submenu: Option<(usize, usize)>,
+    /// Where the open submenu is drawn, for the safe-triangle check.
+    submenu_bounds: Option<Bounds<Pixels>>,
+    /// Last pointer position over the list.
+    pointer: Option<Point<Pixels>>,
+    /// A row hovered on the way to the submenu; selected only if the pointer stays.
+    _aim_task: Option<Task<()>>,
     scroll: ScrollHandle,
     focused_once: bool,
     _subscription: Subscription,
@@ -69,6 +78,9 @@ impl BranchesPopup {
             rows: Vec::new(),
             selected: 0,
             submenu: None,
+            submenu_bounds: None,
+            pointer: None,
+            _aim_task: None,
             scroll: ScrollHandle::new(),
             focused_once: false,
             _subscription: subscription,
@@ -123,6 +135,30 @@ impl BranchesPopup {
             }
             cx.notify();
         }
+    }
+
+    /// The pointer moved over row `ix`. While it heads for the open submenu, crossing
+    /// other rows doesn't move or close the submenu unless the pointer rests there.
+    fn hover_row(&mut self, ix: usize, position: Point<Pixels>, cx: &mut Context<Self>) {
+        let from = self.pointer.replace(position);
+        let heading_to_submenu = match (from, self.submenu, self.submenu_bounds) {
+            (Some(from), Some((row, _)), Some(target)) if row != ix => model::aims_at_submenu(
+                (f32::from(from.x), f32::from(from.y)),
+                (f32::from(position.x), f32::from(position.y)),
+                f32::from(target.origin.x),
+                f32::from(target.origin.y),
+                f32::from(target.bottom()),
+            ),
+            _ => false,
+        };
+        if !heading_to_submenu {
+            self._aim_task = None;
+            return self.select(ix, cx);
+        }
+        self._aim_task = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(AIM_DELAY).await;
+            this.update(cx, |this, cx| this.select(ix, cx)).ok();
+        }));
     }
 
     fn step(&mut self, forward: bool, cx: &mut Context<Self>) {
@@ -241,10 +277,8 @@ impl BranchesPopup {
             .text_sm()
             .cursor_pointer()
             .when(selected, |el| el.bg(theme.list_active))
-            .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
-                if *hovered {
-                    this.select(ix, cx);
-                }
+            .on_mouse_move(cx.listener(move |this, event: &MouseMoveEvent, _, cx| {
+                this.hover_row(ix, event.position, cx);
             }))
             .on_click(cx.listener(move |this, _, window, cx| {
                 this.selected = ix;
@@ -380,10 +414,24 @@ impl BranchesPopup {
                     .into_any_element(),
             );
         }
+        let this = cx.entity().downgrade();
         Some(
             v_flex()
+                .relative()
                 .w(px(SUBMENU_WIDTH))
                 .flex_none()
+                // Reaching the submenu ends the aim: no row it crossed takes over.
+                .on_mouse_move(cx.listener(|this, _: &MouseMoveEvent, _, _| this._aim_task = None))
+                .child(
+                    canvas(
+                        move |bounds, _, cx| {
+                            this.update(cx, |this, _| this.submenu_bounds = Some(bounds)).ok();
+                        },
+                        |_, _, _, _| {},
+                    )
+                    .absolute()
+                    .size_full(),
+                )
                 .py_1()
                 .border_l_1()
                 .border_color(theme.border)
