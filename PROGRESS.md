@@ -157,6 +157,7 @@ is in the working tree only.
       branch and file count; a click reveals the crumb in the project tree
 - [x] Docker "Show all containers" groups containers like JetBrains Services: the project, other compose
       projects by name, then standalone containers; each group folds and shows running/total
+- [x] Commit tool window: file rows are indented under their group header (Changes / Unversioned Files)
 
 ## Backlog
 Agreed backlog is done. Candidates:

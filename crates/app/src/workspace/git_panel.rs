@@ -144,7 +144,9 @@ impl Workspace {
             .id(("change", ix))
             .group("change")
             .mx_1()
-            .px_2()
+            // Nested under the group header: the checkbox lines up with the header's chevron.
+            .pl_8()
+            .pr_2()
             .h(px(28.))
             .gap_2()
             .rounded(theme.radius)
