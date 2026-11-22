@@ -15,6 +15,7 @@ use gpui_kit::*;
 use super::Workspace;
 use crate::actions::{FileAction, FileOp};
 use crate::editor::CenterTab;
+use crate::file_ops::ClipMode;
 
 /// Moves `path` into the user's Trash (recoverable), picking a free name.
 fn move_to_trash(path: &Path) -> Result<()> {
@@ -72,6 +73,10 @@ impl Workspace {
             .action_context(self.focus_handle.clone())
             .menu("New File…", action(FileOp::NewFile))
             .menu("New Directory…", action(FileOp::NewDirectory))
+            .separator()
+            .menu("Cut", action(FileOp::Cut))
+            .menu("Copy", action(FileOp::CopyFile))
+            .menu_with_disabled("Paste", action(FileOp::Paste), !self.can_paste_files())
             .separator()
             .menu("Rename…", action(FileOp::Rename))
             .menu("Delete…", action(FileOp::Delete))
@@ -152,6 +157,10 @@ impl Workspace {
                 });
             }
             FileOp::Delete => self.confirm_delete(rel, window, cx),
+            FileOp::Cut => self.clip_file(rel, ClipMode::Cut, window, cx),
+            FileOp::CopyFile => self.clip_file(rel, ClipMode::Copy, window, cx),
+            // Into the clicked folder, or the folder of the clicked file.
+            FileOp::Paste => self.paste_files(dir, window, cx),
             FileOp::CopyPath | FileOp::CopyRelativePath => {
                 let text = if action.op == FileOp::CopyPath {
                     abs.display().to_string()
@@ -220,7 +229,7 @@ impl Workspace {
     }
 
     /// Points open editors at their new location after a rename.
-    fn retarget_tabs(&mut self, from: &str, to: &str) {
+    pub(super) fn retarget_tabs(&mut self, from: &str, to: &str) {
         for tab in &mut self.tabs {
             let CenterTab::Editor(tab) = tab else { continue };
             let new_rel = if tab.rel == from {
@@ -235,7 +244,7 @@ impl Workspace {
         }
     }
 
-    fn after_fs_change(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn after_fs_change(&mut self, cx: &mut Context<Self>) {
         self.refresh_tree(cx);
         self.reindex(cx);
         self.refresh_git(cx);

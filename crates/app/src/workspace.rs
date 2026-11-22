@@ -26,6 +26,7 @@ mod code_nav;
 mod database_panel;
 mod debug;
 mod editors;
+mod file_clipboard;
 mod files;
 mod fs_watch;
 mod git;
@@ -128,6 +129,8 @@ pub struct Workspace {
     focus_handle: FocusHandle,
     tree: Entity<TreeState>,
     expanded: HashSet<String>,
+    /// Files waiting for Paste in the project tree.
+    file_clipboard: Option<crate::file_ops::FileClipboard>,
     index: Arc<FileIndex>,
     tabs: Vec<CenterTab>,
     active_tab: Option<usize>,
@@ -199,6 +202,7 @@ impl Workspace {
             focus_handle: cx.focus_handle(),
             tree,
             expanded,
+            file_clipboard: None,
             index: Arc::default(),
             tabs: Vec::new(),
             active_tab: None,

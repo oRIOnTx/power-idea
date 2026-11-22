@@ -166,6 +166,9 @@ impl GitLogAction {
 pub enum FileOp {
     NewFile,
     NewDirectory,
+    Cut,
+    CopyFile,
+    Paste,
     Rename,
     Delete,
     CopyPath,

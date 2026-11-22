@@ -90,6 +90,9 @@ is in the working tree only.
       Into F7 / Out ⇧F8, Pause, Stop ⌘F2; debug tool window with frames, expandable variables, console and
       expression evaluation; paused line highlighted. `[config.debug]` in run.toml; detected for Rails/RSpec,
       cargo run, go run, Django, pytest. Verified live against rdbg and lldb-dap (`cargo test -p dap -- --ignored`)
+- [x] Welcome screen restyled after the README illustration (centered title, 48 px project rows, ↑/↓ + Enter)
+- [x] Project tree: Cut / Copy / Paste of files and folders (Finder-style " copy" names, folders recursively,
+      moves across volumes, open tabs follow moved files; Paste into the clicked folder or the file's folder)
 
 ## Backlog
 Agreed backlog is done. Candidates:

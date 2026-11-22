@@ -3,6 +3,7 @@ mod config;
 mod database;
 mod editor;
 mod file_icons;
+mod file_ops;
 mod inbox;
 mod language;
 mod mcp_bridge;
