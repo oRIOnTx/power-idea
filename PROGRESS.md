@@ -166,6 +166,8 @@ is in the working tree only.
 - [x] Branches popup: moving the pointer diagonally to a branch's submenu keeps it open (menu-aim prediction
       from the pointer's recent trail, a widened triangle to the submenu); a row crossed on the way takes
       over only once the pointer rests on it for 250 ms
+- [x] `.env`, `.env.*` and `*.env` files are highlighted as shell (variable names, strings, comments); Neo
+      gives `property` its own color instead of near-foreground
 
 ## Backlog
 Agreed backlog is done. Candidates:

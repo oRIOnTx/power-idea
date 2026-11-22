@@ -137,6 +137,10 @@ pub fn language_for(path: &Path) -> String {
     if let Some(lang) = special {
         return lang.into();
     }
+    // dotenv files (`.env`, `.env.local`, `prod.env`) are `KEY=value` lines: shell syntax.
+    if name == ".env" || name.starts_with(".env.") || name.ends_with(".env") {
+        return "bash".into();
+    }
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or_default();
     match ext {
         "rake" | "gemspec" | "ru" | "jbuilder" => "ruby",
@@ -282,6 +286,10 @@ mod tests {
         assert_eq!(language_for(Path::new("Gemfile")), "ruby");
         assert_eq!(language_for(Path::new("x/main.rs")), "rs");
         assert_eq!(language_for(Path::new("lib/tasks/db.rake")), "ruby");
+        for env in [".env", ".env.local", ".env.example", "config/prod.env"] {
+            assert_eq!(language_for(Path::new(env)), "bash", "{env}");
+        }
+        assert_eq!(language_for(Path::new("environment.rb")), "rb");
     }
 
     #[test]
