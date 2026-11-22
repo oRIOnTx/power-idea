@@ -170,6 +170,25 @@ pub fn canonical_language(language: &str) -> &str {
         "js" | "jsx" | "mjs" | "cjs" | "javascript" => "javascript",
         "py" | "pyi" | "python" => "python",
         "go" => "go",
+        "yml" | "yaml" => "yaml",
+        "md" | "markdown" => "markdown",
+        "jsonc" | "json" => "json",
+        "h" | "c" => "c",
+        "cc" | "cxx" | "hpp" | "cpp" => "cpp",
+        "kt" | "kts" | "kotlin" => "kotlin",
+        "ex" | "exs" | "elixir" => "elixir",
+        // Only real shell scripts: `bash` also covers .env files and Dockerfiles, where a
+        // shell language server would only report noise.
+        "sh" => "sh",
+        other => other,
+    }
+}
+
+/// The LSP `languageId` for a canonical language, where the protocol names it differently.
+pub fn lsp_language_id(language: &str) -> &str {
+    match language {
+        "sh" => "shellscript",
+        "tsx" => "typescriptreact",
         other => other,
     }
 }
@@ -277,7 +296,8 @@ mod tests {
     use std::path::Path;
 
     use super::{
-        canonical_language, delete_line, duplicate_line, language_for, move_line, toggle_line_comment,
+        canonical_language, delete_line, duplicate_line, language_for, lsp_language_id, move_line,
+        toggle_line_comment,
     };
 
     #[test]
@@ -304,6 +324,18 @@ mod tests {
             "rust"
         );
         assert_eq!(canonical_language("tsx"), "tsx");
+        assert_eq!(
+            canonical_language(&language_for(Path::new("config/database.yml"))),
+            "yaml"
+        );
+        assert_eq!(
+            canonical_language(&language_for(Path::new("include/app.hpp"))),
+            "cpp"
+        );
+        assert_eq!(canonical_language(&language_for(Path::new("bin/setup.sh"))), "sh");
+        assert_ne!(canonical_language(&language_for(Path::new(".env"))), "sh");
+        assert_eq!(lsp_language_id("sh"), "shellscript");
+        assert_eq!(lsp_language_id("ruby"), "ruby");
     }
 
     #[test]

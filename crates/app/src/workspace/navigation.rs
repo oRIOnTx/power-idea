@@ -260,7 +260,7 @@ impl Workspace {
             server.notify::<notification::DidOpenTextDocument>(lsp_types::DidOpenTextDocumentParams {
                 text_document: lsp_types::TextDocumentItem {
                     uri: uri.clone(),
-                    language_id: language,
+                    language_id: editor::lsp_language_id(&language).to_string(),
                     version: 1,
                     text,
                 },

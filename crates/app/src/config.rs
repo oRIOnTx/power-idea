@@ -137,6 +137,104 @@ pub fn default_language_servers() -> BTreeMap<String, LanguageServerConfig> {
                 "go install golang.org/x/tools/gopls@latest",
             ),
         ),
+        (
+            "html".into(),
+            server(
+                "vscode-html-language-server",
+                &["--stdio"],
+                &["html"],
+                "npm install -g vscode-langservers-extracted",
+            ),
+        ),
+        (
+            "css".into(),
+            server(
+                "vscode-css-language-server",
+                &["--stdio"],
+                &["css", "less"],
+                "npm install -g vscode-langservers-extracted",
+            ),
+        ),
+        (
+            "json".into(),
+            server(
+                "vscode-json-language-server",
+                &["--stdio"],
+                &["json"],
+                "npm install -g vscode-langservers-extracted",
+            ),
+        ),
+        (
+            "yaml".into(),
+            server(
+                "yaml-language-server",
+                &["--stdio"],
+                &["yaml"],
+                "npm install -g yaml-language-server",
+            ),
+        ),
+        (
+            "bash".into(),
+            server(
+                "bash-language-server",
+                &["start"],
+                &["sh"],
+                "npm install -g bash-language-server",
+            ),
+        ),
+        (
+            "markdown".into(),
+            server("marksman", &[], &["markdown"], "brew install marksman"),
+        ),
+        (
+            "toml".into(),
+            server("taplo", &["lsp", "stdio"], &["toml"], "brew install taplo"),
+        ),
+        (
+            "lua".into(),
+            server(
+                "lua-language-server",
+                &[],
+                &["lua"],
+                "brew install lua-language-server",
+            ),
+        ),
+        (
+            "c".into(),
+            // Apple's clangd from the Command Line Tools, found through xcrun.
+            server("xcrun", &["clangd"], &["c", "cpp"], "xcode-select --install"),
+        ),
+        (
+            "swift".into(),
+            server("xcrun", &["sourcekit-lsp"], &["swift"], "xcode-select --install"),
+        ),
+        (
+            "java".into(),
+            server("jdtls", &[], &["java"], "brew install jdtls"),
+        ),
+        (
+            "kotlin".into(),
+            server(
+                "kotlin-language-server",
+                &[],
+                &["kotlin"],
+                "brew install kotlin-language-server",
+            ),
+        ),
+        (
+            "php".into(),
+            server(
+                "intelephense",
+                &["--stdio"],
+                &["php"],
+                "npm install -g intelephense",
+            ),
+        ),
+        (
+            "elixir".into(),
+            server("elixir-ls", &[], &["elixir"], "brew install elixir-ls"),
+        ),
+        ("zig".into(), server("zls", &[], &["zig"], "brew install zls")),
     ])
 }
 

@@ -118,6 +118,8 @@ impl Workspace {
             CenterTab::Editor(tab) => {
                 let rel = tab.rel.clone();
                 tab.state.update(cx, |state, cx| state.focus(window, cx));
+                // A server installed since the file was opened starts once you come back to it.
+                self.attach_language_server(ix, cx);
                 self.recent_files.retain(|r| *r != rel);
                 self.recent_files.insert(0, rel);
                 self.recent_files.truncate(MAX_RECENT_FILES);
@@ -376,15 +378,27 @@ impl Workspace {
                 })
                 .child(div().flex_1())
                 .when(!hint.is_empty(), |el| {
+                    let command = hint.clone();
                     el.child(
-                        Button::new("copy-install")
+                        Button::new("install-in-terminal")
                             .small()
-                            .label("Copy install command")
+                            .primary()
+                            .label("Install in Terminal")
+                            .tooltip("Opens a terminal with the command typed in; press Enter to run it")
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.open_terminal_with_input(&command, window, cx);
+                            })),
+                    )
+                    .child(
+                        Button::new("copy-install")
+                            .ghost()
+                            .small()
+                            .label("Copy")
                             .on_click(move |_, window, cx| {
                                 cx.write_to_clipboard(ClipboardItem::new_string(hint.clone()));
                                 window.push_notification(
                                     Notification::success(
-                                        "Run it in the terminal (⌥F12), then reopen the file.",
+                                        "Run it in the terminal (⌥F12); the server starts when you come back to the file.",
                                     ),
                                     cx,
                                 );
