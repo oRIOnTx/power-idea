@@ -26,6 +26,7 @@ mod code_nav;
 mod database_panel;
 mod editors;
 mod files;
+mod fs_watch;
 mod git;
 mod git_log;
 mod git_panel;
@@ -142,6 +143,8 @@ pub struct Workspace {
     pending_notices: Vec<Notice>,
     /// Console to open once its data source finishes connecting.
     pending_console: Option<(String, String, bool)>,
+    /// Watches the project folder for changes made outside the IDE.
+    watcher: Option<notify::RecommendedWatcher>,
     terminals: Vec<Entity<TerminalView>>,
     active_terminal: usize,
     show_bottom: bool,
@@ -187,6 +190,7 @@ impl Workspace {
             left_panel: LeftPanel::Project,
             git: None,
             git_log: None,
+            watcher: None,
             terminals: Vec::new(),
             active_terminal: 0,
             show_bottom: false,
@@ -196,6 +200,7 @@ impl Workspace {
         workspace.focus_handle.focus(window, cx);
         workspace.reindex(cx);
         workspace.init_git(window, cx);
+        workspace.start_watching(window, cx);
         workspace.guard_window_close(window, cx);
         workspace.start_lsp_event_loop(cx);
         workspace.preload_language_servers(cx);

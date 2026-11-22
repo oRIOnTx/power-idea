@@ -14,6 +14,7 @@ mod session;
 mod settings;
 mod style;
 mod terminal;
+mod watcher;
 mod welcome;
 mod workspace;
 

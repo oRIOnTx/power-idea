@@ -47,8 +47,11 @@ is in the working tree only.
 - [x] Version `0.2.0 (build N, hash[+])`: build number = git commit count, `+` = uncommitted changes;
       shown on the Welcome screen, in `panic.log` and as `CFBundleVersion`
 
+- [x] File watching (`notify`, FSEvents): tree + search index refresh, clean editors reload, warning for edited ones;
+      `.git`, `target`, `node_modules`, `tmp`, `log`, `.power-idea` and excluded paths are ignored
+
 ## Backlog
-Agreed backlog is done. Candidates: file watching (`notify`, needs approval),
+Agreed backlog is done. Candidates:
 Database gaps below, Find Usages as a tool window (JetBrains shows a tree, we use the picker).
 
 ## Known gaps
@@ -57,7 +60,6 @@ Database gaps below, Find Usages as a tool window (JetBrains shows a tree, we us
 - Git Log: right-click does not select the row; dates older than a week are shown in UTC; history capped at 2000 commits; no author/date/path filters
 - Database: no inline data editing, no table/column completion in consoles, no export, no TLS for Redis
 - Terminal: no mouse reporting for TUI apps, no cursor blink
-- Tree and search miss files created outside the IDE until reopen (needs `notify`, not yet approved)
 - Quitting from the Dock bypasses the ⌘Q unsaved-changes prompt (no app menu yet)
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end
 - The user's `lms` project needs `brew install libpq` + `bundle install` for full Ruby LSP (fallback mode works meanwhile)

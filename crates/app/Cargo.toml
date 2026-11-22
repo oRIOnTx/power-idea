@@ -12,6 +12,7 @@ lsp = { path = "../lsp" }
 db = { path = "../db" }
 gpui-kit.workspace = true
 anyhow.workspace = true
+notify.workspace = true
 alacritty_terminal.workspace = true
 serde.workspace = true
 serde_json.workspace = true

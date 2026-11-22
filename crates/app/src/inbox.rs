@@ -38,6 +38,11 @@ impl<T> Inbox<T> {
         }
     }
 
+    /// Takes whatever is queued right now without waiting.
+    pub fn take_all(&self) -> Vec<T> {
+        std::mem::take(&mut self.0.lock().unwrap().items)
+    }
+
     /// Ends `next_batch` loops once the pending items are drained.
     pub fn close(&self) {
         let mut state = self.0.lock().unwrap();
