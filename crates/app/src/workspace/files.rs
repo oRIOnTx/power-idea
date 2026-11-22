@@ -16,6 +16,7 @@ use super::Workspace;
 use crate::actions::{FileAction, FileOp};
 use crate::editor::CenterTab;
 use crate::file_ops::ClipMode;
+use crate::tree_selection::outermost;
 
 /// Moves `path` into the user's Trash (recoverable), picking a free name.
 fn move_to_trash(path: &Path) -> Result<()> {
@@ -156,7 +157,7 @@ impl Workspace {
                     Ok(())
                 });
             }
-            FileOp::Delete => self.confirm_delete(rel, window, cx),
+            FileOp::Delete => self.confirm_delete(self.menu_targets(&rel), window, cx),
             FileOp::Cut => self.clip_paths(self.menu_targets(&rel), ClipMode::Cut, window, cx),
             FileOp::CopyFile => self.clip_paths(self.menu_targets(&rel), ClipMode::Copy, window, cx),
             // Into the clicked folder, or the folder of the clicked file.
@@ -250,30 +251,46 @@ impl Workspace {
         self.refresh_git(cx);
     }
 
-    fn confirm_delete(&mut self, rel: String, window: &mut Window, cx: &mut Context<Self>) {
+    /// ⌦ / ⌫ in the project tree: the selected files and folders.
+    pub(super) fn delete_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let paths = self.tree_selection.paths.clone();
+        self.confirm_delete(paths, window, cx);
+    }
+
+    /// Asks, then moves `paths` (relative to the root) to the Trash.
+    fn confirm_delete(&mut self, paths: Vec<String>, window: &mut Window, cx: &mut Context<Self>) {
+        // Deleting a folder takes its children along; never the project root itself.
+        let paths: Vec<String> = outermost(&paths).into_iter().filter(|p| !p.is_empty()).collect();
+        let title = match paths.as_slice() {
+            [] => return,
+            [rel] => format!("Delete {rel}?"),
+            _ => format!("Delete {} items?", paths.len()),
+        };
         let workspace = cx.entity().downgrade();
         window.open_alert_dialog(cx, move |dialog, _, _| {
-            let (workspace, rel) = (workspace.clone(), rel.clone());
+            let (workspace, paths) = (workspace.clone(), paths.clone());
             dialog
-                .title(format!("Delete {rel}?"))
+                .title(title.clone())
                 .child("It will be moved to the Trash.")
                 .on_ok(move |_, window, cx| {
                     workspace
-                        .update(cx, |ws, cx| {
-                            let abs = ws.root.join(&rel);
-                            match move_to_trash(&abs) {
-                                Ok(()) => {
-                                    let doomed = |t: &str| t == rel || t.starts_with(&format!("{rel}/"));
-                                    ws.close_clean_tabs(|t| t.is_some_and(doomed), window, cx);
-                                    ws.after_fs_change(cx);
-                                }
-                                Err(err) => ws.notify_error(format!("{err:#}"), window, cx),
-                            }
-                        })
+                        .update(cx, |ws, cx| ws.trash_paths(&paths, window, cx))
                         .ok();
                     true
                 })
         });
+    }
+
+    fn trash_paths(&mut self, paths: &[String], window: &mut Window, cx: &mut Context<Self>) {
+        for rel in paths {
+            if let Err(err) = move_to_trash(&self.root.join(rel)) {
+                self.notify_error(format!("{err:#}"), window, cx);
+                continue;
+            }
+            let doomed = |t: &str| t == rel || t.starts_with(&format!("{rel}/"));
+            self.close_clean_tabs(|t| t.is_some_and(doomed), window, cx);
+        }
+        self.after_fs_change(cx);
     }
 
     /// Asks for a name; `apply` runs on Enter/OK and its error is shown inline.

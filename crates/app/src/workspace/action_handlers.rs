@@ -78,6 +78,7 @@ impl Workspace {
         .on_action(cx.listener(|this, _: &CutFiles, w, cx| this.clip_selection(ClipMode::Cut, w, cx)))
         .on_action(cx.listener(|this, _: &CopyFiles, w, cx| this.clip_selection(ClipMode::Copy, w, cx)))
         .on_action(cx.listener(|this, _: &PasteFiles, w, cx| this.paste_into_selection(w, cx)))
+        .on_action(cx.listener(|this, _: &DeleteFiles, w, cx| this.delete_selection(w, cx)))
         .on_action(cx.listener(|this, _: &NavigateBack, w, cx| this.navigate(false, w, cx)))
         .on_action(
             cx.listener(|this, action: &DatabaseAction, w, cx| this.handle_database_action(action, w, cx)),

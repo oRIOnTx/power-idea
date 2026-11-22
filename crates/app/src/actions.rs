@@ -71,6 +71,7 @@ actions!(
         CutFiles,
         CopyFiles,
         PasteFiles,
+        DeleteFiles,
         OpenSettings,
         NavigateBack,
         NavigateForward,
@@ -284,6 +285,7 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Cut Selected Files", Box::new(CutFiles)),
         ("Copy Selected Files", Box::new(CopyFiles)),
         ("Paste Files", Box::new(PasteFiles)),
+        ("Delete Selected Files…", Box::new(DeleteFiles)),
         ("Quit", Box::new(Quit)),
     ]
 }
@@ -379,6 +381,10 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-x", CutFiles, Some(PROJECT_TREE_CONTEXT)),
         KeyBinding::new("cmd-c", CopyFiles, Some(PROJECT_TREE_CONTEXT)),
         KeyBinding::new("cmd-v", PasteFiles, Some(PROJECT_TREE_CONTEXT)),
+        // JetBrains on macOS: ⌦, ⌫ and ⌘⌫ all delete in the project tree.
+        KeyBinding::new("delete", DeleteFiles, Some(PROJECT_TREE_CONTEXT)),
+        KeyBinding::new("backspace", DeleteFiles, Some(PROJECT_TREE_CONTEXT)),
+        KeyBinding::new("cmd-backspace", DeleteFiles, Some(PROJECT_TREE_CONTEXT)),
         KeyBinding::new("up", SelectPrev, Some(USAGES_CONTEXT)),
         KeyBinding::new("down", SelectNext, Some(USAGES_CONTEXT)),
         KeyBinding::new("enter", OpenSelectedUsage, Some(USAGES_CONTEXT)),
