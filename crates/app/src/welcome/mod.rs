@@ -3,7 +3,7 @@
 //! Lists recent projects (↑/↓ to choose, Enter to open) and offers New Project / Open.
 
 mod new_project;
-mod paths;
+pub(crate) mod paths;
 
 pub use new_project::open_new_project_dialog;
 

@@ -218,6 +218,7 @@ impl Workspace {
         let workspace = cx.entity().downgrade();
         let active_rel = self.active().map(|tab| tab.rel.clone());
         let selection = self.tree_selection.paths.clone();
+        let root_collapsed = self.root_collapsed;
 
         v_flex()
             .size_full()
@@ -227,91 +228,162 @@ impl Workspace {
             .on_action(cx.listener(|this, _: &input::Cut, w, cx| this.clip_selection(ClipMode::Cut, w, cx)))
             .on_action(cx.listener(|this, _: &input::Copy, w, cx| this.clip_selection(ClipMode::Copy, w, cx)))
             .on_action(cx.listener(|this, _: &input::Paste, w, cx| this.paste_into_selection(w, cx)))
-            .child(
-                div().flex_1().child(
-                    tree(&self.tree, move |ix, entry, _selected, _, cx| {
-                        let item = entry.item();
-                        let id = item.id.to_string();
-                        let is_folder = entry.is_folder();
-                        let icon = if is_folder {
-                            let glyph = if entry.is_expanded() {
-                                IconName::FolderOpen
-                            } else {
-                                IconName::Folder
-                            };
-                            Icon::new(glyph).text_color(file_icons::folder_tint(&item.label).color(cx))
-                        } else {
-                            file_icons::icon_for_file(&item.label, cx)
-                        };
-                        // Fixed-size slot so long names never squeeze the indentation.
-                        let chevron_slot = div().flex_none().w(style::TREE_CHEVRON).flex().items_center();
-                        let chevron = match (is_folder, entry.is_expanded()) {
-                            (true, expanded) => chevron_slot.child(
-                                Icon::new(if expanded {
-                                    IconName::ChevronDown
+            .child(self.render_project_root(cx))
+            .when(!root_collapsed, |el| {
+                el.child(
+                    div().flex_1().child(
+                        tree(&self.tree, move |ix, entry, _selected, _, cx| {
+                            let item = entry.item();
+                            let id = item.id.to_string();
+                            let is_folder = entry.is_folder();
+                            let icon = if is_folder {
+                                let glyph = if entry.is_expanded() {
+                                    IconName::FolderOpen
                                 } else {
-                                    IconName::ChevronRight
-                                })
-                                .with_size(style::TREE_CHEVRON)
-                                .text_color(cx.theme().muted_foreground),
-                            ),
-                            (false, _) => chevron_slot,
-                        };
-                        let is_selected = if selection.is_empty() {
-                            active_rel.as_deref() == Some(id.as_str())
-                        } else {
-                            selection.contains(&id)
-                        };
-                        let label_color = workspace
-                            .upgrade()
-                            .and_then(|ws| ws.read(cx).git.as_ref().and_then(|g| g.kind_for(&id, is_folder)))
-                            .map_or(cx.theme().foreground, |kind| git::kind_color(kind, cx));
-                        let workspace = workspace.clone();
-                        ListItem::new(ix)
-                            .selected(is_selected)
-                            .py(px(1.))
-                            .pl(px(6.) + px(14.) * entry.depth() as f32)
-                            .child(
-                                h_flex()
-                                    .w_full()
-                                    .min_w_0()
-                                    .gap_1p5()
-                                    .text_sm()
-                                    .child(chevron)
-                                    .child(div().flex_none().child(icon.with_size(style::TREE_ICON)))
-                                    .child(
-                                        div()
-                                            .min_w_0()
-                                            .overflow_hidden()
-                                            .text_ellipsis()
-                                            .whitespace_nowrap()
-                                            .text_color(label_color)
-                                            .child(item.label.clone()),
-                                    ),
-                            )
-                            .on_click(move |event, window, cx| {
-                                let modifiers = event.modifiers();
-                                workspace
-                                    .update(cx, |ws, cx| {
-                                        if ws.click_tree_entry(ix, &id, modifiers, cx) {
-                                            cx.stop_propagation();
-                                        } else if !is_folder {
-                                            ws.open_file(&id, None, window, cx);
-                                        }
+                                    IconName::Folder
+                                };
+                                Icon::new(glyph).text_color(file_icons::folder_tint(&item.label).color(cx))
+                            } else {
+                                file_icons::icon_for_file(&item.label, cx)
+                            };
+                            // Fixed-size slot so long names never squeeze the indentation.
+                            let chevron_slot = div().flex_none().w(style::TREE_CHEVRON).flex().items_center();
+                            let chevron = match (is_folder, entry.is_expanded()) {
+                                (true, expanded) => chevron_slot.child(
+                                    Icon::new(if expanded {
+                                        IconName::ChevronDown
+                                    } else {
+                                        IconName::ChevronRight
                                     })
-                                    .ok();
-                            })
-                    })
-                    .context_menu(move |_, entry, menu, _, cx| {
-                        match menu_workspace.upgrade() {
-                            Some(ws) => {
-                                ws.read(cx)
-                                    .file_context_menu(menu, &entry.item().id, entry.is_folder())
+                                    .with_size(style::TREE_CHEVRON)
+                                    .text_color(cx.theme().muted_foreground),
+                                ),
+                                (false, _) => chevron_slot,
+                            };
+                            let is_selected = if selection.is_empty() {
+                                active_rel.as_deref() == Some(id.as_str())
+                            } else {
+                                selection.contains(&id)
+                            };
+                            let label_color = workspace
+                                .upgrade()
+                                .and_then(|ws| {
+                                    ws.read(cx).git.as_ref().and_then(|g| g.kind_for(&id, is_folder))
+                                })
+                                .map_or(cx.theme().foreground, |kind| git::kind_color(kind, cx));
+                            let workspace = workspace.clone();
+                            ListItem::new(ix)
+                                .selected(is_selected)
+                                .py(px(1.))
+                                .pl(px(6.) + px(14.) * (entry.depth() + 1) as f32)
+                                .child(
+                                    h_flex()
+                                        .w_full()
+                                        .min_w_0()
+                                        .gap_1p5()
+                                        .text_sm()
+                                        .child(chevron)
+                                        .child(div().flex_none().child(icon.with_size(style::TREE_ICON)))
+                                        .child(
+                                            div()
+                                                .min_w_0()
+                                                .overflow_hidden()
+                                                .text_ellipsis()
+                                                .whitespace_nowrap()
+                                                .text_color(label_color)
+                                                .child(item.label.clone()),
+                                        ),
+                                )
+                                .on_click(move |event, window, cx| {
+                                    let modifiers = event.modifiers();
+                                    workspace
+                                        .update(cx, |ws, cx| {
+                                            if ws.click_tree_entry(ix, &id, modifiers, cx) {
+                                                cx.stop_propagation();
+                                            } else if !is_folder {
+                                                ws.open_file(&id, None, window, cx);
+                                            }
+                                        })
+                                        .ok();
+                                })
+                        })
+                        .context_menu(move |_, entry, menu, _, cx| {
+                            match menu_workspace.upgrade() {
+                                Some(ws) => {
+                                    ws.read(cx)
+                                        .file_context_menu(menu, &entry.item().id, entry.is_folder())
+                                }
+                                None => menu,
                             }
-                            None => menu,
-                        }
-                    }),
-                ),
+                        }),
+                    ),
+                )
+            })
+    }
+
+    /// JetBrains-style root row: the project folder's name and where it lives; folds the tree.
+    fn render_project_root(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = cx.theme();
+        let home = dirs::home_dir().unwrap_or_default();
+        let location = crate::welcome::paths::tilde(&self.root, &home);
+        let expanded = !self.root_collapsed;
+        h_flex()
+            .id("project-root")
+            .flex_none()
+            .w_full()
+            .min_w_0()
+            .py(px(3.))
+            .pl(px(6.))
+            .pr_2()
+            .gap_1p5()
+            .text_sm()
+            .cursor_pointer()
+            .hover(|s| s.bg(theme.list_hover))
+            .child(
+                div()
+                    .flex_none()
+                    .w(style::TREE_CHEVRON)
+                    .flex()
+                    .items_center()
+                    .child(
+                        Icon::new(if expanded {
+                            IconName::ChevronDown
+                        } else {
+                            IconName::ChevronRight
+                        })
+                        .with_size(style::TREE_CHEVRON)
+                        .text_color(theme.muted_foreground),
+                    ),
             )
+            .child(
+                Icon::new(if expanded {
+                    IconName::FolderOpen
+                } else {
+                    IconName::Folder
+                })
+                .with_size(style::TREE_ICON)
+                .flex_none()
+                .text_color(theme.primary),
+            )
+            .child(
+                div()
+                    .flex_none()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(self.project_name()),
+            )
+            .child(
+                div()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .text_ellipsis()
+                    .whitespace_nowrap()
+                    .text_xs()
+                    .text_color(theme.muted_foreground)
+                    .child(location),
+            )
+            .on_click(cx.listener(|ws, _, _, cx| {
+                ws.root_collapsed = !ws.root_collapsed;
+                cx.notify();
+            }))
     }
 }

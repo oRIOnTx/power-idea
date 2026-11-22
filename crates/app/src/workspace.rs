@@ -153,6 +153,8 @@ pub struct Workspace {
     /// Most recently used first, relative to `root`.
     recent_files: Vec<String>,
     show_project_view: bool,
+    /// The project root row is collapsed: the tree under it is hidden.
+    root_collapsed: bool,
     left_panel: LeftPanel,
     git: Option<git::GitState>,
     git_log: Option<git_log::GitLogState>,
@@ -232,6 +234,7 @@ impl Workspace {
             active_tab: None,
             recent_files: Vec::new(),
             show_project_view: true,
+            root_collapsed: false,
             left_panel: LeftPanel::Project,
             git: None,
             git_log: None,
