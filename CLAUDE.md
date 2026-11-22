@@ -10,11 +10,12 @@ update it when a feature lands.
 ## Commands
 
 ```sh
-export PATH=/opt/homebrew/opt/rustup/bin:$PATH   # rustup from Homebrew is keg-only
-cargo run -- <project-dir>                        # run the IDE on a project
-cargo fmt && cargo clippy --all-targets && cargo test   # must be clean before a change is done
-scripts/bundle-macos.sh                           # release "Power IDEA.app" with icon
+scripts/run.sh [project-dir]     # run the IDE (debug) on a project
+scripts/check.sh [--live]        # fmt + clippy + test; must be clean before a change is done
+scripts/build.sh [--no-open]     # release "Power IDEA.app" (scripts/bundle-macos.sh) and open it
 ```
+
+The scripts find rustup themselves (`scripts/env.sh`; Homebrew's rustup is keg-only).
 
 User config lives in `~/Library/Application Support/power-idea/`
 (`config.toml`, `keymap.toml`, `mcp-token`). Project config lives in
