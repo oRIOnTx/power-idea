@@ -14,7 +14,6 @@ use lsp::lsp_types::{self, Position, TextEdit, Uri, request};
 use lsp::nav::{self, SymbolItem};
 
 use super::Workspace;
-use crate::config::AppConfig;
 use crate::editor::CenterTab;
 use crate::language::text_document;
 use crate::palette::{LocationItem, Palette, PaletteMode, SymbolSearch};
@@ -384,10 +383,8 @@ impl Workspace {
         let Some(doc) = self.active_doc("documentFormattingProvider", "Reformat Code", window, cx) else {
             return;
         };
-        let tab_size = self
-            .project
-            .tab_size
-            .unwrap_or(cx.global::<AppConfig>().0.tab_size);
+        let language = self.active().map_or_default(|tab| tab.language.clone());
+        let indent = self.indent_style(&doc.path, &language, cx);
         let path = doc.path.clone();
         self.lsp_task(
             "Reformat Code",
@@ -395,8 +392,8 @@ impl Workspace {
                 let params = lsp_types::DocumentFormattingParams {
                     text_document: text_document(&doc.uri),
                     options: lsp_types::FormattingOptions {
-                        tab_size: tab_size as u32,
-                        insert_spaces: true,
+                        tab_size: indent.size as u32,
+                        insert_spaces: !indent.hard_tabs,
                         ..Default::default()
                     },
                     work_done_progress_params: Default::default(),

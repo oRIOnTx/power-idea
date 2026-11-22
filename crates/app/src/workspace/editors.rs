@@ -3,7 +3,7 @@
 use std::fs;
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::input::{InputEvent, Position, RopeExt as _};
+use gpui_kit::component::input::{InputEditsEvent, InputEvent, Position, RopeExt as _};
 use gpui_kit::component::kbd::Kbd;
 use gpui_kit::component::menu::ContextMenuExt as _;
 use gpui_kit::component::notification::Notification;
@@ -16,6 +16,8 @@ use super::{MAX_RECENT_FILES, Workspace};
 use crate::actions::*;
 use crate::config::{AppConfig, LanguageServerConfig};
 use crate::editor::{self, CenterTab, EditorTab, LineEdit};
+use crate::indentation::{self, IndentStyle};
+use crate::language_rules;
 use crate::preview::{self, Preview};
 use crate::word_completion::WordCompletion;
 use crate::{file_icons, style};
@@ -64,11 +66,8 @@ impl Workspace {
                     }
                 };
                 let language = editor::language_for(&path);
-                let tab_size = self
-                    .project
-                    .tab_size
-                    .unwrap_or(cx.global::<AppConfig>().0.tab_size);
-                let state = editor::new_editor_state(text.clone(), &language, tab_size, window, cx);
+                let indent = self.indent_style(&path, &language, cx);
+                let state = editor::new_editor_state(text.clone(), &language, indent, window, cx);
                 self.open_buffers.borrow_mut().push(state.downgrade());
                 let (own, buffers) = (state.entity_id(), self.open_buffers.clone());
                 state.update(cx, |state, _| {
@@ -82,6 +81,14 @@ impl Workspace {
                         cx.notify();
                     }),
                     cx.observe(&state, |_, _, cx| cx.notify()),
+                    cx.subscribe_in(&state, window, {
+                        let language = language.clone();
+                        move |_, state, event: &InputEditsEvent, window, cx| {
+                            state.update(cx, |state, cx| {
+                                language_rules::close_block_after_enter(state, &language, event, window, cx);
+                            });
+                        }
+                    }),
                 ];
                 let preview = preview::preview_kind(&path).map(Preview::new);
                 self.tabs.push(CenterTab::Editor(EditorTab {
@@ -109,6 +116,18 @@ impl Workspace {
         if let Some((line, column)) = position {
             self.goto_line(line as u32, column as u32, window, cx);
         }
+    }
+
+    /// How `path` (an editor for `language`) is indented: `.editorconfig`, the project's
+    /// tab size, the language's convention, then the global tab size.
+    pub(super) fn indent_style(&self, path: &std::path::Path, language: &str, cx: &App) -> IndentStyle {
+        indentation::resolve(
+            &self.root,
+            path,
+            editor::canonical_language(language),
+            self.project.tab_size,
+            cx.global::<AppConfig>().0.tab_size,
+        )
     }
 
     pub(super) fn activate_tab(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {

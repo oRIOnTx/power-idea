@@ -7,7 +7,9 @@ mod editor;
 mod file_icons;
 mod file_ops;
 mod inbox;
+mod indentation;
 mod language;
+mod language_rules;
 mod mcp_bridge;
 mod menus;
 mod palette;
@@ -197,6 +199,7 @@ fn main() {
         .with_assets(assets::Assets)
         .run(move |cx| {
             gpui_kit::init(cx);
+            language_rules::register(cx);
             cx.set_global(AppConfig(Config::load()));
             apply_theme(None, cx);
             actions::bind_keys(cx);

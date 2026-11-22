@@ -235,7 +235,10 @@ fn editor_page(cx: &App) -> SettingPage {
                     )
                     .default_value(4.),
                 )
-                .description("Applies to newly opened files. Projects can override it."),
+                .description(
+                    "For languages without a convention (Ruby, JS and YAML use 2, Go tabs); \
+                     .editorconfig and the project setting come first. Applies to newly opened files.",
+                ),
             ),
     )
 }
@@ -580,7 +583,9 @@ fn project_page(workspace: WeakEntity<Workspace>) -> SettingPage {
                     )
                     .default_value(0.),
                 )
-                .description("0 uses the IDE setting."),
+                .description(
+                    "Overrides language conventions in this project; .editorconfig still wins. 0 = off.",
+                ),
             )
             .item(
                 SettingItem::new(

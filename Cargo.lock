@@ -5065,6 +5065,7 @@ dependencies = [
  "lsp",
  "mcp",
  "notify",
+ "regex",
  "run",
  "search",
  "serde",

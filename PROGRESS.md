@@ -185,6 +185,13 @@ is in the working tree only.
       finds the tool (cached), so the install banner shows without the Command Line Tools; `.bash`,
       `.bashrc`, `.bash_profile` and `.envrc` are shell scripts for the shell server. Markdown has no
       default server: Homebrew deprecated `marksman`
+- [x] Smart Enter for brace-less languages: Ruby, YAML, Lua, Elixir and shell indent after block openers
+      (gpui-kit indentation rules, `regex`), and Enter at the end of a new block's first line closes it
+      (`end` / `fi` / `done` / `esac`) unless a body or the closing line already follows — `language_rules.rs`.
+      Not on typing: `end`/`else` typed by hand don't dedent themselves
+- [x] Indentation per file: `.editorconfig` (`indent_style`, `indent_size`, `tab_width`, globs, `root`),
+      then the project's tab size, then the language's convention (Ruby/JS/YAML 2, Go/Make tabs, …), then
+      the global tab size; also used for Reformat Code — `indentation.rs`
 - [x] ⌘Q and closing a project window warn when a terminal still runs something (a running run
       configuration, or a shell whose foreground job is not the shell itself — `ps` `tpgid`, off the UI
       thread): "Terminate" / Cancel, listing the programs; Terminate replaces "Exit?" / "Close project?"

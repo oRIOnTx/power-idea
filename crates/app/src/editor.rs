@@ -107,7 +107,7 @@ impl CenterTab {
 pub fn new_editor_state(
     text: String,
     language: &str,
-    tab_size: usize,
+    indent: crate::indentation::IndentStyle,
     window: &mut Window,
     cx: &mut App,
 ) -> Entity<EditorState> {
@@ -116,8 +116,8 @@ pub fn new_editor_state(
         EditorState::new(window, cx)
             .language(language)
             .tab_size(TabSize {
-                tab_size,
-                hard_tabs: false,
+                tab_size: indent.size,
+                hard_tabs: indent.hard_tabs,
             })
             .soft_wrap(false)
             .default_value(text)
