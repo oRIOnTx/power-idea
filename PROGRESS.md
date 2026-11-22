@@ -76,12 +76,16 @@ is in the working tree only.
 - [x] Git Log date filter: `after:YYYY-MM-DD` / `before:YYYY-MM-DD`, applied by git like `path:`
 - [x] MCP tools backed by language servers (read-only): `get_diagnostics`, `find_symbol`, `find_usages`,
       `get_file_structure`
+- [x] Replace in Files (⌘⇧R): find/replace inputs, Match case / Words, live preview of every matching line with
+      the replacement, Replace All after a confirming second click; open files change in their editors
+      (unsaved), others on disk. `search::{match_ranges, replace_all}` share Find in Files' matching rules
 
 ## Backlog
 Agreed backlog is done. Candidates:
 Database gaps below.
 
 ## Known gaps
+- Replace in Files searches files as saved on disk (unsaved edits in open editors are replaced but not previewed); no regex
 - `db` test `sqlite_queries_schema_and_limits` failed once; temp DB names now use a counter instead of the clock
 - Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;
   Go to Symbol lists library symbols after project ones

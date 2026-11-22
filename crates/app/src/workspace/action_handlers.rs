@@ -77,6 +77,7 @@ impl Workspace {
         }))
         .on_action(cx.listener(|this, _: &NavigateForward, w, cx| this.navigate(true, w, cx)))
         .on_action(cx.listener(|this, _: &TogglePreview, w, cx| this.toggle_preview(w, cx)))
+        .on_action(cx.listener(|this, _: &ReplaceInFiles, w, cx| this.open_replace_in_files(w, cx)))
         .on_action(cx.listener(|this, _: &FindUsages, w, cx| this.find_usages(w, cx)))
         .on_action(cx.listener(|this, _: &GotoClass, w, cx| this.goto_symbol(true, w, cx)))
         .on_action(cx.listener(|this, _: &GotoSymbol, w, cx| this.goto_symbol(false, w, cx)))

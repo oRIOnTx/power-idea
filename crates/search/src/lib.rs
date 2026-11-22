@@ -1,6 +1,10 @@
 //! Project-wide search primitives: file index with fuzzy matching and
 //! plain-text "find in files". UI-agnostic so it can be reused by any frontend.
 
+mod replace;
+
+pub use replace::{match_ranges, replace_all};
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;

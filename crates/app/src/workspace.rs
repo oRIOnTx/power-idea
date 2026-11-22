@@ -34,6 +34,7 @@ mod mcp_code_tools;
 mod mcp_tools;
 mod navigation;
 mod preview_view;
+mod replace_in_files;
 mod session_state;
 mod sidebar;
 mod terminal_panel;

@@ -79,6 +79,7 @@ actions!(
         MinimizeWindow,
         ZoomWindow,
         OpenSelectedUsage,
+        ReplaceInFiles,
     ]
 );
 
@@ -190,6 +191,7 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Go to File…", Box::new(GotoFile)),
         ("Recent Files", Box::new(RecentFiles)),
         ("Find in Files…", Box::new(FindInFiles)),
+        ("Replace in Files…", Box::new(ReplaceInFiles)),
         ("Go to Line…", Box::new(GotoLine)),
         ("Go to Class…", Box::new(GotoClass)),
         ("Go to Symbol…", Box::new(GotoSymbol)),
@@ -249,6 +251,8 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-e", RecentFiles, ws),
         KeyBinding::new("cmd-shift-f", FindInFiles, ws),
         KeyBinding::new("cmd-shift-f", FindInFiles, ed),
+        KeyBinding::new("cmd-shift-r", ReplaceInFiles, ws),
+        KeyBinding::new("cmd-shift-r", ReplaceInFiles, ed),
         KeyBinding::new("cmd-shift-a", FindAction, ws),
         KeyBinding::new("cmd-l", GotoLine, ws),
         KeyBinding::new("cmd-s", SaveFile, ws),

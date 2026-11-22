@@ -77,6 +77,7 @@ fn menus() -> Vec<Menu> {
             MenuItem::os_action("Select All", input::SelectAll, OsAction::SelectAll),
             MenuItem::separator(),
             MenuItem::action("Find in Files…", FindInFiles),
+            MenuItem::action("Replace in Files…", ReplaceInFiles),
             MenuItem::action("Replace", input::Replace),
             MenuItem::separator(),
             MenuItem::action("Comment with Line Comment", ToggleLineComment),
