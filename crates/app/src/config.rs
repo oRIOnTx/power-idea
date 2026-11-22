@@ -13,9 +13,19 @@ const MAX_RECENT_PROJECTS: usize = 20;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Appearance {
+    /// Neo Dark.
     #[default]
     Dark,
+    /// Neo Light.
     Light,
+    /// A lighter dark theme in the style of current JetBrains IDEs.
+    Graphite,
+}
+
+impl Appearance {
+    pub fn is_dark(self) -> bool {
+        self != Self::Light
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -234,6 +244,8 @@ mod tests {
 
     #[test]
     fn partial_toml_uses_defaults() {
+        let config: Config = toml::from_str("appearance = \"graphite\"").unwrap();
+        assert!(config.appearance.is_dark());
         let config: Config = toml::from_str("appearance = \"light\"").unwrap();
         assert_eq!(config.appearance, Appearance::Light);
         assert_eq!(config.tab_size, 4);

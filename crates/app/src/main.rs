@@ -42,8 +42,9 @@ pub(crate) const APP_VERSION: &str = concat!(
     ")"
 );
 
-/// Bundled "Neo" theme set (dark + light).
+/// Bundled theme sets: "Neo" (dark + light) and "Graphite" (a lighter dark).
 const NEO_THEME: &str = include_str!("../themes/neo.json");
+const GRAPHITE_THEME: &str = include_str!("../themes/graphite.json");
 
 /// Preferred editor fonts, tried in order after the configured one.
 const MONO_FONT_FALLBACKS: &[&str] = &[
@@ -54,8 +55,8 @@ const MONO_FONT_FALLBACKS: &[&str] = &[
     "Menlo",
 ];
 
-fn neo_themes() -> Vec<Rc<ThemeConfig>> {
-    match serde_json::from_str::<ThemeSet>(NEO_THEME) {
+fn parse_themes(json: &str) -> Vec<Rc<ThemeConfig>> {
+    match serde_json::from_str::<ThemeSet>(json) {
         Ok(set) => set.themes.into_iter().map(Rc::new).collect(),
         Err(err) => {
             eprintln!("bundled theme is invalid: {err}");
@@ -64,14 +65,28 @@ fn neo_themes() -> Vec<Rc<ThemeConfig>> {
     }
 }
 
+fn neo_themes() -> Vec<Rc<ThemeConfig>> {
+    parse_themes(NEO_THEME)
+}
+
+/// The light theme and the dark theme that `appearance` uses.
+fn themes_for(appearance: Appearance) -> Vec<Rc<ThemeConfig>> {
+    let mut themes = neo_themes();
+    if appearance == Appearance::Graphite {
+        themes.retain(|t| !t.mode.is_dark());
+        themes.extend(parse_themes(GRAPHITE_THEME));
+    }
+    themes
+}
+
 pub(crate) fn apply_theme(window: Option<&mut Window>, cx: &mut App) {
     let config = cx.global::<AppConfig>().0.clone();
-    let dark = config.appearance == Appearance::Dark;
+    let dark = config.appearance.is_dark();
     let mode = if dark { ThemeMode::Dark } else { ThemeMode::Light };
     Theme::change(mode, window, cx);
 
     // Install the other mode first so the active one is applied last.
-    let mut themes = neo_themes();
+    let mut themes = themes_for(config.appearance);
     themes.sort_by_key(|t| t.mode.is_dark() == dark);
     Theme::update(cx, |theme| {
         for config in &themes {
@@ -194,7 +209,7 @@ fn main() {
             cx.on_action(|_: &ToggleTheme, cx| {
                 let config = &mut cx.global_mut::<AppConfig>().0;
                 config.appearance = match config.appearance {
-                    Appearance::Dark => Appearance::Light,
+                    Appearance::Dark | Appearance::Graphite => Appearance::Light,
                     Appearance::Light => Appearance::Dark,
                 };
                 save_config(cx);
@@ -229,13 +244,27 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::neo_themes;
+    use super::{neo_themes, themes_for};
+    use crate::config::Appearance;
 
     #[test]
     fn bundled_theme_parses() {
         let themes = neo_themes();
         assert_eq!(themes.len(), 2);
         assert!(themes.iter().any(|t| t.mode.is_dark()));
+        assert!(themes.iter().all(|t| t.highlight.is_some()));
+    }
+
+    #[test]
+    fn graphite_replaces_the_dark_theme() {
+        let themes = themes_for(Appearance::Graphite);
+        let dark: Vec<_> = themes
+            .iter()
+            .filter(|t| t.mode.is_dark())
+            .map(|t| t.name.to_string())
+            .collect();
+        assert_eq!(dark, ["Graphite"]);
+        assert!(themes.iter().any(|t| !t.mode.is_dark()));
         assert!(themes.iter().all(|t| t.highlight.is_some()));
     }
 }

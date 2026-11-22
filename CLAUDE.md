@@ -57,7 +57,7 @@ crates/
     actions.rs          every action + the default JetBrains keymap
     mcp_bridge.rs       MCP server thread ⇄ UI thread
     style.rs            shared visual helpers (glow, icon_button, …)
-    themes/neo.json     the only place for UI and syntax colors
+    themes/*.json       the only place for UI and syntax colors (neo.json, graphite.json)
 ```
 
 Rules:
@@ -111,7 +111,7 @@ Rules:
 ## UI and design ("Neo")
 
 - Colors come from `cx.theme()` only; add or change colors in
-  `crates/app/themes/neo.json` (dark + light). Hard-coded colors are allowed
+  `crates/app/themes/neo.json` (dark + light) and `graphite.json` (dark). Hard-coded colors are allowed
   only for the terminal ANSI palette.
 - One accent (`theme.primary`), used sparingly: active indicators, focus,
   primary buttons. Glow via `style::glow`, never stronger than ~0.8 in chrome.

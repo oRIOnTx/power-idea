@@ -93,6 +93,8 @@ is in the working tree only.
 - [x] Welcome screen restyled after the README illustration (centered title, 48 px project rows, ↑/↓ + Enter)
 - [x] Project tree: Cut / Copy / Paste of files and folders (Finder-style " copy" names, folders recursively,
       moves across volumes, open tabs follow moved files; Paste into the clicked folder or the file's folder)
+- [x] Graphite theme: a lighter dark theme in the style of current JetBrains IDEs (editor #1E1F22, panels
+      #2B2D30, blue accent, JetBrains-like syntax colors); Settings → Appearance → Theme
 
 ## Backlog
 Agreed backlog is done. Candidates:

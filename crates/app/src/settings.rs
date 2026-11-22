@@ -86,18 +86,20 @@ fn appearance_page() -> SettingPage {
                         SettingField::dropdown(
                             vec![
                                 ("dark".into(), "Neo Dark".into()),
+                                ("graphite".into(), "Graphite (JetBrains-style dark)".into()),
                                 ("light".into(), "Neo Light".into()),
                             ],
                             |cx| match config(cx).appearance {
                                 Appearance::Dark => "dark".into(),
+                                Appearance::Graphite => "graphite".into(),
                                 Appearance::Light => "light".into(),
                             },
                             |value, cx| {
                                 update_config(cx, |c| {
-                                    c.appearance = if value == "light" {
-                                        Appearance::Light
-                                    } else {
-                                        Appearance::Dark
+                                    c.appearance = match value.as_ref() {
+                                        "light" => Appearance::Light,
+                                        "graphite" => Appearance::Graphite,
+                                        _ => Appearance::Dark,
                                     }
                                 });
                             },
