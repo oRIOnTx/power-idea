@@ -40,7 +40,7 @@ pub fn show(cx: &mut App) {
     {
         return;
     }
-    let bounds = Bounds::centered(None, size(px(880.), px(580.)), cx);
+    let bounds = Bounds::centered(None, size(px(880.), px(560.)), cx);
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         window_min_size: Some(size(px(640.), px(420.))),
@@ -188,8 +188,9 @@ impl Welcome {
             .id(("recent", ix))
             .group("recent")
             .h(px(48.))
-            .px_3()
-            .gap_3()
+            .pl_3()
+            .pr_2()
+            .gap(px(14.))
             .rounded(px(8.))
             .cursor_pointer()
             .when(selected, |el| el.bg(theme.list_hover))
@@ -264,30 +265,36 @@ impl Render for Welcome {
             .collect();
         let theme = cx.theme();
 
+        // Measurements follow docs/images/welcome.svg.
         let sidebar = v_flex()
             .w(px(220.))
             .flex_none()
-            .p_4()
-            .gap_4()
+            .px(px(14.))
+            .pt_4()
+            .gap(px(18.))
             .bg(theme.sidebar)
             .border_r_1()
             .border_color(theme.border)
             .child(
-                h_flex().gap_2().child(style::signal_dot(theme.primary)).child(
-                    v_flex()
-                        .child(
-                            div()
-                                .text_size(px(13.))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child("Power IDEA"),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(10.))
-                                .text_color(theme.muted_foreground)
-                                .child(crate::APP_VERSION),
-                        ),
-                ),
+                h_flex()
+                    .pl(px(6.))
+                    .gap_2()
+                    .child(style::signal_dot(theme.primary).size(px(8.)))
+                    .child(
+                        v_flex()
+                            .child(
+                                div()
+                                    .text_size(px(13.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child("Power IDEA"),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(10.))
+                                    .text_color(theme.muted_foreground)
+                                    .child(crate::APP_VERSION),
+                            ),
+                    ),
             )
             .child(
                 h_flex()
@@ -295,7 +302,7 @@ impl Render for Welcome {
                     .px_2p5()
                     .gap_2()
                     .rounded(px(6.))
-                    .bg(theme.list_active)
+                    .bg(theme.primary.opacity(0.1))
                     .text_size(px(12.))
                     .child(Icon::new(IconName::Folder).with_size(px(16.)))
                     .child("Projects"),
@@ -303,6 +310,7 @@ impl Render for Welcome {
 
         let empty = v_flex()
             .flex_1()
+            .mt_4()
             .items_center()
             .justify_center()
             .gap_2()
@@ -318,13 +326,15 @@ impl Render for Welcome {
         let main = v_flex()
             .flex_1()
             .min_w_0()
-            .px_6()
-            .pt_6()
+            .pl_6()
+            .pr_5()
+            .pt(px(26.))
             .pb_4()
-            .gap_4()
             .child(
                 div()
-                    .text_lg()
+                    .text_size(px(18.))
+                    .line_height(px(24.))
+                    .mb(px(10.))
                     .font_weight(FontWeight::SEMIBOLD)
                     .child("Projects"),
             )
@@ -335,7 +345,7 @@ impl Render for Welcome {
                     .items_center()
                     .gap_2()
                     .child(
-                        div().flex_1().min_w_0().child(
+                        div().flex_1().min_w_0().mr(px(2.)).child(
                             Input::new(&self.search)
                                 .prefix(
                                     Icon::new(IconName::Search)
@@ -365,9 +375,12 @@ impl Render for Welcome {
             .child(if rows.is_empty() {
                 empty.into_any_element()
             } else {
+                // Rows reach 4px past the content edges, so their text lines up with the title.
                 v_flex()
                     .id("recent-projects")
                     .flex_1()
+                    .mt_4()
+                    .mx(px(-4.))
                     .gap_1p5()
                     .overflow_y_scroll()
                     .children(rows)
