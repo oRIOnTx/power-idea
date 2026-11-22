@@ -109,12 +109,11 @@ scripts/install.sh [file.dmg]    # install / update /Applications from a disk im
 replaces the app and starts the new version. Settings and projects are kept: they
 live in `~/Library/Application Support/power-idea/`, not inside the app.
 
-macOS remembers folder permissions per signing identity. Create a local signing
-certificate once so they survive rebuilds:
-
-```sh
-scripts/create-signing-cert.sh
-```
+macOS remembers folder permissions per signing identity, so builds are signed with
+a local certificate, "Power IDEA Local". The first build creates it in the login
+keychain (macOS asks for your password once); later builds and updates reuse it, so
+permissions survive. `POWER_IDEA_ADHOC=1` skips it (ad-hoc signature), and
+`scripts/create-signing-cert.sh` creates it by hand.
 
 ## Language servers and debuggers
 

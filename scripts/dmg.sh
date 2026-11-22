@@ -40,7 +40,7 @@ rm -rf "$STAGE"
 
 # Sign the image too when a real (non ad-hoc) identity signed the app.
 IDENTITY="${CODESIGN_IDENTITY:-}"
-if [[ -z "$IDENTITY" ]] && security find-certificate -c "Power IDEA Local" >/dev/null 2>&1; then
+if [[ -z "$IDENTITY" ]] && security find-identity -v -p codesigning | grep -q '"Power IDEA Local"'; then
   IDENTITY="Power IDEA Local"
 fi
 if [[ -n "$IDENTITY" ]]; then

@@ -53,10 +53,18 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
 PLIST
 
 # Sign the whole bundle so macOS remembers privacy permissions (TCC) for it.
-# A stable certificate keeps them across rebuilds; ad-hoc ("-") only within one build.
-# Override with CODESIGN_IDENTITY=..., create a local one with scripts/create-signing-cert.sh.
+# A stable certificate keeps them across rebuilds and updates; ad-hoc ("-") only
+# within one build. The local certificate is created on the first build (macOS asks
+# for the login password once). Override with CODESIGN_IDENTITY=..., or skip the
+# certificate with POWER_IDEA_ADHOC=1.
 IDENTITY="${CODESIGN_IDENTITY:-}"
-if [[ -z "$IDENTITY" ]] && security find-certificate -c "Power IDEA Local" >/dev/null 2>&1; then
+if [[ -z "$IDENTITY" && "${POWER_IDEA_ADHOC:-0}" != 1 ]] \
+  && ! security find-certificate -c "Power IDEA Local" >/dev/null 2>&1; then
+  echo "Creating the local signing certificate (one time)…"
+  "$(dirname "$0")/create-signing-cert.sh" || echo "warning: could not create the certificate; signing ad-hoc" >&2
+fi
+# Only a valid (trusted) identity: an untrusted one fails codesign.
+if [[ -z "$IDENTITY" ]] && security find-identity -v -p codesigning | grep -q '"Power IDEA Local"'; then
   IDENTITY="Power IDEA Local"
 fi
 IDENTITY="${IDENTITY:--}"

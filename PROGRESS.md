@@ -23,7 +23,7 @@ is in the working tree only.
 - [x] File-type icons and folder tints; tree indentation fix
 - [x] Database tool window (`crates/db`): PostgreSQL, MySQL, SQLite, Redis; schema tree; SQL/Redis consoles (⌘↩); passwords in macOS Keychain; data sources in `.power-idea/databases.toml`
 - [x] Projects open as native macOS window tabs ("This Window / New Tab"); full-screen title bar padding
-- [x] Bundle code signing + `scripts/create-signing-cert.sh`; larger icons; tab padding fix
+- [x] Bundle code signing + `scripts/create-signing-cert.sh` (run automatically on the first build); larger icons; tab padding fix
 - [x] Crash fix: ⌘+Click re-entrancy; panic log at `~/Library/Logs/Power IDEA/panic.log`
 
 ### Committed 2026-11-22 (second batch)
