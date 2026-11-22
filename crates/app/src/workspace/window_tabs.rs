@@ -43,8 +43,8 @@ impl Workspace {
                 .flex_1()
                 .min_w_0()
                 .h_full()
-                .px_2()
-                .gap_1()
+                // Room on both sides keeps the title centred and the close button at the edge.
+                .px(px(28.))
                 .justify_center()
                 .text_xs()
                 .border_r_1()
@@ -78,13 +78,21 @@ impl Workspace {
                 )
                 .child(
                     div()
+                        .absolute()
+                        .right(px(4.))
+                        .top_0()
+                        .bottom_0()
+                        .flex()
+                        .items_center()
                         .invisible()
                         .group_hover("window-tab", |s| s.visible())
                         .child(
                             style::icon_button(("close-window-tab", ix), IconName::Close, "Close Project")
                                 .on_click(move |_, _, cx| {
                                     cx.stop_propagation();
-                                    close_project_window(close, cx);
+                                    // The click may come from that very window, which is busy
+                                    // handling the event; close it right after.
+                                    cx.defer(move |cx| close_project_window(close, cx));
                                 }),
                         ),
                 )
