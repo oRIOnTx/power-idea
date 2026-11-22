@@ -12,6 +12,7 @@ is in the working tree only.
 - [x] Integrated terminal (⌥F12, tabs, copy/paste, selection, scrollback)
 - [x] Bottom tool windows span the full window width under the Project tree (Settings → Terminal → Full window width; on by default)
 - [x] `.power-idea` folder hidden in the Project tree; Settings → Appearance → Project tree → Show .power-idea folder
+- [x] Settings → System page: "Open projects in" and Confirmations (exit / close project) moved out of Appearance
 - [x] Git: status colors, Commit tool window (⌘0), side-by-side diffs, push/pull/fetch, branches, rollback
 - [x] MCP server for Claude Code (17 tools, token in Keychain-like file, localhost only)
 - [x] Neo theme (dark/light), app icon, `scripts/bundle-macos.sh`

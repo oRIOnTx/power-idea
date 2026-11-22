@@ -93,6 +93,7 @@ fn number(min: f64, max: f64) -> NumberFieldOptions {
 pub fn render(workspace: WeakEntity<Workspace>, cx: &App) -> Settings {
     Settings::new("ide-settings").sidebar_width(px(220.)).pages([
         appearance_page(),
+        system_page(),
         editor_page(cx),
         terminal_page(),
         languages_page(cx),
@@ -137,34 +138,6 @@ fn appearance_page() -> SettingPage {
                     )
                     .description("Also toggled from Find Action → Toggle Light/Dark Theme."),
                 )
-                .item(
-                    SettingItem::new(
-                        "Open projects in",
-                        SettingField::dropdown(
-                            vec![
-                                ("ask".into(), "Ask every time".into()),
-                                ("this_window".into(), "This window".into()),
-                                ("new_tab".into(), "New tab".into()),
-                            ],
-                            |cx| match config(cx).open_project_mode {
-                                OpenProjectMode::Ask => "ask".into(),
-                                OpenProjectMode::ThisWindow => "this_window".into(),
-                                OpenProjectMode::NewTab => "new_tab".into(),
-                            },
-                            |value, cx| {
-                                update_config(cx, |c| {
-                                    c.open_project_mode = match value.as_ref() {
-                                        "this_window" => OpenProjectMode::ThisWindow,
-                                        "new_tab" => OpenProjectMode::NewTab,
-                                        _ => OpenProjectMode::Ask,
-                                    };
-                                });
-                            },
-                        )
-                        .default_value("ask"),
-                    )
-                    .description("Projects open as native macOS window tabs."),
-                )
                 .item(SettingItem::new(
                     "Interface font size",
                     SettingField::number_input(
@@ -174,32 +147,6 @@ fn appearance_page() -> SettingPage {
                     )
                     .default_value(13.),
                 )),
-        )
-        .group(
-            SettingGroup::new()
-                .title("Confirmations")
-                .item(
-                    SettingItem::new(
-                        "Confirm exit",
-                        SettingField::switch(
-                            |cx| config(cx).confirm_exit,
-                            |value, cx| update_config(cx, |c| c.confirm_exit = value),
-                        )
-                        .default_value(true),
-                    )
-                    .description("Ask before ⌘Q quits. Unsaved files are always asked about."),
-                )
-                .item(
-                    SettingItem::new(
-                        "Confirm closing a project",
-                        SettingField::switch(
-                            |cx| config(cx).confirm_close_project,
-                            |value, cx| update_config(cx, |c| c.confirm_close_project = value),
-                        )
-                        .default_value(true),
-                    )
-                    .description("Ask before ⇧⌘W, the close button or a project tab closes a project."),
-                ),
         )
         .group(
             SettingGroup::new().title("Project tree").item(
@@ -213,6 +160,73 @@ fn appearance_page() -> SettingPage {
                 )
                 .description("The folder with project settings and IDE state for this project."),
             ),
+        )
+}
+
+fn system_page() -> SettingPage {
+    SettingPage::new("System")
+        .icon(IconName::Settings)
+        .group(
+            SettingGroup::new().title("Projects").item(
+                SettingItem::new(
+                    "Open projects in",
+                    SettingField::dropdown(
+                        vec![
+                            ("ask".into(), "Ask every time".into()),
+                            ("this_window".into(), "This window".into()),
+                            ("new_tab".into(), "New tab".into()),
+                        ],
+                        |cx| match config(cx).open_project_mode {
+                            OpenProjectMode::Ask => "ask".into(),
+                            OpenProjectMode::ThisWindow => "this_window".into(),
+                            OpenProjectMode::NewTab => "new_tab".into(),
+                        },
+                        |value, cx| {
+                            update_config(cx, |c| {
+                                c.open_project_mode = match value.as_ref() {
+                                    "this_window" => OpenProjectMode::ThisWindow,
+                                    "new_tab" => OpenProjectMode::NewTab,
+                                    _ => OpenProjectMode::Ask,
+                                };
+                            });
+                        },
+                    )
+                    .default_value("ask"),
+                )
+                .description("Projects open as native macOS window tabs."),
+            ),
+        )
+        .group(
+            SettingGroup::new()
+                .title("Confirmations")
+                .item(
+                    SettingItem::new(
+                        "Confirm exit",
+                        SettingField::switch(
+                            |cx| config(cx).confirm_exit,
+                            |value, cx| update_config(cx, |c| c.confirm_exit = value),
+                        )
+                        .default_value(true),
+                    )
+                    .description(
+                        "Ask before ⌘Q quits. Unsaved files are always asked about. \
+                         \"Don't ask again\" in the dialog turns this off.",
+                    ),
+                )
+                .item(
+                    SettingItem::new(
+                        "Confirm closing a project",
+                        SettingField::switch(
+                            |cx| config(cx).confirm_close_project,
+                            |value, cx| update_config(cx, |c| c.confirm_close_project = value),
+                        )
+                        .default_value(true),
+                    )
+                    .description(
+                        "Ask before ⇧⌘W, the close button or a project tab closes a project. \
+                         \"Don't ask again\" in the dialog turns this off.",
+                    ),
+                ),
         )
 }
 
