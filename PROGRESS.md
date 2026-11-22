@@ -63,6 +63,9 @@ is in the working tree only.
       highlighted, Submit runs one UPDATE per cell and reloads, Revert drops them
 - [x] Terminal: mouse reporting for full-screen apps (xterm 1000/1002/1003, X10/UTF-8/SGR encodings;
       Shift+drag still selects), wheel → arrow keys in `less`/`man` (alternate scroll), blinking cursor
+- [x] Git Log polish: right-click selects the commit, dates in the local time zone (details show the time),
+      filter terms `author:name` and `path:dir/file` (path is filtered by git, graph hidden), "Load more"
+      pages of 2000 commits
 
 ## Backlog
 Agreed backlog is done. Candidates:
@@ -72,7 +75,7 @@ Database gaps below.
 - `db` test `sqlite_queries_schema_and_limits` failed once; temp DB names now use a counter instead of the clock
 - Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;
   Go to Symbol lists library symbols after project ones
-- Git Log: right-click does not select the row; dates older than a week are shown in UTC; history capped at 2000 commits; no author/date/path filters
+- Git Log: no date-range filter
 - Database: no TLS for Redis; editing is per cell (no insert/delete rows yet); completion ignores table aliases
 - Quitting from the Dock icon bypasses the unsaved-changes prompt (menu Quit and ⌘Q ask)
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end

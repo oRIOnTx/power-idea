@@ -136,7 +136,8 @@ impl RowContext {
             .as_ref()
             .and_then(|graph| graph.get(entry_ix).cloned())
             .map(|row| graph_cell(row, self.lanes, self.colors.clone()));
-        let (hash, menu_hash) = (entry.hash.clone(), entry.hash.clone());
+        let (hash, menu_hash, right_hash) = (entry.hash.clone(), entry.hash.clone(), entry.hash.clone());
+        let right_workspace = self.workspace.clone();
         let (workspace, menu_focus, list_focus) = (
             self.workspace.clone(),
             self.menu_focus.clone(),
@@ -187,8 +188,14 @@ impl RowContext {
                     .w(px(90.))
                     .text_xs()
                     .text_color(muted)
-                    .child(format_date(entry.timestamp, self.now)),
+                    .child(format_date(entry.timestamp, self.now, &entry.local_date)),
             )
+            // Right-click selects the commit the menu acts on, like JetBrains.
+            .on_mouse_down(MouseButton::Right, move |_, _, cx| {
+                right_workspace
+                    .update(cx, |ws, cx| ws.select_commit(Some(right_hash.clone()), cx))
+                    .ok();
+            })
             .on_click(move |_, window, cx| {
                 list_focus.focus(window, cx);
                 workspace
@@ -365,10 +372,32 @@ impl Workspace {
         };
         let count = log.visible.len();
         let empty = count == 0 && !log.loading;
+        let more = log.has_more().then(|| {
+            let theme = cx.theme();
+            h_flex()
+                .flex_none()
+                .h(ROW_HEIGHT)
+                .px_3()
+                .gap_2()
+                .text_xs()
+                .text_color(theme.muted_foreground)
+                .border_t_1()
+                .border_color(theme.border)
+                .child(format!("Showing the latest {} commits", log.entries.len()))
+                .child(
+                    Button::new("log-load-more")
+                        .ghost()
+                        .xsmall()
+                        .label("Load more")
+                        .on_click(cx.listener(|ws, _, _, cx| ws.load_more_history(cx))),
+                )
+        });
         div()
             .key_context(GIT_LOG_CONTEXT)
             .track_focus(&log.focus)
             .size_full()
+            .flex()
+            .flex_col()
             .on_action(cx.listener(|ws, _: &SelectPrev, _, cx| ws.step_commit(-1, cx)))
             .on_action(cx.listener(|ws, _: &SelectNext, _, cx| ws.step_commit(1, cx)))
             .when(empty, |el| {
@@ -381,12 +410,15 @@ impl Workspace {
             })
             .when(!empty, |el| {
                 el.child(
-                    uniform_list("git-log-rows", count, move |range, _, cx| {
-                        range.map(|ix| rows.row(ix, cx)).collect()
-                    })
-                    .track_scroll(&log.scroll)
-                    .size_full(),
+                    div().flex_1().overflow_hidden().child(
+                        uniform_list("git-log-rows", count, move |range, _, cx| {
+                            range.map(|ix| rows.row(ix, cx)).collect()
+                        })
+                        .track_scroll(&log.scroll)
+                        .size_full(),
+                    ),
                 )
+                .children(more)
             })
     }
 

@@ -16,9 +16,10 @@ use gpui_kit::*;
 use vcs::{Branch, CommitDetails, GraphRow, LogEntry, Operation, Repo};
 
 use super::{BottomPanel, Workspace};
-use model::matches_filter;
+use model::{matches_filter, parse_filter};
 
-const HISTORY_LIMIT: usize = 2000;
+/// Commits loaded at first and added by each "Load more".
+const HISTORY_PAGE: usize = 2000;
 /// All commit-file diffs from the log share one tab.
 const LOG_DIFF: &str = "diff:log";
 
@@ -40,6 +41,10 @@ pub(super) struct GitLogState {
     pub(super) scroll: UniformListScrollHandle,
     pub(super) focus: FocusHandle,
     pub(super) loading: bool,
+    /// Commits requested from git; more are loaded on demand.
+    pub(super) limit: usize,
+    /// `path:` filter the loaded history was restricted to.
+    pub(super) path: Option<String>,
     _subscription: Subscription,
 }
 
@@ -50,12 +55,12 @@ impl GitLogState {
     }
 
     fn refilter(&mut self, cx: &App) {
-        let query = self.filter.read(cx).value().trim().to_lowercase();
+        let filter = parse_filter(&self.filter.read(cx).value());
         self.visible = Rc::new(
             self.entries
                 .iter()
                 .enumerate()
-                .filter(|(_, e)| matches_filter(e, &query))
+                .filter(|(_, e)| matches_filter(e, &filter))
                 .map(|(ix, _)| ix)
                 .collect(),
         );
@@ -63,7 +68,12 @@ impl GitLogState {
 
     /// The graph only makes sense when every commit is shown.
     pub(super) fn show_graph(&self) -> bool {
-        self.visible.len() == self.entries.len()
+        self.visible.len() == self.entries.len() && self.path.is_none()
+    }
+
+    /// Git returned as many commits as requested, so older ones may exist.
+    pub(super) fn has_more(&self) -> bool {
+        self.entries.len() >= self.limit
     }
 }
 
@@ -74,8 +84,8 @@ struct LogSnapshot {
     operation: Option<Operation>,
 }
 
-fn load_snapshot(repo: &Repo, branch: Option<&str>) -> Result<LogSnapshot> {
-    let entries = repo.history(branch, HISTORY_LIMIT)?;
+fn load_snapshot(repo: &Repo, branch: Option<&str>, limit: usize, path: Option<&str>) -> Result<LogSnapshot> {
+    let entries = repo.history(branch, limit, path)?;
     let graph = vcs::graph_layout(entries.iter().map(|e| (e.hash.as_str(), e.parents.as_slice())));
     Ok(LogSnapshot {
         entries,
@@ -112,12 +122,21 @@ impl Workspace {
     }
 
     fn new_git_log_state(&mut self, window: &mut Window, cx: &mut Context<Self>) -> GitLogState {
-        let filter = cx.new(|cx| InputState::new(window, cx).placeholder("Text, author or hash"));
+        let filter = cx
+            .new(|cx| InputState::new(window, cx).placeholder("Text or hash · author:name · path:dir/file"));
         let subscription = cx.subscribe(&filter, |this, _, event: &InputEvent, cx| {
-            if let (InputEvent::Change, Some(log)) = (event, this.git_log.as_mut()) {
-                log.refilter(cx);
-                cx.notify();
+            let (InputEvent::Change, Some(log)) = (event, this.git_log.as_mut()) else {
+                return;
+            };
+            // The path is filtered by git, so a new path means a new history.
+            let path = parse_filter(&log.filter.read(cx).value()).path;
+            if path != log.path {
+                log.path = path;
+                log.limit = HISTORY_PAGE;
+                return this.reload_git_log(cx);
             }
+            log.refilter(cx);
+            cx.notify();
         });
         GitLogState {
             entries: Rc::default(),
@@ -133,6 +152,8 @@ impl Workspace {
             scroll: UniformListScrollHandle::new(),
             focus: cx.focus_handle(),
             loading: false,
+            limit: HISTORY_PAGE,
+            path: None,
             _subscription: subscription,
         }
     }
@@ -144,11 +165,16 @@ impl Workspace {
         };
         let repo = git.repo.clone();
         let branch = log.branch.clone();
+        let limit = log.limit;
+        // `path:` is typed relative to the project; git wants it relative to the repository.
+        let path = log.path.as_ref().map(|p| git.repo_path(p));
         log.loading = true;
         cx.notify();
         cx.spawn(async move |this, cx| {
             let snapshot = cx
-                .background_spawn(async move { load_snapshot(&repo, branch.as_deref()) })
+                .background_spawn(
+                    async move { load_snapshot(&repo, branch.as_deref(), limit, path.as_deref()) },
+                )
                 .await;
             this.update(cx, |ws, cx| ws.apply_log_snapshot(snapshot, cx)).ok();
         })
@@ -240,6 +266,14 @@ impl Workspace {
         };
         let hash = log.entries[log.visible[next]].hash.clone();
         self.select_commit(Some(hash), cx);
+    }
+
+    /// Loads the next page of older commits.
+    pub(super) fn load_more_history(&mut self, cx: &mut Context<Self>) {
+        if let Some(log) = self.git_log.as_mut() {
+            log.limit += HISTORY_PAGE;
+            self.reload_git_log(cx);
+        }
     }
 
     /// Shows the history of `branch` (all refs when `None`).

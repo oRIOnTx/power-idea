@@ -109,7 +109,16 @@ impl Workspace {
                                     .child(details.hash.get(..10).unwrap_or(&details.hash).to_string())
                                     .on_click(on_copy),
                             )
-                            .child(format_date(details.timestamp, unix_now())),
+                            .child({
+                                // Recent commits also get "3 h ago"; older ones show just the date.
+                                let relative =
+                                    format_date(details.timestamp, unix_now(), &details.local_date);
+                                if details.local_date.starts_with(&relative) {
+                                    details.local_date.clone()
+                                } else {
+                                    format!("{} · {relative}", details.local_date)
+                                }
+                            }),
                     )
                     .child(div().text_xs().text_color(theme.muted_foreground).child(author)),
             )

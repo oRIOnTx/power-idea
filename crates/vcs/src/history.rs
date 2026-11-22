@@ -28,6 +28,8 @@ pub struct LogEntry {
     pub email: String,
     /// Unix seconds (author date).
     pub timestamp: i64,
+    /// Author date in the local time zone, `YYYY-MM-DD HH:MM`.
+    pub local_date: String,
     pub refs: Vec<RefLabel>,
     pub subject: String,
 }
@@ -46,6 +48,8 @@ pub struct CommitDetails {
     pub author: String,
     pub email: String,
     pub timestamp: i64,
+    /// Author date in the local time zone, `YYYY-MM-DD HH:MM`.
+    pub local_date: String,
     pub message: String,
     pub files: Vec<CommitFile>,
 }
@@ -85,6 +89,9 @@ impl Operation {
         }
     }
 }
+
+/// `%ad` as local wall-clock time (the user's time zone, DST included).
+const LOCAL_DATE: &str = "--date=format-local:%Y-%m-%d %H:%M";
 
 /// Parses `%D` decorations such as `HEAD -> main, origin/main, tag: v1`.
 fn parse_refs(decorations: &str, remotes: &[String]) -> Vec<RefLabel> {
@@ -138,6 +145,7 @@ fn parse_log(out: &str, remotes: &[String]) -> Vec<LogEntry> {
                 author: f.next()?.into(),
                 email: f.next()?.into(),
                 timestamp: f.next()?.parse().unwrap_or(0),
+                local_date: f.next()?.into(),
                 refs: parse_refs(f.next()?, remotes),
                 subject: f.next()?.into(),
             })
@@ -172,26 +180,41 @@ impl Repo {
         Ok(self.run(&["remote"])?.lines().map(str::to_string).collect())
     }
 
-    /// Up to `limit` commits of `revision` (all refs when `None`), newest first.
-    pub fn history(&self, revision: Option<&str>, limit: usize) -> Result<Vec<LogEntry>> {
+    /// Up to `limit` commits of `revision` (all refs when `None`) that touch
+    /// `path` (anything when `None`), newest first.
+    pub fn history(&self, revision: Option<&str>, limit: usize, path: Option<&str>) -> Result<Vec<LogEntry>> {
         if !self.has_head() {
             return Ok(Vec::new());
         }
         let limit = format!("-n{limit}");
-        let format = "--format=%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%D%x1f%s%x1e";
-        let mut args = vec!["log", "--date-order", "--decorate=short", &limit, format];
+        let format = "--format=%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%ad%x1f%D%x1f%s%x1e";
+        let mut args = vec![
+            "log",
+            "--date-order",
+            "--decorate=short",
+            LOCAL_DATE,
+            &limit,
+            format,
+        ];
         match revision {
             Some(rev) => args.extend([rev, "--"]),
             None => args.extend(["--branches", "--remotes", "--tags", "HEAD", "--"]),
         }
+        args.extend(path);
         Ok(parse_log(&self.run(&args)?, &self.remotes()?))
     }
 
     pub fn commit_details(&self, hash: &str) -> Result<CommitDetails> {
-        let header = self.run(&["show", "-s", "--format=%H%x1f%an%x1f%ae%x1f%at%x1f%B", hash])?;
-        let mut f = header.splitn(5, '\x1f');
-        let (Some(full), Some(author), Some(email), Some(time), Some(message)) =
-            (f.next(), f.next(), f.next(), f.next(), f.next())
+        let header = self.run(&[
+            "show",
+            "-s",
+            LOCAL_DATE,
+            "--format=%H%x1f%an%x1f%ae%x1f%at%x1f%ad%x1f%B",
+            hash,
+        ])?;
+        let mut f = header.splitn(6, '\x1f');
+        let (Some(full), Some(author), Some(email), Some(time), Some(local_date), Some(message)) =
+            (f.next(), f.next(), f.next(), f.next(), f.next(), f.next())
         else {
             bail!("unexpected git show output");
         };
@@ -212,6 +235,7 @@ impl Repo {
             author: author.into(),
             email: email.into(),
             timestamp: time.trim().parse().unwrap_or(0),
+            local_date: local_date.into(),
             message: message.trim_end().into(),
             files: parse_name_status(&files),
         })
@@ -332,7 +356,7 @@ mod tests {
 
     fn subjects(repo: &TempRepo, revision: &str) -> Vec<String> {
         repo.0
-            .history(Some(revision), 50)
+            .history(Some(revision), 50, None)
             .unwrap()
             .into_iter()
             .map(|e| e.subject)
@@ -346,7 +370,12 @@ mod tests {
         repo.0.create_tag("v1", &first).unwrap();
         repo.commit_file("a.txt", "two\n", "second");
 
-        let log = repo.0.history(None, 10).unwrap();
+        let log = repo.0.history(None, 10, None).unwrap();
+        assert_eq!(log[0].local_date.len(), "2026-11-22 10:30".len());
+        // Only commits that touched the path.
+        repo.commit_file("b.txt", "b\n", "other file");
+        let touching = repo.0.history(None, 10, Some("a.txt")).unwrap();
+        assert_eq!(touching.len(), 2);
         assert_eq!(log.len(), 2);
         assert_eq!(log[0].parents, std::slice::from_ref(&first));
         assert!(log[0].refs.iter().any(|r| r.kind == RefKind::Head));

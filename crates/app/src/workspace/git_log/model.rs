@@ -5,16 +5,49 @@ use std::collections::{BTreeMap, HashSet};
 use anyhow::{Result, bail};
 use vcs::{Branch, LogEntry};
 
-/// Case-insensitive match on subject, author or hash prefix; `query` is lowercase.
-pub(super) fn matches_filter(entry: &LogEntry, query: &str) -> bool {
-    query.is_empty()
-        || entry.subject.to_lowercase().contains(query)
-        || entry.author.to_lowercase().contains(query)
-        || entry.hash.starts_with(query)
+/// The Git Log filter: free text plus `author:` and `path:` terms.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub(super) struct LogFilter {
+    /// Lowercase words matched against subject, author or hash prefix.
+    pub text: Vec<String>,
+    /// Lowercase part of the author name or email.
+    pub author: Option<String>,
+    /// File or folder (relative to the repository) the commits must touch.
+    pub path: Option<String>,
 }
 
-/// Commit date as JetBrains shows it: relative when recent, otherwise `YYYY-MM-DD` (UTC).
-pub(super) fn format_date(timestamp: i64, now: i64) -> String {
+/// Parses e.g. `fix author:ann path:app/models`.
+pub(super) fn parse_filter(query: &str) -> LogFilter {
+    let mut filter = LogFilter::default();
+    for word in query.split_whitespace() {
+        if let Some(author) = word.strip_prefix("author:").filter(|a| !a.is_empty()) {
+            filter.author = Some(author.to_lowercase());
+        } else if let Some(path) = word.strip_prefix("path:").filter(|p| !p.is_empty()) {
+            filter.path = Some(path.trim_start_matches("./").to_string());
+        } else {
+            filter.text.push(word.to_lowercase());
+        }
+    }
+    filter
+}
+
+/// Whether `entry` passes the text and author parts (the path part is applied by git).
+pub(super) fn matches_filter(entry: &LogEntry, filter: &LogFilter) -> bool {
+    let author_ok = filter
+        .author
+        .as_ref()
+        .is_none_or(|a| entry.author.to_lowercase().contains(a) || entry.email.to_lowercase().contains(a));
+    author_ok
+        && filter.text.iter().all(|word| {
+            entry.subject.to_lowercase().contains(word)
+                || entry.author.to_lowercase().contains(word)
+                || entry.hash.starts_with(word.as_str())
+        })
+}
+
+/// Commit date as JetBrains shows it: relative when recent, otherwise the
+/// local date (`local` is git's `YYYY-MM-DD HH:MM` in the user's time zone).
+pub(super) fn format_date(timestamp: i64, now: i64, local: &str) -> String {
     const MINUTE: i64 = 60;
     const HOUR: i64 = 60 * MINUTE;
     const DAY: i64 = 24 * HOUR;
@@ -27,25 +60,8 @@ pub(super) fn format_date(timestamp: i64, now: i64) -> String {
         HOUR..DAY => format!("{} h ago", age / HOUR),
         DAY..TWO_DAYS => "Yesterday".into(),
         TWO_DAYS..WEEK => format!("{} days ago", age / DAY),
-        _ => {
-            let (y, m, d) = civil_date(timestamp.div_euclid(DAY));
-            format!("{y:04}-{m:02}-{d:02}")
-        }
+        _ => local.split(' ').next().unwrap_or(local).to_string(),
     }
-}
-
-/// Days since 1970-01-01 to a calendar date (Howard Hinnant's algorithm).
-fn civil_date(days: i64) -> (i64, u32, u32) {
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    let year = yoe + era * 400 + i64::from(month <= 2);
-    (year, month, day)
 }
 
 /// Trims a user-entered branch or tag name and rejects obviously invalid ones;
@@ -152,7 +168,9 @@ mod tests {
 
     use vcs::{Branch, LogEntry};
 
-    use super::{BranchRow, branch_rows, check_ref_name, format_date, matches_filter};
+    use super::{
+        BranchRow, LogFilter, branch_rows, check_ref_name, format_date, matches_filter, parse_filter,
+    };
 
     fn branch(name: &str, is_remote: bool) -> Branch {
         Branch {
@@ -212,14 +230,14 @@ mod tests {
 
     #[test]
     fn formats_dates() {
-        let now = 1_763_800_000; // 2025-11-22
-        assert_eq!(format_date(now - 30, now), "Moments ago");
-        assert_eq!(format_date(now - 5 * 60, now), "5 min ago");
-        assert_eq!(format_date(now - 3 * 3600, now), "3 h ago");
-        assert_eq!(format_date(now - 30 * 3600, now), "Yesterday");
-        assert_eq!(format_date(now - 3 * 86_400, now), "3 days ago");
-        assert_eq!(format_date(0, now), "1970-01-01");
-        assert_eq!(format_date(951_782_400, now), "2000-02-29");
+        let now = 1_763_800_000;
+        let local = "2025-11-22 10:30";
+        assert_eq!(format_date(now - 30, now, local), "Moments ago");
+        assert_eq!(format_date(now - 5 * 60, now, local), "5 min ago");
+        assert_eq!(format_date(now - 3 * 3600, now, local), "3 h ago");
+        assert_eq!(format_date(now - 30 * 3600, now, local), "Yesterday");
+        assert_eq!(format_date(now - 3 * 86_400, now, local), "3 days ago");
+        assert_eq!(format_date(0, now, "1970-01-01 03:00"), "1970-01-01");
     }
 
     #[test]
@@ -231,14 +249,28 @@ mod tests {
             author: "Ada Lovelace".into(),
             email: String::new(),
             timestamp: 0,
+            local_date: String::new(),
             refs: Vec::new(),
             subject: "Fix Parser".into(),
         };
-        assert!(matches_filter(&entry, ""));
-        assert!(matches_filter(&entry, "parser"));
-        assert!(matches_filter(&entry, "ada"));
-        assert!(matches_filter(&entry, "abc1"));
-        assert!(!matches_filter(&entry, "bc1"));
+        let matches = |query: &str| matches_filter(&entry, &parse_filter(query));
+        assert!(matches(""));
+        assert!(matches("parser"));
+        assert!(matches("ada fix"));
+        assert!(matches("abc1"));
+        assert!(!matches("bc1"));
+        assert!(matches("author:LOVE parser"));
+        assert!(!matches("author:bob"));
+        // The path term is left to git.
+        assert!(matches("path:src/lib.rs"));
+        assert_eq!(
+            parse_filter("Fix author:Ann path:./app/models"),
+            LogFilter {
+                text: vec!["fix".into()],
+                author: Some("ann".into()),
+                path: Some("app/models".into()),
+            }
+        );
 
         assert_eq!(check_ref_name("  feature/x ").unwrap(), "feature/x");
         assert!(check_ref_name("").is_err());
