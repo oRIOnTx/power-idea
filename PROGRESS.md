@@ -116,6 +116,8 @@ is in the working tree only.
       which acts on the whole selection); pasted items become the selection
 - [x] Branch widget in the title bar shows ↑ commits to push / ↓ to pull; the Branches popup starts with
       Update Project / Commit / Push (with ↑N) / Fetch and shows ↑↓ on each tracked branch; Fetch action + Git menu
+- [x] Git notifications say what moved: "Pushed 3 commits to origin/main" (new branch → upstream), Update Project
+      → commits, source and diff stat, Fetch → new commits per branch, new/pruned branches and how far behind
 - [x] Terminal: slow trackpad swipes scroll (sub-line wheel deltas accumulate instead of being rounded away)
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
 

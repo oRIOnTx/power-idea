@@ -225,17 +225,15 @@ impl Workspace {
             label,
             move |repo| {
                 repo.commit(&message, &paths, amend)?;
-                if push {
-                    repo.push()?;
-                }
-                Ok(())
+                push.then(|| repo.push_with_summary()).transpose()
             },
-            move |ws, _, window, cx| {
+            move |ws, pushed, window, cx| {
                 if let Some(git) = ws.git.as_mut() {
                     git.amend = false;
                     git.message.update(cx, |m, cx| m.set_value("", window, cx));
                 }
-                let text = if push { "Committed and pushed" } else { "Committed" };
+                let text =
+                    pushed.map_or_else(|| "Committed".into(), |p| format!("Committed. {}", p.message()));
                 window.push_notification(Notification::success(text), cx);
             },
             window,
@@ -246,8 +244,10 @@ impl Workspace {
     pub(super) fn push(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.run_git(
             "Push",
-            |repo| repo.push(),
-            |_, _, window, cx| window.push_notification(Notification::success("Pushed"), cx),
+            |repo| repo.push_with_summary(),
+            |_, summary, window, cx| {
+                window.push_notification(Notification::success(summary.message()).title("Push"), cx);
+            },
             window,
             cx,
         );
@@ -257,11 +257,14 @@ impl Workspace {
     pub(super) fn pull(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.run_git(
             "Update",
-            |repo| repo.pull(),
-            |ws, _, window, cx| {
+            |repo| repo.pull_with_summary(),
+            |ws, summary, window, cx| {
                 ws.reload_clean_editors(window, cx);
                 ws.reindex(cx);
-                window.push_notification(Notification::success("Project updated"), cx);
+                window.push_notification(
+                    Notification::success(summary.message()).title("Update Project"),
+                    cx,
+                );
             },
             window,
             cx,
@@ -464,7 +467,15 @@ impl Workspace {
     }
 
     pub(super) fn fetch(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.run_git("Fetch", |repo| repo.fetch(), |_, _, _, _| {}, window, cx);
+        self.run_git(
+            "Fetch",
+            |repo| repo.fetch_with_summary(),
+            |_, summary, window, cx| {
+                window.push_notification(Notification::info(summary.message()).title("Fetch"), cx);
+            },
+            window,
+            cx,
+        );
     }
 
     /// Opens a changed file (repo path) in the editor, if it is inside the project.

@@ -5,6 +5,7 @@
 
 mod graph;
 mod history;
+mod sync;
 #[cfg(test)]
 mod testing;
 
@@ -17,6 +18,7 @@ pub use graph::{Anchor, GraphRow, Segment, layout as graph_layout};
 pub use history::{
     CommitDetails, CommitFile, HistoryQuery, LogEntry, Operation, RefKind, RefLabel, ResetMode,
 };
+pub use sync::{DiffStat, FetchSummary, PullSummary, PushSummary};
 
 #[derive(Debug, Clone)]
 pub struct Repo {
