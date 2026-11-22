@@ -219,11 +219,13 @@ impl Workspace {
         let active_rel = self.active().map(|tab| tab.rel.clone());
         let selection = self.tree_selection.paths.clone();
         let root_collapsed = self.root_collapsed;
+        let root_selected = self.root_row_selected();
 
         v_flex()
             .size_full()
             .bg(theme.sidebar)
             .key_context(PROJECT_TREE_CONTEXT)
+            .track_focus(&self.project_focus)
             // Edit → Cut / Copy / Paste from the menu bar while the tree has focus.
             .on_action(cx.listener(|this, _: &input::Cut, w, cx| this.clip_selection(ClipMode::Cut, w, cx)))
             .on_action(cx.listener(|this, _: &input::Copy, w, cx| this.clip_selection(ClipMode::Copy, w, cx)))
@@ -260,7 +262,9 @@ impl Workspace {
                                 ),
                                 (false, _) => chevron_slot,
                             };
-                            let is_selected = if selection.is_empty() {
+                            let is_selected = if root_selected {
+                                false
+                            } else if selection.is_empty() {
                                 active_rel.as_deref() == Some(id.as_str())
                             } else {
                                 selection.contains(&id)
@@ -272,8 +276,12 @@ impl Workspace {
                                 })
                                 .map_or(cx.theme().foreground, |kind| git::kind_color(kind, cx));
                             let workspace = workspace.clone();
+                            // The Tree overrides `selected` with its single cursor row, so the
+                            // rest of a multi-selection is painted here.
+                            let selected_bg = cx.theme().list_active;
                             ListItem::new(ix)
                                 .selected(is_selected)
+                                .when(is_selected, |item| item.bg(selected_bg))
                                 .py(px(1.))
                                 .pl(px(6.) + px(14.) * (entry.depth() + 1) as f32)
                                 .child(
@@ -302,6 +310,11 @@ impl Workspace {
                                                 cx.stop_propagation();
                                             } else if !is_folder {
                                                 ws.open_file(&id, None, window, cx);
+                                                // JetBrains: a single click previews the file and keeps
+                                                // focus in the tree (⌘C / ⌘X / ⌦); a double click edits it.
+                                                if event.click_count() < 2 {
+                                                    ws.tree.update(cx, |tree, cx| tree.focus(window, cx));
+                                                }
                                             }
                                         })
                                         .ok();
@@ -338,13 +351,19 @@ impl Workspace {
             .gap_1p5()
             .text_sm()
             .cursor_pointer()
+            .when(self.root_row_selected(), |row| row.bg(theme.list_active))
             .hover(|s| s.bg(theme.list_hover))
             .child(
                 div()
+                    .id("project-root-chevron")
                     .flex_none()
                     .w(style::TREE_CHEVRON)
                     .flex()
                     .items_center()
+                    .on_click(cx.listener(|ws, _, _, cx| {
+                        cx.stop_propagation();
+                        ws.toggle_root_collapsed(cx);
+                    }))
                     .child(
                         Icon::new(if expanded {
                             IconName::ChevronDown
@@ -381,9 +400,18 @@ impl Workspace {
                     .text_color(theme.muted_foreground)
                     .child(location),
             )
-            .on_click(cx.listener(|ws, _, _, cx| {
-                ws.root_collapsed = !ws.root_collapsed;
-                cx.notify();
+            // Like any folder row: a click selects it, a double click or the chevron folds it.
+            .on_click(cx.listener(|ws, event: &ClickEvent, _, cx| {
+                if event.click_count() >= 2 {
+                    ws.toggle_root_collapsed(cx);
+                } else {
+                    ws.select_root_row(cx);
+                }
             }))
+    }
+
+    fn toggle_root_collapsed(&mut self, cx: &mut Context<Self>) {
+        self.root_collapsed = !self.root_collapsed;
+        cx.notify();
     }
 }

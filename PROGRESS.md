@@ -131,8 +131,13 @@ is in the working tree only.
       `vcs::recent_branches`), Local and Remote groups (Remote folded), upstream on the right, and a submenu per
       branch (click / → / Enter: Checkout, New Branch from Here, Merge, Rebase, Push, Rename, Delete); Fetch button
 
-- [x] Project tree root row (JetBrains style): project folder name + `~/…` location; click folds the tree
-- [x] Project tree: ⌦ / ⌫ / ⌘⌫ ask and move the selected files to the Trash (multi-selection; also from the context menu)
+- [x] Project tree root row (JetBrains style): project folder name + `~/…` location; click selects it (⌘V pastes
+      into the root), double click or the chevron folds the tree
+- [x] Project tree: ⌦ / ⌫ / ⌘⌫ ask and move the selected files to the Trash (multi-selection; also from the context menu);
+      the confirmation lists the items (icon, name, folder) with Cancel and a red "Move to Trash"
+- [x] Project tree keeps keyboard focus: a single click previews a file without moving focus to the editor
+      (double click edits), the context menu returns focus to the tree, so ⌘X / ⌘C / ⌘V work on the
+      selection; every row of a multi-selection is highlighted (the Tree only paints its cursor row)
 - [x] Terminal ⌘V pastes copied files and images (screenshots) as shell-escaped paths; images are saved to
       `$TMPDIR/power-idea-paste/`, so Claude Code in the terminal attaches them
 - [x] Breakpoints are saved with the workspace state (`[breakpoints]` in `workspace.toml`) and restored on reopen
@@ -144,7 +149,8 @@ Database gaps below.
 ## Known gaps
 - Conflicts: chunks are chosen whole (no editable result pane or word-level diff like JetBrains); binary and
   delete/modify conflicts get only whole-file choices; not clicked through by hand yet
-- Project tree: Delete and drag-and-drop still act on one item; right-click does not select the row
+- Project tree: drag-and-drop acts on one item; right-click does not select the row; arrow keys do not
+  reach the root row
 - Insights: no event timeline in session details, no "tip resolved" tracking, weights/excluded
   projects/tip language not configurable in the UI, no file watcher (periodic re-index), no weekly LLM
   report (stage 4); correction detection is keyword-based (UA/EN), no similarity to the previous prompt

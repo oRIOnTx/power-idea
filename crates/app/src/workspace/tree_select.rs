@@ -26,10 +26,13 @@ impl Workspace {
             self.tree_selection.select_only(rel);
         }
         self.tree_cursor = Some(rel.to_string());
+        self.root_selected = false;
         if selection_only {
-            // The tree selects the row itself only on clicks it handles.
+            // The tree selects the row itself only on clicks it handles; a row ⌘-clicked
+            // out of the selection must not stay highlighted as the tree's cursor.
+            let cursor = self.tree_selection.contains(rel).then_some(ix);
             self.tree
-                .update(cx, |tree, cx| tree.set_selected_index(Some(ix), cx));
+                .update(cx, |tree, cx| tree.set_selected_index(cursor, cx));
         }
         cx.notify();
         selection_only
@@ -45,6 +48,7 @@ impl Workspace {
         }
         self.tree_selection.select_only(&id);
         self.tree_cursor = Some(id);
+        self.root_selected = false;
         cx.notify();
     }
 
@@ -54,5 +58,21 @@ impl Workspace {
             .map_while(|ix| tree.entry(ix))
             .map(|entry| entry.item().id.to_string())
             .collect()
+    }
+}
+
+impl Workspace {
+    /// The root row is highlighted only while no tree row is selected.
+    pub(super) fn root_row_selected(&self) -> bool {
+        self.root_selected && self.tree_selection.paths.is_empty()
+    }
+
+    /// A click on the root row selects it, so ⌘V pastes into the project root.
+    pub(super) fn select_root_row(&mut self, cx: &mut Context<Self>) {
+        self.tree_selection.set(Vec::new());
+        self.tree_cursor = None;
+        self.root_selected = true;
+        self.tree.update(cx, |tree, cx| tree.set_selected_index(None, cx));
+        cx.notify();
     }
 }

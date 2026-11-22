@@ -5,11 +5,12 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context as _, Result, bail};
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::PopupMenu;
 use gpui_kit::component::notification::Notification;
-use gpui_kit::component::{ActiveTheme as _, Sizable as _, WindowExt as _, h_flex};
+use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Sizable as _, WindowExt as _, h_flex, v_flex};
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use super::Workspace;
@@ -17,6 +18,7 @@ use crate::actions::{FileAction, FileOp};
 use crate::editor::CenterTab;
 use crate::file_ops::ClipMode;
 use crate::tree_selection::outermost;
+use crate::{file_icons, style};
 
 /// Moves `path` into the user's Trash (recoverable), picking a free name.
 fn move_to_trash(path: &Path) -> Result<()> {
@@ -50,6 +52,57 @@ fn validate_name(name: &str, allow_nested: bool) -> Result<()> {
     Ok(())
 }
 
+/// Rows listed in the delete confirmation; the rest are summed up.
+const DELETE_LIST_MAX: usize = 8;
+
+/// The files about to be deleted: icon, name and folder, at most `DELETE_LIST_MAX` rows.
+fn delete_list(items: &[(String, bool)], cx: &App) -> impl IntoElement {
+    let theme = cx.theme();
+    let rows = items.iter().take(DELETE_LIST_MAX).map(|(rel, is_dir)| {
+        let name = rel.rsplit('/').next().unwrap_or(rel).to_string();
+        let icon = if *is_dir {
+            Icon::new(IconName::Folder).text_color(file_icons::folder_tint(&name).color(cx))
+        } else {
+            file_icons::icon_for_file(&name, cx)
+        };
+        h_flex()
+            .gap_2()
+            .min_w_0()
+            .child(div().flex_none().child(icon.with_size(style::TREE_ICON)))
+            .child(div().flex_none().text_color(theme.foreground).child(name))
+            .child(
+                div()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .text_ellipsis()
+                    .whitespace_nowrap()
+                    .text_xs()
+                    .text_color(theme.muted_foreground)
+                    .child(parent_rel(rel).to_string()),
+            )
+    });
+    let more = items.len().saturating_sub(DELETE_LIST_MAX);
+    v_flex()
+        .mt_1()
+        .gap_1()
+        .px_3()
+        .py_2()
+        .rounded(theme.radius)
+        .border_1()
+        .border_color(theme.border)
+        .bg(theme.muted)
+        .text_sm()
+        .children(rows)
+        .when(more > 0, |list| {
+            list.child(
+                div()
+                    .text_xs()
+                    .text_color(theme.muted_foreground)
+                    .child(format!("and {more} more")),
+            )
+        })
+}
+
 fn join_rel(dir: &str, name: &str) -> String {
     if dir.is_empty() {
         name.to_string()
@@ -71,7 +124,8 @@ impl Workspace {
             .is_some_and(|g| g.kind_for(rel, is_dir).is_some());
         let action = |op| FileAction::boxed(op, rel.to_string());
         let menu = menu
-            .action_context(self.focus_handle.clone())
+            // Focus returns to the project view, so ⌘C / ⌘V keep working after the menu.
+            .action_context(self.project_focus.clone())
             .menu("New File…", action(FileOp::NewFile))
             .menu("New Directory…", action(FileOp::NewDirectory))
             .separator()
@@ -263,15 +317,26 @@ impl Workspace {
         let paths: Vec<String> = outermost(&paths).into_iter().filter(|p| !p.is_empty()).collect();
         let title = match paths.as_slice() {
             [] => return,
-            [rel] => format!("Delete {rel}?"),
+            [rel] => format!("Delete “{}”?", rel.rsplit('/').next().unwrap_or(rel)),
             _ => format!("Delete {} items?", paths.len()),
         };
+        let items: Vec<(String, bool)> = paths
+            .iter()
+            .map(|rel| (rel.clone(), self.root.join(rel).is_dir()))
+            .collect();
         let workspace = cx.entity().downgrade();
-        window.open_alert_dialog(cx, move |dialog, _, _| {
+        window.open_alert_dialog(cx, move |dialog, _, cx| {
             let (workspace, paths) = (workspace.clone(), paths.clone());
             dialog
+                .confirm()
+                .width(px(460.))
+                .icon(style::lucide("trash").text_color(cx.theme().danger))
                 .title(title.clone())
-                .child("It will be moved to the Trash.")
+                .description("Moved to the Trash: you can put it back from Finder.")
+                .child(delete_list(&items, cx))
+                .ok_text("Move to Trash")
+                .ok_variant(ButtonVariant::Danger)
+                .cancel_text("Cancel")
                 .on_ok(move |_, window, cx| {
                     workspace
                         .update(cx, |ws, cx| ws.trash_paths(&paths, window, cx))

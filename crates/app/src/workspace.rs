@@ -140,6 +140,9 @@ pub struct Workspace {
     root: PathBuf,
     focus_handle: FocusHandle,
     tree: Entity<TreeState>,
+    /// The project view (root row + tree): keeps ⌘X / ⌘C / ⌘V in the tree's key context
+    /// when focus is on the root row or comes back from a tree context menu.
+    project_focus: FocusHandle,
     expanded: HashSet<String>,
     /// Files waiting for Paste in the project tree.
     file_clipboard: Option<crate::file_ops::FileClipboard>,
@@ -156,6 +159,9 @@ pub struct Workspace {
     show_project_view: bool,
     /// The project root row is collapsed: the tree under it is hidden.
     root_collapsed: bool,
+    /// The project root row is selected (Paste goes into the root); only while nothing
+    /// in the tree is selected.
+    root_selected: bool,
     left_panel: LeftPanel,
     git: Option<git::GitState>,
     git_log: Option<git_log::GitLogState>,
@@ -227,6 +233,7 @@ impl Workspace {
             saved_session: None,
             focus_handle: cx.focus_handle(),
             tree,
+            project_focus: cx.focus_handle(),
             expanded,
             file_clipboard: None,
             tree_selection: Default::default(),
@@ -238,6 +245,7 @@ impl Workspace {
             recent_files: Vec::new(),
             show_project_view: true,
             root_collapsed: false,
+            root_selected: false,
             left_panel: LeftPanel::Project,
             git: None,
             git_log: None,
