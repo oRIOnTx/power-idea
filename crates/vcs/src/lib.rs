@@ -14,7 +14,9 @@ use std::process::{Command, Output};
 use anyhow::{Context as _, Result, bail};
 
 pub use graph::{Anchor, GraphRow, Segment, layout as graph_layout};
-pub use history::{CommitDetails, CommitFile, LogEntry, Operation, RefKind, RefLabel, ResetMode};
+pub use history::{
+    CommitDetails, CommitFile, HistoryQuery, LogEntry, Operation, RefKind, RefLabel, ResetMode,
+};
 
 #[derive(Debug, Clone)]
 pub struct Repo {

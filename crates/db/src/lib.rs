@@ -70,7 +70,7 @@ pub struct ConnectionConfig {
     pub database: String,
     /// SQLite database file.
     pub file: String,
-    /// Require TLS (PostgreSQL / MySQL).
+    /// Require TLS (PostgreSQL / MySQL; `rediss://` for Redis).
     pub tls: bool,
 }
 

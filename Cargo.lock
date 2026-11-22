@@ -5430,6 +5430,8 @@ dependencies = [
  "combine",
  "itoa",
  "percent-encoding",
+ "rustls",
+ "rustls-native-certs",
  "ryu",
  "socket2",
  "url",

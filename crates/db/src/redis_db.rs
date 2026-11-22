@@ -21,7 +21,7 @@ fn percent_encode(text: &str) -> String {
         .collect()
 }
 
-/// Builds `redis://[user[:password]@]host:port/db`.
+/// Builds `redis://[user[:password]@]host:port/db` (`rediss://` with TLS).
 fn url(config: &ConnectionConfig, password: Option<&str>) -> String {
     let auth = match (config.user.is_empty(), password) {
         (true, None) => String::new(),
@@ -30,7 +30,8 @@ fn url(config: &ConnectionConfig, password: Option<&str>) -> String {
         (false, Some(pw)) => format!("{}:{}@", percent_encode(&config.user), percent_encode(pw)),
     };
     let db = config.database.trim().parse::<u32>().unwrap_or(0);
-    format!("redis://{auth}{}:{}/{db}", config.host, config.port)
+    let scheme = if config.tls { "rediss" } else { "redis" };
+    format!("{scheme}://{auth}{}:{}/{db}", config.host, config.port)
 }
 
 /// Splits a command line into arguments, honoring single and double quotes.
@@ -228,6 +229,13 @@ mod tests {
             url(&config, Some("p@ss:word")),
             "redis://app:p%40ss%3Aword@cache:6380/2"
         );
+        let tls = ConnectionConfig {
+            tls: true,
+            ..config.clone()
+        };
+        assert_eq!(url(&tls, None), "rediss://app@cache:6380/2");
+        // A rediss:// URL is accepted, i.e. TLS support is compiled in.
+        assert!(redis::Client::open(url(&tls, None)).is_ok());
         assert_eq!(
             url(
                 &ConnectionConfig {

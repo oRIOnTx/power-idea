@@ -13,7 +13,7 @@ use std::rc::Rc;
 use anyhow::Result;
 use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::*;
-use vcs::{Branch, CommitDetails, GraphRow, LogEntry, Operation, Repo};
+use vcs::{Branch, CommitDetails, GraphRow, HistoryQuery, LogEntry, Operation, Repo};
 
 use super::{BottomPanel, Workspace};
 use model::{matches_filter, parse_filter};
@@ -43,8 +43,8 @@ pub(super) struct GitLogState {
     pub(super) loading: bool,
     /// Commits requested from git; more are loaded on demand.
     pub(super) limit: usize,
-    /// `path:` filter the loaded history was restricted to.
-    pub(super) path: Option<String>,
+    /// Filter terms (`path:`, `after:`, `before:`) the loaded history was restricted to.
+    pub(super) git_terms: (Option<String>, Option<String>, Option<String>),
     _subscription: Subscription,
 }
 
@@ -68,7 +68,7 @@ impl GitLogState {
 
     /// The graph only makes sense when every commit is shown.
     pub(super) fn show_graph(&self) -> bool {
-        self.visible.len() == self.entries.len() && self.path.is_none()
+        self.visible.len() == self.entries.len() && self.git_terms == (None, None, None)
     }
 
     /// Git returned as many commits as requested, so older ones may exist.
@@ -84,8 +84,8 @@ struct LogSnapshot {
     operation: Option<Operation>,
 }
 
-fn load_snapshot(repo: &Repo, branch: Option<&str>, limit: usize, path: Option<&str>) -> Result<LogSnapshot> {
-    let entries = repo.history(branch, limit, path)?;
+fn load_snapshot(repo: &Repo, query: &HistoryQuery) -> Result<LogSnapshot> {
+    let entries = repo.history(query)?;
     let graph = vcs::graph_layout(entries.iter().map(|e| (e.hash.as_str(), e.parents.as_slice())));
     Ok(LogSnapshot {
         entries,
@@ -122,16 +122,18 @@ impl Workspace {
     }
 
     fn new_git_log_state(&mut self, window: &mut Window, cx: &mut Context<Self>) -> GitLogState {
-        let filter = cx
-            .new(|cx| InputState::new(window, cx).placeholder("Text or hash · author:name · path:dir/file"));
+        let filter = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Text or hash · author:name · path:dir · after:2026-01-31")
+        });
         let subscription = cx.subscribe(&filter, |this, _, event: &InputEvent, cx| {
             let (InputEvent::Change, Some(log)) = (event, this.git_log.as_mut()) else {
                 return;
             };
-            // The path is filtered by git, so a new path means a new history.
-            let path = parse_filter(&log.filter.read(cx).value()).path;
-            if path != log.path {
-                log.path = path;
+            // Path and dates are filtered by git, so changing them means a new history.
+            let terms = parse_filter(&log.filter.read(cx).value()).git_terms();
+            if terms != log.git_terms {
+                log.git_terms = terms;
                 log.limit = HISTORY_PAGE;
                 return this.reload_git_log(cx);
             }
@@ -153,7 +155,7 @@ impl Workspace {
             focus: cx.focus_handle(),
             loading: false,
             limit: HISTORY_PAGE,
-            path: None,
+            git_terms: (None, None, None),
             _subscription: subscription,
         }
     }
@@ -164,17 +166,20 @@ impl Workspace {
             return;
         };
         let repo = git.repo.clone();
-        let branch = log.branch.clone();
-        let limit = log.limit;
-        // `path:` is typed relative to the project; git wants it relative to the repository.
-        let path = log.path.as_ref().map(|p| git.repo_path(p));
+        let (path, after, before) = log.git_terms.clone();
+        let query = HistoryQuery {
+            revision: log.branch.clone(),
+            limit: log.limit,
+            // `path:` is typed relative to the project; git wants it relative to the repository.
+            path: path.map(|p| git.repo_path(&p)),
+            after,
+            before,
+        };
         log.loading = true;
         cx.notify();
         cx.spawn(async move |this, cx| {
             let snapshot = cx
-                .background_spawn(
-                    async move { load_snapshot(&repo, branch.as_deref(), limit, path.as_deref()) },
-                )
+                .background_spawn(async move { load_snapshot(&repo, &query) })
                 .await;
             this.update(cx, |ws, cx| ws.apply_log_snapshot(snapshot, cx)).ok();
         })

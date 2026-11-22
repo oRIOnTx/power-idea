@@ -72,6 +72,8 @@ is in the working tree only.
 - [x] Quit that cannot be cancelled (Dock → Quit, logout) keeps unsaved editor text in
       `~/Library/Application Support/power-idea/recovery/` and restores it as unsaved edits on next open
       ("Don't Save" on ⌘Q skips this)
+- [x] Redis TLS (`rediss://` when "Require TLS" is set; redis `tls-rustls` feature, no new crates)
+- [x] Git Log date filter: `after:YYYY-MM-DD` / `before:YYYY-MM-DD`, applied by git like `path:`
 
 ## Backlog
 Agreed backlog is done. Candidates:
@@ -81,8 +83,7 @@ Database gaps below.
 - `db` test `sqlite_queries_schema_and_limits` failed once; temp DB names now use a counter instead of the clock
 - Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;
   Go to Symbol lists library symbols after project ones
-- Git Log: no date-range filter
-- Database: no TLS for Redis
+- Redis TLS verified only by URL/feature tests (no TLS Redis server here)
 - Dock → Quit cannot ask (gpui has no cancellable terminate hook); unsaved text is recovered instead
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end
 - The user's `lms` project needs `brew install libpq` + `bundle install` for full Ruby LSP (fallback mode works meanwhile)

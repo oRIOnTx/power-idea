@@ -90,6 +90,19 @@ impl Operation {
     }
 }
 
+/// Which commits `Repo::history` returns.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct HistoryQuery {
+    /// Branch or revision; all refs when `None`.
+    pub revision: Option<String>,
+    pub limit: usize,
+    /// Only commits touching this repository path.
+    pub path: Option<String>,
+    /// Only commits on or after / before this date (`YYYY-MM-DD`, local time).
+    pub after: Option<String>,
+    pub before: Option<String>,
+}
+
 /// `%ad` as local wall-clock time (the user's time zone, DST included).
 const LOCAL_DATE: &str = "--date=format-local:%Y-%m-%d %H:%M";
 
@@ -180,13 +193,14 @@ impl Repo {
         Ok(self.run(&["remote"])?.lines().map(str::to_string).collect())
     }
 
-    /// Up to `limit` commits of `revision` (all refs when `None`) that touch
-    /// `path` (anything when `None`), newest first.
-    pub fn history(&self, revision: Option<&str>, limit: usize, path: Option<&str>) -> Result<Vec<LogEntry>> {
+    /// Commits matching `query`, newest first.
+    pub fn history(&self, query: &HistoryQuery) -> Result<Vec<LogEntry>> {
         if !self.has_head() {
             return Ok(Vec::new());
         }
-        let limit = format!("-n{limit}");
+        let limit = format!("-n{}", query.limit);
+        let after = query.after.as_ref().map(|d| format!("--since={d} 00:00"));
+        let before = query.before.as_ref().map(|d| format!("--until={d} 00:00"));
         let format = "--format=%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%at%x1f%ad%x1f%D%x1f%s%x1e";
         let mut args = vec![
             "log",
@@ -196,11 +210,13 @@ impl Repo {
             &limit,
             format,
         ];
-        match revision {
-            Some(rev) => args.extend([rev, "--"]),
+        args.extend(after.as_deref());
+        args.extend(before.as_deref());
+        match &query.revision {
+            Some(rev) => args.extend([rev.as_str(), "--"]),
             None => args.extend(["--branches", "--remotes", "--tags", "HEAD", "--"]),
         }
-        args.extend(path);
+        args.extend(query.path.as_deref());
         Ok(parse_log(&self.run(&args)?, &self.remotes()?))
     }
 
@@ -356,7 +372,11 @@ mod tests {
 
     fn subjects(repo: &TempRepo, revision: &str) -> Vec<String> {
         repo.0
-            .history(Some(revision), 50, None)
+            .history(&HistoryQuery {
+                revision: Some(revision.into()),
+                limit: 50,
+                ..Default::default()
+            })
             .unwrap()
             .into_iter()
             .map(|e| e.subject)
@@ -370,12 +390,29 @@ mod tests {
         repo.0.create_tag("v1", &first).unwrap();
         repo.commit_file("a.txt", "two\n", "second");
 
-        let log = repo.0.history(None, 10, None).unwrap();
+        let all = |path: Option<&str>| HistoryQuery {
+            limit: 10,
+            path: path.map(str::to_string),
+            ..Default::default()
+        };
+        let log = repo.0.history(&all(None)).unwrap();
         assert_eq!(log[0].local_date.len(), "2026-11-22 10:30".len());
         // Only commits that touched the path.
         repo.commit_file("b.txt", "b\n", "other file");
-        let touching = repo.0.history(None, 10, Some("a.txt")).unwrap();
+        let touching = repo.0.history(&all(Some("a.txt"))).unwrap();
         assert_eq!(touching.len(), 2);
+        // Date bounds: everything is from today.
+        let today = log[0].local_date[..10].to_string();
+        let since_today = HistoryQuery {
+            after: Some(today.clone()),
+            ..all(None)
+        };
+        assert_eq!(repo.0.history(&since_today).unwrap().len(), 3);
+        let before_today = HistoryQuery {
+            before: Some(today),
+            ..all(None)
+        };
+        assert!(repo.0.history(&before_today).unwrap().is_empty());
         assert_eq!(log.len(), 2);
         assert_eq!(log[0].parents, std::slice::from_ref(&first));
         assert!(log[0].refs.iter().any(|r| r.kind == RefKind::Head));

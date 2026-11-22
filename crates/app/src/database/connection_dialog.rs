@@ -5,7 +5,6 @@ use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, Sizable as _, WindowExt as _, h_flex, v_flex};
-use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use crate::workspace::Workspace;
@@ -277,18 +276,16 @@ impl Render for ConnectionForm {
                     },
                     Input::new(&self.database),
                 ))
-                .when(self.kind != DbKind::Redis, |el| {
-                    el.child(field(
-                        "",
-                        Checkbox::new("tls")
-                            .label("Require TLS")
-                            .checked(self.tls)
-                            .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                                this.tls = *checked;
-                                cx.notify();
-                            })),
-                    ))
-                })
+                .child(field(
+                    "",
+                    Checkbox::new("tls")
+                        .label("Require TLS")
+                        .checked(self.tls)
+                        .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                            this.tls = *checked;
+                            cx.notify();
+                        })),
+                ))
         };
 
         let test_status = match &self.test {

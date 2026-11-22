@@ -12,11 +12,33 @@ pub(super) struct LogFilter {
     pub text: Vec<String>,
     /// Lowercase part of the author name or email.
     pub author: Option<String>,
-    /// File or folder (relative to the repository) the commits must touch.
+    /// File or folder (relative to the project) the commits must touch.
     pub path: Option<String>,
+    /// `after:YYYY-MM-DD` / `before:YYYY-MM-DD` bounds (local dates).
+    pub after: Option<String>,
+    pub before: Option<String>,
 }
 
-/// Parses e.g. `fix author:ann path:app/models`.
+impl LogFilter {
+    /// The terms git applies; a change means the history must be reloaded.
+    pub fn git_terms(&self) -> (Option<String>, Option<String>, Option<String>) {
+        (self.path.clone(), self.after.clone(), self.before.clone())
+    }
+}
+
+/// `YYYY-MM-DD` with plausible month and day.
+fn is_date(text: &str) -> bool {
+    let parts: Vec<&str> = text.split('-').collect();
+    let number = |s: &str, len: usize, max: u32| {
+        s.len() == len
+            && s.chars().all(|c| c.is_ascii_digit())
+            && s.parse::<u32>().is_ok_and(|n| (1..=max).contains(&n))
+    };
+    matches!(parts.as_slice(), [y, m, d] if number(y, 4, 9999) && number(m, 2, 12) && number(d, 2, 31))
+}
+
+/// Parses e.g. `fix author:ann path:app/models after:2026-01-01`; an invalid
+/// date stays a text word.
 pub(super) fn parse_filter(query: &str) -> LogFilter {
     let mut filter = LogFilter::default();
     for word in query.split_whitespace() {
@@ -24,6 +46,10 @@ pub(super) fn parse_filter(query: &str) -> LogFilter {
             filter.author = Some(author.to_lowercase());
         } else if let Some(path) = word.strip_prefix("path:").filter(|p| !p.is_empty()) {
             filter.path = Some(path.trim_start_matches("./").to_string());
+        } else if let Some(date) = word.strip_prefix("after:").filter(|d| is_date(d)) {
+            filter.after = Some(date.to_string());
+        } else if let Some(date) = word.strip_prefix("before:").filter(|d| is_date(d)) {
+            filter.before = Some(date.to_string());
         } else {
             filter.text.push(word.to_lowercase());
         }
@@ -269,7 +295,14 @@ mod tests {
                 text: vec!["fix".into()],
                 author: Some("ann".into()),
                 path: Some("app/models".into()),
+                ..LogFilter::default()
             }
+        );
+        let dates = parse_filter("after:2026-01-31 before:2026-13-01");
+        assert_eq!(dates.after.as_deref(), Some("2026-01-31"));
+        assert_eq!(
+            (dates.before, dates.text),
+            (None, vec!["before:2026-13-01".to_string()])
         );
 
         assert_eq!(check_ref_name("  feature/x ").unwrap(), "feature/x");
