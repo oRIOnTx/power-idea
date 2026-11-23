@@ -1,4 +1,6 @@
 # OpenSSF Scorecard (weekly): supply-chain security posture, results in code scanning.
+# Public repositories only: on a private one GITHUB_TOKEN cannot run its GraphQL queries
+# ("Resource not accessible by integration"), so the job is skipped until the repo is public.
 name: Scorecard
 
 on:
@@ -13,6 +15,7 @@ permissions:
 
 jobs:
   analysis:
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,8 +30,7 @@ jobs:
         with:
           results_file: scorecard.sarif
           results_format: sarif
-          # Publishing to the OpenSSF API works for public repositories only.
-          publish_results: ${{ !github.event.repository.private }}
+          publish_results: true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: scorecard

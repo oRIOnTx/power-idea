@@ -1,4 +1,5 @@
-# GitHub code scanning for Rust (needs a public repository or GitHub Advanced Security).
+# GitHub code scanning for Rust. Code scanning needs a public repository (or GitHub Advanced
+# Security), so the job is skipped while the repository is private.
 name: CodeQL
 
 on:
@@ -13,6 +14,7 @@ permissions:
 
 jobs:
   analyze:
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
