@@ -63,6 +63,18 @@ The hooks run `power-idea claude-hook`, which forwards the JSON to the IDE over 
 `power-idea claude-statusline`, which forwards its JSON and prints **your own** status line command (from
 your Claude settings) — or a short `Model · ctx 42% · $0.37` when you have none.
 
+## Claude folder
+
+Shortcuts to Claude Code's own files, so there is no need to duplicate them in the IDE:
+
+- **Edit Claude settings** opens `~/.claude/settings.json` (model, permissions, hooks, …) in an editor tab.
+- **Edit global rules** opens `~/.claude/CLAUDE.md` — the instructions Claude Code loads in every project — with
+  the Markdown preview.
+- **Open ~/.claude** shows the folder in Finder.
+
+A missing file is created only when you click its button: `{}` for `settings.json`, empty for `CLAUDE.md`. The
+IDE never writes its own content into these files. `CLAUDE_CONFIG_DIR` is honored like Claude Code does.
+
 ## The Claude tab
 
 The **Claude** icon in the activity bar (and **⌘Esc**, as in Claude Code's JetBrains plugin; remap it in

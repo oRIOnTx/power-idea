@@ -9,8 +9,9 @@ use gpui_kit::component::setting::{
 use gpui_kit::component::{ActiveTheme as _, IconName, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 
-use super::{Binary, state, update_settings};
+use super::{Binary, folder, state, update_settings};
 use crate::style::dialog_button;
+use crate::workspace::Workspace;
 
 fn settings(cx: &App) -> &ClaudeSettings {
     &state(cx).settings
@@ -48,7 +49,7 @@ fn number(
     )
 }
 
-pub fn page() -> SettingPage {
+pub fn page(workspace: WeakEntity<Workspace>) -> SettingPage {
     SettingPage::new("Claude Code")
         .icon(IconName::Bot)
         .description(
@@ -57,6 +58,7 @@ pub fn page() -> SettingPage {
              in ~/Library/Application Support/power-idea/claude/settings.toml.",
         )
         .group(general_group())
+        .group(folder::group(workspace))
         .group(gauges_group())
 }
 

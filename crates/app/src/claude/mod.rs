@@ -1,6 +1,7 @@
 //! Settings → Claude Code: the IDE's Claude settings file and the `claude` binary, loaded in the
 //! background and reloaded when the file changes, so editing by hand is as good as in the UI.
 
+mod folder;
 mod gauges;
 mod launch;
 mod page;
