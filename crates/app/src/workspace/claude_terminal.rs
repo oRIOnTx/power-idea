@@ -1,9 +1,9 @@
-//! "Claude" terminal tabs: `claude` in the project root with the injected settings
-//! (Settings → Claude Code → Terminal). New terminal tabs start one by default.
+//! "Claude" terminal tabs: `claude` in the project root, with the IDE's MCP server and live
+//! gauges when Settings → Claude Code is on.
 
 use std::collections::BTreeMap;
 
-use claude_integration::launcher::{self, LaunchPlan};
+use claude_integration::launcher::{self, LaunchPlan, Start};
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::button::ButtonVariant;
 use gpui_kit::component::notification::Notification;
@@ -14,45 +14,24 @@ use crate::claude::{self, Binary};
 use crate::terminal::{Session, TerminalView};
 
 impl Workspace {
-    /// New terminal tabs start Claude (it is switched on and this is a project window).
-    pub(super) fn wants_claude_tab(&self, cx: &App) -> bool {
-        !self.light
-            && cx
-                .try_global::<claude::ClaudeState>()
-                .is_some_and(|s| s.settings.enabled && s.settings.terminal.claude_tab)
-    }
-
     /// Opens a Claude tab at `ix` (the end when `None`), writing its generated files first.
     pub(super) fn start_claude_tab(
         &mut self,
         ix: Option<usize>,
+        start: Start,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let state = claude::state(cx);
-        let terminal_settings = state.settings.terminal.clone();
-        let binary = state.binary.clone();
-        let facts = self.claude_facts();
-        let Some(plan) = claude::plan_for(&facts, terminal_settings.continue_last, cx) else {
+        let binary = claude::state(cx).binary.clone();
+        let Some(plan) = claude::plan_for(&self.root, start, cx) else {
             return;
         };
         let command = match &binary {
-            Binary::Found { .. } => {
-                let start = command_line(&plan);
-                if terminal_settings.auto_start {
-                    start
-                } else {
-                    format!(
-                        "printf '\\033[2mClaude Code: press Enter to start, or Ctrl-C to cancel.\\033[0m\\n'; \
-                         read -r _ && exec {start}"
-                    )
-                }
-            }
+            Binary::Found { .. } => command_line(&plan),
             Binary::Missing(reason) => missing_message(reason),
             Binary::Detecting => missing_message("claude is still being detected — use Restart in a moment"),
         };
         let env: BTreeMap<String, String> = plan.env.iter().cloned().collect();
-        claude::remember_active_skills(&self.root, plan.skill_names.clone(), cx);
         cx.spawn_in(window, async move |this, cx| {
             let written = cx
                 .background_spawn({
@@ -103,7 +82,7 @@ impl Workspace {
         };
         tab.update(cx, TerminalView::stop);
         self.close_terminal(ix, window, cx);
-        self.start_claude_tab(Some(ix), window, cx);
+        self.start_claude_tab(Some(ix), Start::New, window, cx);
     }
 
     /// Closes a terminal tab; a running Claude session asks first, a pinned tab stays.
@@ -180,16 +159,14 @@ mod tests {
     fn quotes_the_command_line() {
         let plan = LaunchPlan {
             program: PathBuf::from("/opt/claude bin/claude"),
-            args: vec!["--append-system-prompt-file".into(), "/c/rules.md".into()],
+            args: vec!["--mcp-config".into(), "/c/my mcp.json".into()],
             env: vec![],
             cwd: PathBuf::from("/p"),
             files: vec![],
-            plugin: None,
-            skill_names: vec![],
         };
         assert_eq!(
             command_line(&plan),
-            "'/opt/claude bin/claude' --append-system-prompt-file /c/rules.md"
+            "'/opt/claude bin/claude' --mcp-config '/c/my mcp.json'"
         );
         assert!(missing_message("claude was not found").starts_with("printf 'claude was not found."));
     }

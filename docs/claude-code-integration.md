@@ -9,16 +9,10 @@ Docs index: https://code.claude.com/docs/llms.txt
 
 | Flag | Use for us |
 |---|---|
-| `--append-system-prompt <text>` / `--append-system-prompt-file <path>` | Inject the effective IDE rules; works in interactive sessions too ("all five work in both interactive and non-interactive modes"). Appends to the default prompt. `--system-prompt[-file]` would *replace* it — never use. |
 | `--settings <file-or-json>` | Session-only settings layer: above user / project / local files, below managed. Keys set here override the same keys; omitted keys keep file values; most lists merge. Writes nothing to disk. |
 | `--mcp-config <configs...>` | JSON files or strings with an `{"mcpServers": {...}}` wrapper (same as `.mcp.json`). `--strict-mcp-config` would ignore other MCP servers — not used. |
-| `--plugin-dir <path>` | Load a plugin directory or `.zip` for this session only; repeatable; a folder of plugins loads each child. |
-| `--add-dir <dirs...>` | Extra directories with tool access (their `.claude/skills` and CLAUDE.md dirs load too). |
 | `-c, --continue` | Continue the most recent conversation in the current directory. |
 | `-r, --resume [id-or-name]` | Resume by session id / name, or open the picker. |
-| `--model <alias-or-name>` | e.g. `opus`, `sonnet`, `fable`, or a full model name. |
-| `--permission-mode <mode>` | `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan`. |
-| `--effort <level>` | `low`, `medium`, `high`, `xhigh`, `max`. |
 | `-n, --name <name>` | Session display name (prompt box, `/resume`, terminal title). |
 | `--session-id <uuid>` | Fixed session id (lets the IDE know which transcript is its own). |
 | `--setting-sources <user,project,local>` | Limit which settings files load — not used (we never hide the user's settings). |
@@ -68,23 +62,6 @@ Docs index: https://code.claude.com/docs/llms.txt
   Claude Code shows — a session-level `statusLine` replaces the user's, so ours must run the user's own
   command (if any) and print its output.
 
-## Skills (skills.md)
-
-- `~/.claude/skills/<name>/SKILL.md` (personal), `.claude/skills/<name>/SKILL.md` (project), plugin
-  `<plugin>/skills/<name>/SKILL.md`; enterprise > personal > project on name clashes.
-- Front-matter (YAML, all optional; `description` recommended): `name`, `description`, `when_to_use`,
-  `argument-hint`, `arguments`, `disable-model-invocation`, `user-invocable`, `allowed-tools`,
-  `disallowed-tools`, `model`, `effort`, `context`, `agent`, `background`, `hooks`, `paths`, `shell`,
-  `metadata`, `license`, `compatibility`. Names with `<`/`>`, control or zero-width characters are refused;
-  `anthropic-skills*` and `synced` are reserved. Description + when_to_use are cut at 1,536 characters.
-
-## Plugins (plugins-reference.md)
-
-- Optional manifest `.claude-plugin/plugin.json`; only `name` (kebab-case) is required.
-- Components at the plugin root: `skills/<name>/SKILL.md`, `commands/*.md`, `agents/*.md`,
-  `hooks/hooks.json` (with a top-level `"hooks"` wrapper), `.mcp.json`, `bin/`. A plugin's CLAUDE.md is **not**
-  loaded. Components are namespaced: `/<plugin>:<skill>`. Check with `claude plugin validate <dir>`.
-
 ## Memory (memory.md)
 
 - Managed (macOS) `/Library/Application Support/ClaudeCode/CLAUDE.md`; user `~/.claude/CLAUDE.md`; project
@@ -104,8 +81,6 @@ Docs index: https://code.claude.com/docs/llms.txt
 
 | Feature | Mechanism |
 |---|---|
-| Rules (inject mode) | `--append-system-prompt-file <cache>/<project>/rules.md` |
-| Skills (inject mode) | `--plugin-dir <cache>/plugin` (generated plugin `power-idea` with `skills/<name>/SKILL.md`) → skills appear as `/power-idea:<name>` |
 | Hooks / gauges | `--settings <cache>/<project>/settings.json` with `hooks` (→ `power-idea claude-hook`) and `statusLine` (→ `power-idea claude-statusline`, which forwards the JSON and prints the user's own status line) |
 | IDE context | `--mcp-config` with the IDE's MCP server (optional) |
-| Install mode | managed block in `~/.claude/CLAUDE.md`, managed copies `~/.claude/skills/ide-<name>/` + manifest, backups |
+| Cleanup of the removed Install mode | once, from `install-manifest.json`: the managed block in `~/.claude/CLAUDE.md` and the marked `~/.claude/skills/ide-*` copies |

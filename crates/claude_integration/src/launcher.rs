@@ -1,6 +1,6 @@
-//! Starting `claude` for a project: the command line, its generated files (rules, session
-//! settings with hooks and status line, MCP config, skills plugin) and a readable preview.
-//! `plan` is pure; `write` puts the files in the cache folder.
+//! Starting `claude` for a project: the command line and its generated files (session settings
+//! with hooks and status line, MCP config). `plan` is pure; `write` puts the files in the cache
+//! folder.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -9,9 +9,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as _, Result};
 use serde_json::{Value, json};
 
-use crate::resolver::{self, Effective};
 use crate::settings::ClaudeSettings;
-use crate::skills;
 
 /// Environment variables the hook / status-line helpers read to reach the IDE.
 pub const SOCKET_ENV: &str = "POWER_IDEA_CLAUDE_SOCKET";
@@ -54,7 +52,7 @@ pub struct LaunchOptions {
 pub struct GeneratedFile {
     pub path: PathBuf,
     pub contents: String,
-    /// Holds a secret: written with mode 0600 and redacted in previews.
+    /// Holds a secret: written with mode 0600.
     pub private: bool,
 }
 
@@ -65,20 +63,36 @@ pub struct LaunchPlan {
     pub env: Vec<(String, String)>,
     pub cwd: PathBuf,
     pub files: Vec<GeneratedFile>,
-    /// The session plugin folder and the skill folders to copy into it.
-    pub plugin: Option<(PathBuf, Vec<PathBuf>)>,
-    /// Skill names in the plugin (for the preview and the UI).
-    pub skill_names: Vec<String>,
+}
+
+/// How a Claude tab starts its session.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Start {
+    #[default]
+    New,
+    /// `--continue`: the most recent session in the project.
+    Continue,
+    /// `--resume`: Claude Code's own picker of earlier sessions.
+    Resume,
+}
+
+impl Start {
+    fn flag(self) -> Option<&'static str> {
+        match self {
+            Self::New => None,
+            Self::Continue => Some("--continue"),
+            Self::Resume => Some("--resume"),
+        }
+    }
 }
 
 /// Builds the launch for `project_root`, with generated files under `cache_dir`.
 pub fn plan(
     settings: &ClaudeSettings,
-    effective: &Effective<'_>,
     program: &Path,
     project_root: &Path,
     cache_dir: &Path,
-    continue_last: bool,
+    start: Start,
     options: &LaunchOptions,
 ) -> LaunchPlan {
     let mut plan = LaunchPlan {
@@ -87,34 +101,21 @@ pub fn plan(
         env: Vec::new(),
         cwd: project_root.to_path_buf(),
         files: Vec::new(),
-        plugin: None,
-        skill_names: Vec::new(),
     };
-    if !settings.enabled {
-        if continue_last {
-            plan.args.push("--continue".into());
-        }
-        return plan;
+    if settings.enabled {
+        add_integration(&mut plan, settings, cache_dir, options);
     }
+    plan.args.extend(start.flag().map(String::from));
+    plan
+}
 
-    if resolver::injects_rules(settings) && !effective.rules_text.is_empty() {
-        let path = cache_dir.join("rules.md");
-        plan.args
-            .extend(["--append-system-prompt-file".into(), path_arg(&path)]);
-        plan.files.push(GeneratedFile {
-            path,
-            contents: effective.rules_text.clone(),
-            private: false,
-        });
-    }
-
-    if resolver::injects_skills(settings) && !effective.skills.is_empty() {
-        let dir = cache_dir.join("plugin").join(skills::PLUGIN_NAME);
-        plan.args.extend(["--plugin-dir".into(), path_arg(&dir)]);
-        plan.skill_names = effective.skills.iter().map(|s| s.name.clone()).collect();
-        plan.plugin = Some((dir, effective.skills.iter().map(|s| s.dir.clone()).collect()));
-    }
-
+/// The IDE's additions: hooks and status line for the live gauges, and its MCP server.
+fn add_integration(
+    plan: &mut LaunchPlan,
+    settings: &ClaudeSettings,
+    cache_dir: &Path,
+    options: &LaunchOptions,
+) {
     if let Some(session) = session_settings(settings, cache_dir, options) {
         let path = cache_dir.join("settings.json");
         plan.args.extend(["--settings".into(), path_arg(&path)]);
@@ -153,27 +154,11 @@ pub fn plan(
             private: true,
         });
     }
-
-    let general = &settings.general;
-    for (flag, value) in [
-        ("--model", &general.model),
-        ("--permission-mode", &general.permission_mode),
-        ("--effort", &general.effort),
-    ] {
-        if !value.trim().is_empty() {
-            plan.args.extend([flag.to_string(), value.trim().to_string()]);
-        }
-    }
-    if continue_last {
-        plan.args.push("--continue".into());
-    }
-    plan
 }
 
-/// Hooks and status line for the session, when gauges or quality need live events.
+/// Hooks and status line for the session, when the live gauges need its events.
 fn session_settings(settings: &ClaudeSettings, cache_dir: &Path, options: &LaunchOptions) -> Option<Value> {
-    let live = settings.gauges.enabled || settings.quality.enabled;
-    let exe = options.ide_exe.as_ref().filter(|_| live)?;
+    let exe = options.ide_exe.as_ref().filter(|_| settings.gauges.enabled)?;
     let hook = format!("{} claude-hook", shell_quote(&exe.to_string_lossy()));
     let mut hooks = serde_json::Map::new();
     for event in HOOK_EVENTS {
@@ -218,7 +203,7 @@ pub fn user_statusline(project_root: &Path, home: &Path) -> Option<String> {
     })
 }
 
-/// Writes the generated files and the skills plugin.
+/// Writes the generated files.
 pub fn write(plan: &LaunchPlan) -> Result<()> {
     for file in &plan.files {
         if let Some(dir) = file.path.parent() {
@@ -230,60 +215,7 @@ pub fn write(plan: &LaunchPlan) -> Result<()> {
             fs::set_permissions(&file.path, fs::Permissions::from_mode(0o600))?;
         }
     }
-    if let Some((dir, skill_dirs)) = &plan.plugin {
-        skills::write_plugin(dir, skill_dirs)?;
-    }
     Ok(())
-}
-
-/// What "Preview effective context" shows: the command line and every generated file,
-/// secrets redacted.
-pub fn preview(plan: &LaunchPlan) -> String {
-    let mut out = String::new();
-    let command: Vec<String> = std::iter::once(plan.program.to_string_lossy().into_owned())
-        .chain(plan.args.iter().cloned())
-        .map(|a| shell_quote(&a))
-        .collect();
-    let _ = writeln!(out, "Working directory: {}\n", plan.cwd.display());
-    let _ = writeln!(out, "Command:\n  {}\n", command.join(" "));
-    if !plan.env.is_empty() {
-        out.push_str("Environment:\n");
-        for (key, value) in &plan.env {
-            let _ = writeln!(out, "  {key}={value}");
-        }
-        out.push('\n');
-    }
-    if !plan.skill_names.is_empty() {
-        let _ = writeln!(
-            out,
-            "Skills (plugin `{}`, invoked as /{}:<name>): {}\n",
-            skills::PLUGIN_NAME,
-            skills::PLUGIN_NAME,
-            plan.skill_names.join(", ")
-        );
-    }
-    for file in &plan.files {
-        let contents = if file.private {
-            redact(&file.contents)
-        } else {
-            file.contents.clone()
-        };
-        let _ = writeln!(out, "── {} ──\n{}\n", file.path.display(), contents.trim_end());
-    }
-    if plan.args.is_empty() {
-        out.push_str("Nothing is injected: claude starts exactly as from a terminal.\n");
-    }
-    out
-}
-
-fn redact(text: &str) -> String {
-    text.lines()
-        .map(|line| match line.split_once("Bearer ") {
-            Some((before, _)) => format!("{before}Bearer ••••••\""),
-            None => line.to_string(),
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 fn pretty(value: &Value) -> String {
@@ -303,8 +235,26 @@ pub fn cache_key(project_root: &Path) -> String {
     }
     let name = project_root
         .file_name()
-        .map_or_else(String::new, |n| crate::rules::slug(&n.to_string_lossy()));
+        .map_or_else(String::new, |n| slug(&n.to_string_lossy()));
     format!("{name}-{hash:016x}")
+}
+
+/// Lowercase ASCII letters and digits, other runs collapsed to one `-`.
+fn slug(name: &str) -> String {
+    let mut slug = String::new();
+    for c in name.chars() {
+        if c.is_ascii_alphanumeric() {
+            slug.push(c.to_ascii_lowercase());
+        } else if !slug.ends_with('-') && !slug.is_empty() {
+            slug.push('-');
+        }
+    }
+    let slug = slug.trim_end_matches('-');
+    if slug.is_empty() {
+        "project".into()
+    } else {
+        slug.into()
+    }
 }
 
 /// POSIX shell quoting for display and hook commands.
@@ -346,9 +296,6 @@ pub fn locate_claude(configured: &str, path_env: Option<&str>, home: &Path) -> O
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::project::ProjectFacts;
-    use crate::rules::Rule;
-    use crate::skills::Skill;
 
     fn on() -> ClaudeSettings {
         let mut settings = ClaudeSettings {
@@ -359,67 +306,41 @@ mod tests {
         settings
     }
 
-    fn rules() -> Vec<Rule> {
-        vec![Rule::parse("---\nname: Style\n---\nBe nice.", "rules/style.md").unwrap()]
-    }
-
-    fn plan_for(settings: &ClaudeSettings, options: &LaunchOptions, continue_last: bool) -> LaunchPlan {
-        let rules = rules();
-        let skills = [Skill {
-            name: "review".into(),
-            description: String::new(),
-            dir: PathBuf::from("/lib/skills/review"),
-            builtin: true,
-        }];
-        let effective = resolver::resolve(settings, &rules, &skills, &ProjectFacts::new("/p", vec![]));
+    fn plan_for(settings: &ClaudeSettings, options: &LaunchOptions, start: Start) -> LaunchPlan {
         plan(
             settings,
-            &effective,
             Path::new("/bin/claude"),
             Path::new("/p"),
             Path::new("/cache/p1"),
-            continue_last,
+            start,
             options,
         )
     }
 
     #[test]
     fn disabled_section_launches_plain_claude() {
-        let plan = plan_for(&ClaudeSettings::default(), &LaunchOptions::default(), true);
+        let options = LaunchOptions {
+            ide_exe: Some(PathBuf::from("/ide")),
+            ..LaunchOptions::default()
+        };
+        let plan = plan_for(&ClaudeSettings::default(), &options, Start::Continue);
         assert_eq!(plan.args, ["--continue"]);
-        assert!(plan.files.is_empty() && plan.env.is_empty() && plan.plugin.is_none());
-        assert!(preview(&plan).contains("--continue"));
+        assert!(plan.files.is_empty() && plan.env.is_empty());
     }
 
     #[test]
-    fn injects_rules_skills_and_flags() {
-        let mut settings = on();
-        settings.general.model = "opus".into();
-        settings.general.permission_mode = "plan".into();
-        let plan = plan_for(&settings, &LaunchOptions::default(), false);
-        assert_eq!(
-            plan.args,
-            [
-                "--append-system-prompt-file",
-                "/cache/p1/rules.md",
-                "--plugin-dir",
-                "/cache/p1/plugin/power-idea",
-                "--model",
-                "opus",
-                "--permission-mode",
-                "plan",
-            ]
-        );
-        assert!(plan.files[0].contents.contains("## Style\n\nBe nice."));
-        assert_eq!(plan.skill_names, ["review"]);
-        assert!(plan.env.is_empty(), "no hooks without gauges or quality");
+    fn start_modes_add_their_flag_last() {
+        let plain = plan_for(&on(), &LaunchOptions::default(), Start::New);
+        assert!(plain.args.is_empty(), "nothing injected without gauges or MCP");
+        assert!(plain.env.is_empty());
+        let resume = plan_for(&on(), &LaunchOptions::default(), Start::Resume);
+        assert_eq!(resume.args, ["--resume"]);
     }
 
     #[test]
     fn adds_hooks_and_status_line_for_live_gauges() {
         let mut settings = on();
         settings.gauges.enabled = true;
-        settings.skills.enabled = false;
         let options = LaunchOptions {
             ide_exe: Some(PathBuf::from(
                 "/Applications/Power IDEA.app/Contents/MacOS/power-idea",
@@ -429,7 +350,7 @@ mod tests {
             user_statusline: Some("~/bin/status.sh".into()),
             ..LaunchOptions::default()
         };
-        let plan = plan_for(&settings, &options, false);
+        let plan = plan_for(&settings, &options, Start::New);
         let settings_file = plan
             .files
             .iter()
@@ -473,24 +394,17 @@ mod tests {
             }),
             ..LaunchOptions::default()
         };
-        let plan = plan_for(&settings, &options, false);
+        let plan = plan_for(&settings, &options, Start::New);
         let mcp = plan.files.iter().find(|f| f.path.ends_with("mcp.json")).unwrap();
         assert!(mcp.private && mcp.contents.contains("Bearer s3cret"));
-        let shown = preview(&plan);
-        assert!(
-            !shown.contains("s3cret") && shown.contains("Bearer ••••••"),
-            "{shown}"
-        );
+        assert_eq!(plan.args, ["--mcp-config", "/cache/p1/mcp.json"]);
     }
 
     #[test]
-    fn writes_files_and_plugin() {
+    fn writes_private_files_owner_only() {
         use std::os::unix::fs::PermissionsExt as _;
         let dir = std::env::temp_dir().join(format!("pi-launch-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
-        let skill = dir.join("lib/review");
-        fs::create_dir_all(&skill).unwrap();
-        fs::write(skill.join("SKILL.md"), "---\ndescription: R\n---\n").unwrap();
         let plan = LaunchPlan {
             program: PathBuf::from("claude"),
             args: vec![],
@@ -501,8 +415,6 @@ mod tests {
                 contents: "{}".into(),
                 private: true,
             }],
-            plugin: Some((dir.join("cache/plugin/power-idea"), vec![skill])),
-            skill_names: vec!["review".into()],
         };
         write(&plan).unwrap();
         let mode = fs::metadata(dir.join("cache/mcp.json"))
@@ -510,10 +422,6 @@ mod tests {
             .permissions()
             .mode();
         assert_eq!(mode & 0o777, 0o600);
-        assert!(
-            dir.join("cache/plugin/power-idea/skills/review/SKILL.md")
-                .is_file()
-        );
         let _ = fs::remove_dir_all(&dir);
     }
 

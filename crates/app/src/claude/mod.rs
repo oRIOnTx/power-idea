@@ -1,22 +1,17 @@
-//! Settings → Claude Code: the global state of the IDE's Claude folder (settings, rules,
-//! skills, the `claude` binary), loaded in the background and reloaded when files change, so
-//! editing by hand or by an agent is as good as editing in the UI.
+//! Settings → Claude Code: the IDE's Claude settings file and the `claude` binary, loaded in the
+//! background and reloaded when the file changes, so editing by hand is as good as in the UI.
 
 mod gauges;
+mod launch;
 mod page;
-mod preview;
-mod quality;
-mod rule_actions;
-mod rules_view;
-mod skills_view;
 
 use std::path::PathBuf;
 use std::time::Duration;
 
-use claude_integration::installer::{Installer, Manifest};
-use claude_integration::rules::LoadError;
-use claude_integration::skills::{self, SkillError};
-use claude_integration::{ClaudeDir, ClaudeSettings, Rule, Skill, launcher};
+use claude_integration::settings::Loaded;
+use claude_integration::{ClaudeDir, ClaudeSettings, launcher, legacy};
+use gpui_kit::component::WindowExt as _;
+use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 use notify::Watcher as _;
 
@@ -24,15 +19,13 @@ use crate::config::Config;
 use crate::inbox::Inbox;
 
 pub use gauges::{Place, render as render_gauges};
+pub use launch::plan_for;
 pub use page::page;
-pub use preview::{open_preview, plan_for};
-pub use quality::on_file_saved;
-pub use skills_view::remember_active as remember_active_skills;
 
 /// Changes to the folder are collected this long before one reload.
 const DEBOUNCE: Duration = Duration::from_millis(300);
 
-/// Everything read from the Claude folder, plus what was found about `claude` itself.
+/// The IDE's Claude settings, plus what was found about `claude` itself.
 #[derive(Debug, Clone)]
 pub struct ClaudeState {
     pub dir: ClaudeDir,
@@ -40,12 +33,11 @@ pub struct ClaudeState {
     pub settings: ClaudeSettings,
     /// Why `settings.toml` was rejected, shown inline; the last valid settings stay active.
     pub settings_error: Option<String>,
-    pub rules: Vec<Rule>,
-    pub rule_errors: Vec<LoadError>,
-    pub skills: Vec<Skill>,
-    pub skill_errors: Vec<SkillError>,
+    /// Keys of removed features still in `settings.toml`; ignored until the file is saved again.
+    pub removed_keys: Vec<String>,
+    /// What the one-time cleanup took out of `~/.claude` in this run.
+    pub cleaned_up: Vec<String>,
     pub binary: Binary,
-    pub manifest: Manifest,
 }
 
 /// The `claude` executable as detected.
@@ -62,13 +54,8 @@ pub enum Binary {
 
 impl Global for ClaudeState {}
 
-/// A fresh read of the folder (done off the UI thread).
-struct Snapshot {
-    settings: Result<ClaudeSettings, String>,
-    rules: (Vec<Rule>, Vec<LoadError>),
-    skills: (Vec<Skill>, Vec<SkillError>),
-    manifest: Manifest,
-}
+/// A fresh read of the settings file (done off the UI thread).
+type Snapshot = Result<Loaded, String>;
 
 pub fn claude_dir() -> Option<ClaudeDir> {
     Config::dir().map(|dir| ClaudeDir::new(dir.join("claude")))
@@ -87,50 +74,42 @@ pub fn bridge_socket() -> PathBuf {
     std::env::temp_dir().join("power-idea-claude.sock")
 }
 
-/// Generated files for a project: `<cache>/power-idea/claude/<project key>`.
+/// Generated files for a project (session settings, MCP config):
+/// `<cache>/power-idea/claude/<project key>`.
 pub fn cache_root() -> Option<PathBuf> {
     dirs::cache_dir().map(|dir| dir.join("power-idea").join("claude"))
 }
 
-fn installer(dir: &ClaudeDir) -> Option<Installer> {
-    claude_home().map(|home| Installer::new(home, dir.root.clone()))
-}
-
 fn read_snapshot(dir: &ClaudeDir) -> Snapshot {
-    let manifest = installer(dir).map_or_default(|i| i.manifest());
-    Snapshot {
-        settings: dir.load_settings().map_err(|e| format!("{e:#}")),
-        rules: claude_integration::rules::load_dir(&dir.rules()),
-        skills: skills::load_dir(&dir.skills()),
-        manifest,
-    }
+    dir.load_settings().map_err(|e| format!("{e:#}"))
 }
 
-/// Creates the folder (schemas, built-in skills), loads it, watches it and detects `claude`.
+/// Creates the folder (schema), loads it, watches it, detects `claude` and runs the one-time
+/// cleanup of what the removed Install mode put into `~/.claude`.
 pub fn init(cx: &mut App) {
     let Some(dir) = claude_dir() else { return };
     cx.set_global(ClaudeState {
         dir: dir.clone(),
         settings: ClaudeSettings::default(),
         settings_error: None,
-        rules: Vec::new(),
-        rule_errors: Vec::new(),
-        skills: Vec::new(),
-        skill_errors: Vec::new(),
+        removed_keys: Vec::new(),
+        cleaned_up: Vec::new(),
         binary: Binary::Detecting,
-        manifest: Manifest::default(),
     });
     let setup_dir = dir.clone();
     cx.spawn(async move |cx| {
-        let snapshot = cx
+        let (snapshot, cleaned_up) = cx
             .background_spawn(async move {
                 if let Err(err) = setup_dir.ensure_layout() {
                     eprintln!("Claude folder: {err:#}");
                 }
-                if let Err(err) = skills::seed_builtins(&setup_dir.skills()) {
-                    eprintln!("built-in skills: {err:#}");
-                }
-                read_snapshot(&setup_dir)
+                let cleaned_up = claude_home().map_or_default(|home| {
+                    legacy::cleanup(&home, &setup_dir.root).unwrap_or_else(|err| {
+                        error_journal::report(&err, "cleaning up the old Claude Code install");
+                        Vec::new()
+                    })
+                });
+                (read_snapshot(&setup_dir), cleaned_up)
             })
             .await;
         cx.update(|cx| {
@@ -138,23 +117,44 @@ pub fn init(cx: &mut App) {
             watch(dir, cx);
             detect_binary(cx);
             gauges::start(cx);
+            announce_cleanup(cleaned_up, cx);
         });
     })
     .detach();
 }
 
+/// One notice for what the cleanup removed; the settings page keeps showing it for this run.
+fn announce_cleanup(cleaned_up: Vec<String>, cx: &mut App) {
+    if cleaned_up.is_empty() {
+        return;
+    }
+    let text = cleanup_notice(&cleaned_up);
+    cx.global_mut::<ClaudeState>().cleaned_up = cleaned_up;
+    if let Some(window) = cx.active_window() {
+        let _ = window.update(cx, |_, window, cx| {
+            let notice = Notification::info(text).title("Claude Code: old IDE additions removed");
+            window.push_notification(notice, cx);
+        });
+    }
+}
+
+pub(crate) fn cleanup_notice(removed: &[String]) -> String {
+    format!(
+        "Removed what Power IDEA once installed: {}. Your own files were not touched.",
+        removed.join(", ")
+    )
+}
+
 fn apply(snapshot: Snapshot, cx: &mut App) {
     let state = cx.global_mut::<ClaudeState>();
-    match snapshot.settings {
-        Ok(settings) => {
-            state.settings = settings;
+    match snapshot {
+        Ok(loaded) => {
+            state.settings = loaded.settings;
+            state.removed_keys = loaded.removed_keys;
             state.settings_error = None;
         }
         Err(err) => state.settings_error = Some(err),
     }
-    (state.rules, state.rule_errors) = snapshot.rules;
-    (state.skills, state.skill_errors) = snapshot.skills;
-    state.manifest = snapshot.manifest;
     cx.refresh_windows();
 }
 
@@ -246,6 +246,8 @@ pub fn update_settings(cx: &mut App, update: impl FnOnce(&mut ClaudeSettings)) {
     } else {
         state.settings = settings;
         state.settings_error = None;
+        // The file was just written without them.
+        state.removed_keys.clear();
     }
     cx.refresh_windows();
 }

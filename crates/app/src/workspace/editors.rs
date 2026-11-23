@@ -218,9 +218,6 @@ impl Workspace {
                 let rel = tab.rel.clone();
                 self.refresh_git(cx);
                 self.send_extension_event("file_saved", &rel, cx);
-                if !self.light {
-                    crate::claude::on_file_saved(&self.root, cx);
-                }
                 cx.notify();
                 true
             }

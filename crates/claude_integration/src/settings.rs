@@ -1,5 +1,6 @@
-//! `claude/settings.toml`: every Claude Code feature is an independent toggle, and the whole
-//! section is off by default (see `schemas/settings.schema.json`).
+//! `claude/settings.toml`: the switches of the Claude Code section, off by default (see
+//! `schemas/settings.schema.json`). Features Claude Code handles itself (rules, skills, model,
+//! permissions) were removed; `REMOVED_KEYS` keeps files written before loadable.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -7,51 +8,27 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as _, Result, bail};
 use serde::{Deserialize, Serialize};
 
-/// How a feature reaches Claude Code.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Mode {
-    /// Passed with CLI flags when the IDE starts `claude`; nothing outside the IDE changes.
-    #[default]
-    Inject,
-    /// Written into `~/.claude` (managed, reversible) so it also applies outside the IDE.
-    Install,
-}
-
-/// When code quality is measured.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum RunOn {
-    /// After Claude edits a file (PostToolUse hook).
-    #[default]
-    Hook,
-    /// When a file is saved in the IDE.
-    Save,
-    /// Only from the Run button.
-    Manual,
-}
-
-pub const PERMISSION_MODES: &[&str] = &[
-    "acceptEdits",
-    "auto",
-    "bypassPermissions",
-    "manual",
-    "dontAsk",
-    "plan",
+/// Keys of removed features. Old files still load: these are dropped before parsing and reported
+/// on the page; any other unknown key is still an error.
+pub const REMOVED_KEYS: &[&str] = &[
+    "rules",
+    "skills",
+    "quality",
+    "terminal",
+    "general.model",
+    "general.permission_mode",
+    "general.effort",
+    "gauges.quality",
+    "gauges.in_tab_header",
 ];
-pub const EFFORT_LEVELS: &[&str] = &["low", "medium", "high", "xhigh", "max"];
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ClaudeSettings {
-    /// The whole Claude Code section; off means the IDE behaves as without it.
+    /// The whole Claude Code section; off means the IDE starts `claude` as a terminal would.
     pub enabled: bool,
     pub general: General,
-    pub rules: RulesSettings,
-    pub skills: SkillsSettings,
-    pub quality: QualitySettings,
     pub gauges: GaugeSettings,
-    pub terminal: TerminalSettings,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -59,70 +36,8 @@ pub struct ClaudeSettings {
 pub struct General {
     /// Path to `claude`; empty = found on PATH.
     pub claude_path: String,
-    /// `--model` (alias or full name); empty = Claude Code's default.
-    pub model: String,
-    /// `--permission-mode`; empty = Claude Code's default.
-    pub permission_mode: String,
-    /// `--effort`; empty = Claude Code's default.
-    pub effort: String,
     /// Give Claude the IDE's MCP server (`--mcp-config`) so it sees open files and diagnostics.
     pub ide_mcp: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct RulesSettings {
-    pub enabled: bool,
-    pub mode: Mode,
-}
-
-impl Default for RulesSettings {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            mode: Mode::Inject,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct SkillsSettings {
-    pub enabled: bool,
-    pub mode: Mode,
-    /// Skill folder names that are switched off.
-    pub disabled: Vec<String>,
-}
-
-impl Default for SkillsSettings {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            mode: Mode::Inject,
-            disabled: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct QualitySettings {
-    pub enabled: bool,
-    pub run_on: RunOn,
-    /// Score = 100 − error_weight × errors − warning_weight × warnings (clamped to 0…100).
-    pub error_weight: f64,
-    pub warning_weight: f64,
-}
-
-impl Default for QualitySettings {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            run_on: RunOn::Hook,
-            error_weight: 5.0,
-            warning_weight: 1.0,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,12 +49,7 @@ pub struct GaugeSettings {
     pub cost: bool,
     pub activity: bool,
     pub files: bool,
-    pub quality: bool,
     pub in_status_bar: bool,
-    /// Ignored: the Claude tab header shows only the tab name now. Still read so settings
-    /// files written before stay valid under `deny_unknown_fields`; never written back.
-    #[serde(skip_serializing)]
-    in_tab_header: bool,
     pub in_sidebar: bool,
     /// Context usage turns amber at this percentage …
     pub context_amber: u8,
@@ -155,9 +65,7 @@ impl Default for GaugeSettings {
             cost: true,
             activity: true,
             files: true,
-            quality: true,
             in_status_bar: true,
-            in_tab_header: false,
             in_sidebar: false,
             context_amber: 60,
             context_red: 85,
@@ -165,60 +73,40 @@ impl Default for GaugeSettings {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct TerminalSettings {
-    /// New terminal tabs (⌘T, +) start Claude instead of a shell.
-    pub claude_tab: bool,
-    /// Start `claude` as soon as the tab opens (else on click).
-    pub auto_start: bool,
-    /// `--continue` the last session in the project instead of a new one.
-    pub continue_last: bool,
-}
-
-impl Default for TerminalSettings {
-    fn default() -> Self {
-        Self {
-            claude_tab: true,
-            auto_start: true,
-            continue_last: false,
-        }
-    }
+/// Settings read from a file, plus the removed keys the file still has.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Loaded {
+    pub settings: ClaudeSettings,
+    pub removed_keys: Vec<String>,
 }
 
 impl ClaudeSettings {
     pub fn parse(text: &str) -> Result<Self> {
-        let settings: Self = toml::from_str(text)?;
-        settings.validate()?;
-        Ok(settings)
+        Ok(Self::load(text)?.settings)
     }
 
-    /// Checks what serde cannot: allowed values and consistent thresholds.
+    /// Parses a file, dropping (and reporting) the keys of removed features.
+    pub fn load(text: &str) -> Result<Loaded> {
+        let mut table: toml::Table = toml::from_str(text)?;
+        let removed_keys = strip_removed(&mut table);
+        // Parsing the text itself keeps line and column in errors; a stripped table has none.
+        let settings: Self = if removed_keys.is_empty() {
+            toml::from_str(text)?
+        } else {
+            toml::Value::Table(table).try_into()?
+        };
+        settings.validate()?;
+        Ok(Loaded {
+            settings,
+            removed_keys,
+        })
+    }
+
+    /// Checks what serde cannot: consistent thresholds.
     pub fn validate(&self) -> Result<()> {
-        let general = &self.general;
-        if !general.permission_mode.is_empty()
-            && !PERMISSION_MODES.contains(&general.permission_mode.as_str())
-        {
-            bail!(
-                "general.permission_mode: {:?} is not one of {}",
-                general.permission_mode,
-                PERMISSION_MODES.join(", ")
-            );
-        }
-        if !general.effort.is_empty() && !EFFORT_LEVELS.contains(&general.effort.as_str()) {
-            bail!(
-                "general.effort: {:?} is not one of {}",
-                general.effort,
-                EFFORT_LEVELS.join(", ")
-            );
-        }
         let gauges = &self.gauges;
         if gauges.context_amber >= gauges.context_red || gauges.context_red > 100 {
             bail!("gauges: context_amber must be below context_red, and context_red at most 100");
-        }
-        let quality = &self.quality;
-        if !(quality.error_weight >= 0.0 && quality.warning_weight >= 0.0) {
-            bail!("quality: error_weight and warning_weight must be 0 or more");
         }
         Ok(())
     }
@@ -234,11 +122,27 @@ impl ClaudeSettings {
     }
 }
 
+/// Removes `REMOVED_KEYS` from `table`, returning those that were there.
+fn strip_removed(table: &mut toml::Table) -> Vec<String> {
+    REMOVED_KEYS
+        .iter()
+        .filter(|key| {
+            let removed = match key.split_once('.') {
+                Some((section, field)) => table
+                    .get_mut(section)
+                    .and_then(toml::Value::as_table_mut)
+                    .and_then(|section| section.remove(field)),
+                None => table.remove(**key),
+            };
+            removed.is_some()
+        })
+        .map(|key| (*key).to_string())
+        .collect()
+}
+
 pub const SETTINGS_FILE: &str = "settings.toml";
 pub const SETTINGS_SCHEMA_FILE: &str = "settings.schema.json";
-pub const RULE_SCHEMA_FILE: &str = "rule.schema.json";
 const SETTINGS_SCHEMA: &str = include_str!("../schemas/settings.schema.json");
-const RULE_SCHEMA: &str = include_str!("../schemas/rule.schema.json");
 
 /// The IDE's Claude Code folder (`<config>/claude`) and what lives in it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -255,29 +159,18 @@ impl ClaudeDir {
         self.root.join(SETTINGS_FILE)
     }
 
-    pub fn rules(&self) -> PathBuf {
-        self.root.join("rules")
-    }
-
-    pub fn skills(&self) -> PathBuf {
-        self.root.join("skills")
-    }
-
-    /// Creates the folders and (re)writes the schema files, which the IDE owns.
+    /// Creates the folder and (re)writes the schema file, which the IDE owns.
     pub fn ensure_layout(&self) -> Result<()> {
-        fs::create_dir_all(self.rules()).context("creating the rules folder")?;
-        fs::create_dir_all(self.skills()).context("creating the skills folder")?;
-        write_if_changed(&self.root.join(SETTINGS_SCHEMA_FILE), SETTINGS_SCHEMA)?;
-        write_if_changed(&self.rules().join(RULE_SCHEMA_FILE), RULE_SCHEMA)?;
-        Ok(())
+        fs::create_dir_all(&self.root).context("creating the Claude settings folder")?;
+        write_if_changed(&self.root.join(SETTINGS_SCHEMA_FILE), SETTINGS_SCHEMA)
     }
 
     /// Reads `settings.toml`: defaults when missing, an error (with line and column) when invalid.
-    pub fn load_settings(&self) -> Result<ClaudeSettings> {
+    pub fn load_settings(&self) -> Result<Loaded> {
         let path = self.settings();
         match fs::read_to_string(&path) {
-            Ok(text) => ClaudeSettings::parse(&text).with_context(|| path.display().to_string()),
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(ClaudeSettings::default()),
+            Ok(text) => ClaudeSettings::load(&text).with_context(|| path.display().to_string()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(Loaded::default()),
             Err(err) => Err(err).with_context(|| format!("reading {}", path.display())),
         }
     }
@@ -311,14 +204,11 @@ mod tests {
 
     #[test]
     fn parses_and_round_trips() {
-        let text = "enabled = true\n[general]\nmodel = \"opus\"\npermission_mode = \"plan\"\n\
-                    [skills]\ndisabled = [\"tdd\"]\n[gauges]\ncontext_amber = 50\n";
+        let text = "enabled = true\n[general]\nide_mcp = true\n[gauges]\ncontext_amber = 50\n";
         let settings = ClaudeSettings::parse(text).unwrap();
-        assert!(settings.enabled);
-        assert_eq!(settings.general.model, "opus");
-        assert_eq!(settings.skills.disabled, ["tdd"]);
+        assert!(settings.enabled && settings.general.ide_mcp);
         assert_eq!(settings.gauges.context_amber, 50);
-        assert!(settings.terminal.claude_tab, "unset sections keep their defaults");
+        assert!(settings.gauges.cost, "unset keys keep their defaults");
         let rendered = settings.render().unwrap();
         assert!(rendered.starts_with("#:schema ./settings.schema.json\n"));
         assert_eq!(ClaudeSettings::parse(&rendered).unwrap(), settings);
@@ -332,23 +222,33 @@ mod tests {
             unknown.contains("unknown field `no_such_gauge`") && unknown.contains("line 3"),
             "{unknown}"
         );
-        assert!(err("[general]\npermission_mode = \"yolo\"").contains("not one of"));
-        assert!(err("[general]\neffort = \"huge\"").contains("general.effort"));
         assert!(err("[gauges]\ncontext_amber = 90\ncontext_red = 80").contains("context_amber"));
-        assert!(err("[quality]\nerror_weight = -1.0").contains("error_weight"));
-        assert!(err("[rules]\nmode = \"everywhere\"").contains("unknown variant"));
     }
 
     #[test]
-    fn accepts_the_removed_tab_header_switch() {
-        let settings = ClaudeSettings::parse("[gauges]\nin_tab_header = true\n").unwrap();
-        let written = toml::to_string(&settings).unwrap();
-        assert_eq!(written, toml::to_string(&ClaudeSettings::default()).unwrap());
-        assert!(!written.contains("in_tab_header"));
+    fn old_files_load_without_the_removed_keys() {
+        let text = "enabled = true\n[general]\nclaude_path = \"/bin/claude\"\nmodel = \"opus\"\n\
+                    permission_mode = \"auto\"\neffort = \"medium\"\n[rules]\nenabled = true\n\
+                    [skills]\ndisabled = []\n[quality]\nenabled = false\n[terminal]\nclaude_tab = false\n\
+                    [gauges]\nquality = true\nin_tab_header = false\ncontext_red = 90\n";
+        let loaded = ClaudeSettings::load(text).unwrap();
+        assert_eq!(loaded.removed_keys, REMOVED_KEYS);
+        assert!(loaded.settings.enabled);
+        assert_eq!(loaded.settings.general.claude_path, "/bin/claude");
+        assert_eq!(loaded.settings.gauges.context_red, 90);
+        let rendered = loaded.settings.render().unwrap();
+        assert!(ClaudeSettings::load(&rendered).unwrap().removed_keys.is_empty());
     }
 
-    /// Every settings field is described in the schema and the schema names no extra fields
-    /// (deprecated ones aside).
+    #[test]
+    fn unknown_keys_stay_errors_next_to_removed_ones() {
+        let err =
+            ClaudeSettings::load("[rules]\nenabled = true\n[gauges]\nno_such_gauge = true\n").unwrap_err();
+        assert!(format!("{err:#}").contains("no_such_gauge"), "{err:#}");
+        assert!(ClaudeSettings::load("[general]\nmodel_name = \"x\"\n").is_err());
+    }
+
+    /// Every settings field is described in the schema and the schema names no extra fields.
     #[test]
     fn schema_matches_the_settings() {
         let schema: Value = serde_json::from_str(SETTINGS_SCHEMA).unwrap();
@@ -362,12 +262,7 @@ mod tests {
             .as_object()
             .unwrap_or_else(|| panic!("{at}: no properties"));
         let mut expected: Vec<&String> = object.keys().collect();
-        // Deprecated keys are still accepted but never written back.
-        let mut described: Vec<&String> = properties
-            .iter()
-            .filter(|(_, p)| p["deprecated"] != Value::Bool(true))
-            .map(|(k, _)| k)
-            .collect();
+        let mut described: Vec<&String> = properties.keys().collect();
         expected.sort();
         described.sort();
         assert_eq!(described, expected, "schema properties of {at}");
@@ -382,25 +277,14 @@ mod tests {
     }
 
     #[test]
-    fn rule_schema_names_the_front_matter_fields() {
-        let schema: Value = serde_json::from_str(RULE_SCHEMA).unwrap();
-        let mut keys: Vec<&String> = schema["properties"].as_object().unwrap().keys().collect();
-        keys.sort();
-        assert_eq!(
-            keys,
-            ["applies_to", "description", "enabled", "name", "priority", "tags"]
-        );
-    }
-
-    #[test]
     fn creates_the_layout_and_saves() {
         let dir = ClaudeDir::new(std::env::temp_dir().join(format!("pi-claude-{}", std::process::id())));
         let _ = fs::remove_dir_all(&dir.root);
         dir.ensure_layout().unwrap();
-        assert!(dir.rules().join(RULE_SCHEMA_FILE).is_file());
+        assert!(dir.root.join(SETTINGS_SCHEMA_FILE).is_file());
         assert_eq!(
             dir.load_settings().unwrap(),
-            ClaudeSettings::default(),
+            Loaded::default(),
             "missing file = defaults"
         );
         let settings = ClaudeSettings {
@@ -408,7 +292,7 @@ mod tests {
             ..ClaudeSettings::default()
         };
         dir.save_settings(&settings).unwrap();
-        assert_eq!(dir.load_settings().unwrap(), settings);
+        assert_eq!(dir.load_settings().unwrap().settings, settings);
         fs::write(dir.settings(), "enabled = maybe").unwrap();
         assert!(format!("{:#}", dir.load_settings().unwrap_err()).contains("settings.toml"));
         let _ = fs::remove_dir_all(&dir.root);

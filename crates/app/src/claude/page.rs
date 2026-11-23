@@ -1,7 +1,7 @@
-//! The Settings → Claude Code page: one card per feature, each with its own switch.
+//! The Settings → Claude Code page: how the IDE starts `claude` and what it shows while a
+//! session runs. Rules, skills, model and permissions stay in Claude Code's own files.
 
-use claude_integration::settings::{EFFORT_LEVELS, PERMISSION_MODES, RunOn};
-use claude_integration::{ClaudeSettings, Mode};
+use claude_integration::ClaudeSettings;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::setting::{
     NumberFieldOptions, SettingField, SettingGroup, SettingItem, SettingPage,
@@ -9,16 +9,15 @@ use gpui_kit::component::setting::{
 use gpui_kit::component::{ActiveTheme as _, IconName, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 
-use super::{Binary, rules_view, skills_view, state, update_settings};
+use super::{Binary, state, update_settings};
 use crate::style::dialog_button;
-use crate::workspace::Workspace;
 
 fn settings(cx: &App) -> &ClaudeSettings {
     &state(cx).settings
 }
 
 /// A switch bound to one boolean of the settings.
-pub(super) fn switch_item(
+fn switch_item(
     title: &'static str,
     get: fn(&ClaudeSettings) -> bool,
     set: fn(&mut ClaudeSettings, bool),
@@ -28,53 +27,6 @@ pub(super) fn switch_item(
         SettingField::switch(
             move |cx| get(settings(cx)),
             move |value, cx| update_settings(cx, |s| set(s, value)),
-        ),
-    )
-}
-
-pub(super) fn mode_item(get: fn(&ClaudeSettings) -> Mode, set: fn(&mut ClaudeSettings, Mode)) -> SettingItem {
-    SettingItem::new(
-        "Mode",
-        SettingField::dropdown(
-            vec![
-                ("inject".into(), "Inject when the IDE starts claude".into()),
-                (
-                    "install".into(),
-                    "Install into ~/.claude (also outside the IDE)".into(),
-                ),
-            ],
-            move |cx| match get(settings(cx)) {
-                Mode::Inject => "inject".into(),
-                Mode::Install => "install".into(),
-            },
-            move |value, cx| {
-                let mode = if value.as_ref() == "install" {
-                    Mode::Install
-                } else {
-                    Mode::Inject
-                };
-                update_settings(cx, |s| set(s, mode));
-            },
-        ),
-    )
-    .description("Inject changes nothing outside the IDE; Install is reversible with Uninstall.")
-}
-
-fn choice(
-    title: &'static str,
-    values: &[&str],
-    get: fn(&ClaudeSettings) -> &str,
-    set: fn(&mut ClaudeSettings, String),
-) -> SettingItem {
-    let options = std::iter::once(("".into(), "Claude Code default".into()))
-        .chain(values.iter().map(|v| ((*v).into(), (*v).into())))
-        .collect();
-    SettingItem::new(
-        title,
-        SettingField::dropdown(
-            options,
-            move |cx| get(settings(cx)).to_string().into(),
-            move |value, cx| update_settings(cx, |s| set(s, value.to_string())),
         ),
     )
 }
@@ -96,21 +48,16 @@ fn number(
     )
 }
 
-pub fn page(workspace: WeakEntity<Workspace>) -> SettingPage {
+pub fn page() -> SettingPage {
     SettingPage::new("Claude Code")
         .icon(IconName::Bot)
         .description(
-            "How the IDE works with Claude Code. Everything is off by default and each feature has its own \
-             switch; files live in ~/Library/Application Support/power-idea/claude and can be edited by hand \
-             or by an agent (the IDE reloads them).",
+            "How the IDE starts claude and what it shows while a session runs. Rules, skills, model and \
+             permissions live in Claude Code's own files (CLAUDE.md, ~/.claude). These switches are saved \
+             in ~/Library/Application Support/power-idea/claude/settings.toml.",
         )
         .group(general_group())
-        .group(rules_view::group(workspace.clone()))
-        .group(skills_group(workspace.clone()))
-        .group(quality_group(workspace.clone()))
         .group(gauges_group())
-        .group(terminal_group())
-        .group(privacy_group())
 }
 
 fn general_group() -> SettingGroup {
@@ -136,28 +83,6 @@ fn general_group() -> SettingGroup {
             )
             .description("Empty: found on PATH (also ~/.claude/local, ~/.local/bin, Homebrew)."),
         )
-        .item(
-            SettingItem::new(
-                "Model",
-                SettingField::input(
-                    |cx| settings(cx).general.model.clone().into(),
-                    |value, cx| update_settings(cx, |s| s.general.model = value.trim().to_string()),
-                ),
-            )
-            .description("--model: an alias (opus, sonnet, fable) or a full model name. Empty: default."),
-        )
-        .item(choice(
-            "Permission mode",
-            PERMISSION_MODES,
-            |s| &s.general.permission_mode,
-            |s, v| s.general.permission_mode = v,
-        ))
-        .item(choice(
-            "Effort",
-            EFFORT_LEVELS,
-            |s| &s.general.effort,
-            |s, v| s.general.effort = v,
-        ))
         .item(
             switch_item(
                 "Give Claude the IDE's MCP server",
@@ -186,23 +111,8 @@ fn status_row(cx: &App) -> AnyElement {
             format!("{reason}. Install: npm install -g @anthropic-ai/claude-code (see docs.claude.com)"),
         ),
     };
-    let errors: Vec<String> = state
-        .settings_error
-        .iter()
-        .cloned()
-        .chain(
-            state
-                .rule_errors
-                .iter()
-                .map(|e| format!("{}: {}", e.path.display(), e.message)),
-        )
-        .chain(
-            state
-                .skill_errors
-                .iter()
-                .map(|e| format!("{}: {}", e.dir.display(), e.message)),
-        )
-        .collect();
+    let errors = state.settings_error.iter().cloned();
+    let notes = migration_notes(&state.removed_keys, &state.cleaned_up);
     v_flex()
         .gap_2()
         .child(
@@ -222,13 +132,35 @@ fn status_row(cx: &App) -> AnyElement {
                         .on_click(|_, window, cx| open_folder(window, cx)),
                 ),
         )
-        .children(errors.into_iter().map(|error| {
+        .children(errors.map(|error| {
             div()
                 .text_sm()
                 .text_color(theme.danger)
                 .child(format!("⚠ {error}"))
         }))
+        .children(
+            notes
+                .into_iter()
+                .map(|note| div().text_sm().text_color(theme.muted_foreground).child(note)),
+        )
         .into_any_element()
+}
+
+/// What the move to Claude Code's own files changed, shown until the user saves the settings
+/// (old keys) or restarts (cleanup).
+fn migration_notes(removed_keys: &[String], cleaned_up: &[String]) -> Vec<String> {
+    let mut notes = Vec::new();
+    if !removed_keys.is_empty() {
+        notes.push(format!(
+            "Ignored settings of removed features: {}. Claude Code handles these itself; they are dropped \
+             from settings.toml the next time you change a setting here.",
+            removed_keys.join(", ")
+        ));
+    }
+    if !cleaned_up.is_empty() {
+        notes.push(super::cleanup_notice(cleaned_up));
+    }
+    notes
 }
 
 fn open_folder(window: &mut Window, cx: &mut App) {
@@ -239,79 +171,6 @@ fn open_folder(window: &mut Window, cx: &mut App) {
             cx,
         );
     }
-}
-
-fn skills_group(workspace: WeakEntity<Workspace>) -> SettingGroup {
-    SettingGroup::new()
-        .title("Skills library")
-        .description(
-            "SKILL.md folders in claude/skills. Enabled skills reach Claude as the plugin power-idea \
-             (/power-idea:<name>) or, in Install mode, as ~/.claude/skills/ide-<name>.",
-        )
-        .item(switch_item(
-            "Enabled",
-            |s| s.skills.enabled,
-            |s, v| s.skills.enabled = v,
-        ))
-        .item(mode_item(|s| s.skills.mode, |s, m| s.skills.mode = m))
-        .item(SettingItem::render(move |_, _, cx| {
-            skills_view::skills_list(&workspace, cx)
-        }))
-}
-
-fn quality_group(workspace: WeakEntity<Workspace>) -> SettingGroup {
-    SettingGroup::new()
-        .title("Code quality")
-        .description(
-            "Runs the project's linters (clippy, eslint, rubocop, …) and scores the result: \
-             score = 100 − error weight × errors − warning weight × warnings, clamped to 0…100.",
-        )
-        .item(switch_item(
-            "Track code quality",
-            |s| s.quality.enabled,
-            |s, v| s.quality.enabled = v,
-        ))
-        .item(SettingItem::new(
-            "Run",
-            SettingField::dropdown(
-                vec![
-                    ("hook".into(), "After Claude edits a file".into()),
-                    ("save".into(), "When a file is saved".into()),
-                    ("manual".into(), "Only from the Run button".into()),
-                ],
-                |cx| match settings(cx).quality.run_on {
-                    RunOn::Hook => "hook".into(),
-                    RunOn::Save => "save".into(),
-                    RunOn::Manual => "manual".into(),
-                },
-                |value, cx| {
-                    let run_on = match value.as_ref() {
-                        "save" => RunOn::Save,
-                        "manual" => RunOn::Manual,
-                        _ => RunOn::Hook,
-                    };
-                    update_settings(cx, |s| s.quality.run_on = run_on);
-                },
-            ),
-        ))
-        .item(number(
-            "Error weight",
-            0.,
-            100.,
-            |s| s.quality.error_weight,
-            |s, v| s.quality.error_weight = v,
-        ))
-        .item(number(
-            "Warning weight",
-            0.,
-            100.,
-            |s| s.quality.warning_weight,
-            |s, v| s.quality.warning_weight = v,
-        ))
-        .item(SettingItem::render(move |_, _, cx| {
-            let root = workspace.upgrade().map(|ws| ws.read(cx).root().clone());
-            super::quality::details(root, cx)
-        }))
 }
 
 fn gauges_group() -> SettingGroup {
@@ -347,11 +206,6 @@ fn gauges_group() -> SettingGroup {
             |s, v| s.gauges.files = v,
         ))
         .item(switch_item(
-            "Code quality score",
-            |s| s.gauges.quality,
-            |s, v| s.gauges.quality = v,
-        ))
-        .item(switch_item(
             "In the status bar",
             |s| s.gauges.in_status_bar,
             |s, v| s.gauges.in_status_bar = v,
@@ -376,66 +230,19 @@ fn gauges_group() -> SettingGroup {
         ))
 }
 
-fn terminal_group() -> SettingGroup {
-    SettingGroup::new()
-        .title("Terminal")
-        .description(
-            "Claude tabs in the terminal panel, started in the project root with the injected settings.",
-        )
-        .item(
-            switch_item(
-                "New tabs start Claude",
-                |s| s.terminal.claude_tab,
-                |s, v| s.terminal.claude_tab = v,
-            )
-            .description("⌘T and + open Claude; off: a shell."),
-        )
-        .item(switch_item(
-            "Start automatically",
-            |s| s.terminal.auto_start,
-            |s, v| s.terminal.auto_start = v,
-        ))
-        .item(
-            switch_item(
-                "Continue the last session",
-                |s| s.terminal.continue_last,
-                |s, v| s.terminal.continue_last = v,
-            )
-            .description("--continue instead of a new session."),
-        )
-}
+#[cfg(test)]
+mod tests {
+    use super::migration_notes;
 
-fn privacy_group() -> SettingGroup {
-    SettingGroup::new()
-        .title("Privacy")
-        .description(
-            "The IDE reads only local files: its claude folder, ~/.claude settings and the session transcripts \
-             in ~/.claude/projects. Nothing is sent anywhere; Claude Code itself talks to Anthropic as usual.",
-        )
-        .item(SettingItem::render(|_, _, _| {
-            h_flex()
-                .child(div().flex_1())
-                .child(
-                    dialog_button("claude-clear-cache")
-                        .label("Clear IDE caches")
-                        .on_click(|_, window, cx| clear_cache(window, cx)),
-                )
-                .into_any_element()
-        }))
-}
-
-fn clear_cache(window: &mut Window, cx: &mut App) {
-    let Some(cache) = super::cache_root() else { return };
-    let result = if cache.exists() {
-        std::fs::remove_dir_all(&cache)
-    } else {
-        Ok(())
-    };
-    let note = match result {
-        Ok(()) => {
-            Notification::success("Generated Claude files were removed; they are rebuilt on the next launch.")
-        }
-        Err(err) => Notification::error(format!("Cannot clear {}: {err}", cache.display())),
-    };
-    window.push_notification(note, cx);
+    #[test]
+    fn migration_notes_name_what_changed() {
+        assert!(migration_notes(&[], &[]).is_empty());
+        let notes = migration_notes(
+            &["rules".into(), "general.model".into()],
+            &["~/.claude/skills/ide-x".into()],
+        );
+        assert_eq!(notes.len(), 2);
+        assert!(notes[0].contains("rules, general.model"));
+        assert!(notes[1].contains("~/.claude/skills/ide-x"));
+    }
 }

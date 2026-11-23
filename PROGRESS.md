@@ -246,21 +246,19 @@ is in the working tree only.
       form buttons inside dialogs (database kind / Choose…, New Project Browse…)
 - [x] Git Log commit details (changed files + message) scroll: rows used to shrink to fit instead of overflowing
 - [x] **Settings → Claude Code** (`crates/claude_integration`, `crates/app/src/claude/`, docs `docs/claude-code.md`,
-      verified CLI facts `docs/claude-code-integration.md`): global, off by default, every feature its own switch.
-      `claude/settings.toml` + `rules/*.md` (YAML front-matter: name, enabled, description, applies_to languages /
-      path globs / projects, priority, tags) + `skills/<name>/SKILL.md`, JSON Schemas kept in sync by tests,
-      validated with inline errors, hot-reloaded. Inject mode: `--append-system-prompt-file`, `--plugin-dir`
-      (generated plugin `power-idea`), `--settings` (hooks + status line, verified with a real session),
-      optional `--mcp-config`, model / permission mode / effort; Install mode: managed block in
-      `~/.claude/CLAUDE.md` + `~/.claude/skills/ide-*`, backups, manifest, byte-identical uninstall (tested);
-      Export to project (managed block); Preview effective context (redacted). Rules card: search, tags,
-      switches, scope chips, drag / arrows to reorder, Test match, Edit, 5 templates, folder import/export.
-      Skills: 4 built-ins seeded once, add from folder / Git URL, active-in-session marks. Claude terminal
-      tabs as the default for ⌘T / + (setting "New tabs start Claude"; auto or Enter to start, --continue, restart, install hint, close confirmation). Hook bridge
+      verified CLI facts `docs/claude-code-integration.md`): off by default; `claude/settings.toml` (JSON Schema
+      kept in sync by a test, inline errors, hot-reloaded). When on, the IDE's `claude` gets `--settings` (hooks +
+      status line, verified with a real session) and optional `--mcp-config` (0600). Hook bridge
       `power-idea claude-hook` / `claude-statusline` over a Unix socket (exit 0, user's status line kept) →
       gauges (context ring with thresholds, tokens/cost with transcript fallback via the Insights parser,
-      activity, files changed, quality ring) in the status bar and sidebar (the Claude tab shows only its name, restart and close, at ~1.5× width; the Run widget's Stop and ⌘F2 ignore it). Code quality: clippy /
-      rustfmt / eslint / prettier / rubocop / ruff / go vet, score formula in the UI, on hook / save / manual
+      activity, files changed) in the status bar and sidebar. Claude terminal tabs: restart from the header,
+      install hint, close confirmation; the Run widget's Stop and ⌘F2 ignore them.
+- [x] **Claude Code section slimmed down** (2026-11-23): removed what Claude Code does natively — rules (Inject /
+      Install, templates, import/export, preview, export to project), skills library and plugin, code quality
+      and its ring, model / permission mode / effort, the Terminal group (⌘T / + now always open a shell) and
+      Privacy / Clear caches. Old `settings.toml` files load: `REMOVED_KEYS` are ignored and named on the page.
+      `claude_integration::legacy::cleanup` removes, once, what Install mode put into `~/.claude` (manifest-driven,
+      marker-checked, tested); `rules/` and `skills/` in the IDE folder are kept.
 - [x] **Versioning from git** (spec `docs/backlog/versioning-and-changelogs.md`): `scripts/version.sh` (annotated
       `v*` tag → version, commit count → build, `X.Y.Z (N)` on a tag / `X.Y.Z-dev.N+sha[.dirty]` after it,
       `APP_VERSION`/`APP_BUILD` without git) feeds `build.rs`, the bundle's Info.plist and the Welcome / About
@@ -301,9 +299,8 @@ Other candidates: Database gaps below.
   captured (TODO in the crate docs); release builds are stripped, so their backtraces have no symbols and the
   fingerprint falls back to the message
 - Claude Code section: UI not clicked through by hand (logic is unit-tested, hooks via --settings verified once
-  with a real `claude -p`); no zip import/export of rules (folders only, as agreed); quality runs have no timeout
-  and run the whole project's linters (not just changed files); the gauge sidebar block sits under every
-  sidebar panel
+  with a real `claude -p`); the gauge sidebar block sits under every sidebar panel; managed blocks written by the
+  old Export to project stay in project `CLAUDE.md` files until removed by hand
 - Extensions: UI not clicked through by hand yet (protocol and the example are tested end to end); no
   settings page listing extensions, no status bar items, panels or custom editor decorations; `keymap.toml`
   cannot rebind extension commands; events reach only already running processes; not loaded from project

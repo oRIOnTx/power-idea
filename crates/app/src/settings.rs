@@ -100,7 +100,7 @@ pub fn render(workspace: WeakEntity<Workspace>, cx: &App) -> Settings {
         languages_page(cx),
         mcp_page(),
         insights_page(),
-        crate::claude::page(workspace.clone()),
+        crate::claude::page(),
         keymap_page(workspace.clone()),
         project_page(workspace),
     ])

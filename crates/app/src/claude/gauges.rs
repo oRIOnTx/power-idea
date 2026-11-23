@@ -21,8 +21,6 @@ use crate::inbox::Inbox;
 #[derive(Default)]
 pub struct ClaudeGauges {
     pub sessions: HashMap<String, GaugeState>,
-    /// Skills each project's session was started with.
-    pub active_skills: HashMap<String, Vec<String>>,
     /// Animated ring values (tag, gauge) → shown value, eased toward the real one.
     shown: HashMap<(String, &'static str), f64>,
 }
@@ -73,7 +71,7 @@ fn apply(message: Message, cx: &mut App) {
     match message.kind {
         Kind::Status => session.apply_status(&message.payload),
         Kind::Hook => {
-            let edited = session.apply_hook(&message.payload, &root);
+            session.apply_hook(&message.payload, &root);
             let event = message
                 .payload
                 .get("hook_event_name")
@@ -89,9 +87,6 @@ fn apply(message: Message, cx: &mut App) {
                 && let Some(path) = transcript
             {
                 fill_from_transcript(message.tag.clone(), path, cx);
-            }
-            if edited {
-                super::quality::on_claude_edit(&root, cx);
             }
         }
     }
@@ -177,22 +172,6 @@ pub fn render(project_root: &Path, place: Place, window: &mut Window, cx: &mut A
         items.push(text(
             format!("{count} file{}", if count == 1 { "" } else { "s" }),
             "Files changed in this session",
-        ));
-    }
-    if gauges.quality
-        && settings.quality.enabled
-        && let Some(quality) = session.quality
-    {
-        let shown = ease(&tag, "quality", quality.score, window, cx);
-        // Score is good when high: reuse the bands on "100 − score".
-        let color = band_color(band(100.0 - quality.score, 25, 50));
-        let delta = session
-            .quality_delta()
-            .map_or_default(|(e, w)| format!(" ({e:+}E {w:+}W)"));
-        items.push(labeled(
-            ring(shown, color, theme.border, ring_size),
-            format!("Q {:.0}{delta}", quality.score),
-            "Code quality score",
         ));
     }
     if items.is_empty() {

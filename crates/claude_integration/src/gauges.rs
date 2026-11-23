@@ -45,14 +45,6 @@ impl Activity {
     }
 }
 
-/// Lint counts measured for the session (see `quality`).
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct QualitySample {
-    pub errors: u32,
-    pub warnings: u32,
-    pub score: f64,
-}
-
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct GaugeState {
     pub session_id: String,
@@ -67,9 +59,6 @@ pub struct GaugeState {
     pub activity: Activity,
     /// Files edited by Claude in this session, relative to the project when inside it.
     pub files_changed: BTreeSet<String>,
-    /// Quality at the session start and now.
-    pub quality_start: Option<QualitySample>,
-    pub quality: Option<QualitySample>,
     /// A status-line update was seen (so transcript fallbacks are not needed).
     pub has_status: bool,
 }
@@ -159,23 +148,6 @@ impl GaugeState {
         if let Some(lines) = count("/cost/total_lines_removed") {
             self.lines_removed = lines;
         }
-    }
-
-    /// Records a quality measurement; the first one of the session is the baseline.
-    pub fn apply_quality(&mut self, sample: QualitySample) {
-        if self.quality_start.is_none() {
-            self.quality_start = Some(sample);
-        }
-        self.quality = Some(sample);
-    }
-
-    /// Change in errors and warnings since the session started (negative = better).
-    pub fn quality_delta(&self) -> Option<(i64, i64)> {
-        let (start, now) = (self.quality_start?, self.quality?);
-        Some((
-            i64::from(now.errors) - i64::from(start.errors),
-            i64::from(now.warnings) - i64::from(start.warnings),
-        ))
     }
 
     pub fn total_tokens(&self) -> u64 {
@@ -328,23 +300,6 @@ mod tests {
         assert_eq!(state.model, "Opus");
         state.apply_status(&json!({ "context_window": { "used_percentage": 140.0, "current_usage": null } }));
         assert_eq!(state.context_percent, Some(100.0), "clamped");
-    }
-
-    #[test]
-    fn tracks_quality_from_the_first_sample() {
-        let mut state = GaugeState::default();
-        assert_eq!(state.quality_delta(), None);
-        state.apply_quality(QualitySample {
-            errors: 2,
-            warnings: 5,
-            score: 85.0,
-        });
-        state.apply_quality(QualitySample {
-            errors: 0,
-            warnings: 7,
-            score: 93.0,
-        });
-        assert_eq!(state.quality_delta(), Some((-2, 2)));
     }
 
     #[test]
