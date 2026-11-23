@@ -2,6 +2,7 @@
 
 use gpui_kit::component::input;
 use gpui_kit::component::list::ListItem;
+use gpui_kit::component::menu::ContextMenuExt as _;
 use gpui_kit::component::tree::tree;
 use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Selectable as _, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -342,6 +343,7 @@ impl Workspace {
         let home = dirs::home_dir().unwrap_or_default();
         let location = crate::welcome::paths::tilde(&self.root, &home);
         let expanded = !self.root_collapsed;
+        let workspace = cx.entity().downgrade();
         h_flex()
             .id("project-root")
             .flex_none()
@@ -410,6 +412,10 @@ impl Workspace {
                     ws.select_root_row(cx);
                 }
             }))
+            .context_menu(move |menu, _, cx| match workspace.upgrade() {
+                Some(ws) => ws.read(cx).root_context_menu(menu, cx),
+                None => menu,
+            })
     }
 
     fn toggle_root_collapsed(&mut self, cx: &mut Context<Self>) {

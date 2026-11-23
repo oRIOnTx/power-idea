@@ -148,6 +148,22 @@ impl Workspace {
         }
     }
 
+    /// Context menu for the project root row: what applies to the project folder itself
+    /// (no Cut / Copy / Rename / Delete).
+    pub(super) fn root_context_menu(&self, menu: PopupMenu, cx: &App) -> PopupMenu {
+        let action = |op| FileAction::boxed(op, "");
+        menu.action_context(self.project_focus.clone())
+            .menu("New File…", action(FileOp::NewFile))
+            .menu("New Directory…", action(FileOp::NewDirectory))
+            .separator()
+            .menu_with_disabled("Paste", action(FileOp::Paste), !self.can_paste_files(cx))
+            .separator()
+            .menu("Copy Path", action(FileOp::CopyPath))
+            .separator()
+            .menu("Reveal in Finder", action(FileOp::RevealInFinder))
+            .menu("Open in Terminal", action(FileOp::OpenInTerminal))
+    }
+
     /// Context menu for an editor tab.
     pub(super) fn tab_context_menu(&self, menu: PopupMenu, rel: &str) -> PopupMenu {
         let action = |op| FileAction::boxed(op, rel.to_string());
@@ -167,7 +183,12 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         let rel = action.path.to_string();
-        let abs = self.root.join(&rel);
+        // `join("")` would add a trailing slash to the root path.
+        let abs = if rel.is_empty() {
+            self.root.clone()
+        } else {
+            self.root.join(&rel)
+        };
         let dir = if abs.is_dir() {
             rel.clone()
         } else {
