@@ -52,6 +52,7 @@ mod insights_view;
 mod mcp_code_tools;
 mod mcp_tools;
 mod navigation;
+mod pinned_tabs;
 mod preview_view;
 mod push_dialog;
 mod replace_in_files;
@@ -219,6 +220,8 @@ pub struct Workspace {
     /// Result of the running-terminals check for the close in progress (`busy_terminals`).
     terminals_checked: Option<bool>,
     active_terminal: usize,
+    /// Pinned and renamed terminal tabs (`pinned_tabs`).
+    pins: pinned_tabs::PinState,
     show_bottom: bool,
     bottom_panel: BottomPanel,
     _subscriptions: Vec<Subscription>,
@@ -328,6 +331,7 @@ impl Workspace {
             terminals: Vec::new(),
             terminals_checked: None,
             active_terminal: 0,
+            pins: pinned_tabs::PinState::default(),
             show_bottom: false,
             bottom_panel: BottomPanel::Terminal,
             _subscriptions: vec![tree_subscription, tree_cursor_subscription, config_subscription],

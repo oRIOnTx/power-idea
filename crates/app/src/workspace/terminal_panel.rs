@@ -2,7 +2,9 @@
 
 use std::path::PathBuf;
 
-use gpui_kit::component::{ActiveTheme as _, IconName, h_flex, v_flex};
+use gpui_kit::component::input::Input;
+use gpui_kit::component::menu::ContextMenuExt as _;
+use gpui_kit::component::{ActiveTheme as _, IconName, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
@@ -58,16 +60,23 @@ impl Workspace {
         }
     }
 
+    /// The shell from Settings, or `None` for the user's login shell.
+    pub(super) fn configured_shell(cx: &App) -> Option<String> {
+        Some(cx.global::<AppConfig>().0.terminal_shell.trim().to_string()).filter(|s| !s.is_empty())
+    }
+
     /// Opens a new terminal tab whose shell starts in `cwd`.
     pub(super) fn new_terminal_in(&mut self, cwd: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
-        let shell =
-            Some(cx.global::<AppConfig>().0.terminal_shell.trim().to_string()).filter(|s| !s.is_empty());
-        let session = match Session::spawn(cwd.clone(), shell) {
+        let session = match Session::spawn(cwd.clone(), Self::configured_shell(cx)) {
             Ok(session) => session,
             Err(err) => return self.notify_error(format!("Cannot start terminal: {err:#}"), window, cx),
         };
         let root = self.root.clone();
-        let terminal = cx.new(|cx| TerminalView::new(session, cx).with_links(root, cwd));
+        let terminal = cx.new(|cx| {
+            TerminalView::new(session, cx)
+                .with_links(root, cwd.clone())
+                .in_dir(cwd)
+        });
         self.add_terminal(terminal, window, cx);
     }
 
@@ -138,8 +147,12 @@ impl Workspace {
         cx.notify();
     }
 
-    /// Alt+F12, JetBrains-style: open and focus, or hide when already focused.
+    /// Alt+F12 and the sidebar, JetBrains-style: open and focus, or hide when already
+    /// focused. The first time, the project's pinned tabs reopen instead of a new tab.
     pub(super) fn toggle_terminal(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.restore_pinned_terminals(window, cx) {
+            return;
+        }
         if self.terminals.is_empty() {
             return self.new_default_terminal(window, cx);
         }
@@ -153,10 +166,32 @@ impl Workspace {
         cx.notify();
     }
 
+    /// The tab title, or the inline editor while the tab is being renamed
+    /// (Enter or leaving the field saves, Esc cancels).
+    fn render_terminal_title(&self, terminal: &Entity<TerminalView>, cx: &mut Context<Self>) -> AnyElement {
+        let id = terminal.entity_id();
+        let Some((_, input)) = self.pins.renaming.as_ref().filter(|(r, _)| *r == id) else {
+            return terminal_label(terminal.read(cx)).into_any_element();
+        };
+        div()
+            .w(px(140.))
+            .on_key_down(cx.listener(move |this, event: &KeyDownEvent, window, cx| {
+                if event.keystroke.key == "escape" {
+                    cx.stop_propagation();
+                    this.finish_terminal_rename(id, false, window, cx);
+                }
+            }))
+            .child(Input::new(input).xsmall())
+            .into_any_element()
+    }
+
     pub(super) fn render_terminal_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme();
+        let theme = cx.theme().clone();
         let tabs = self.terminals.iter().enumerate().map(|(ix, terminal)| {
             let active = ix == self.active_terminal;
+            let pinned = terminal.read(cx).is_pinned();
+            let workspace = cx.entity().downgrade();
+            let menu_tab = terminal.clone();
             h_flex()
                 .id(("terminal-tab", ix))
                 .h_full()
@@ -176,7 +211,10 @@ impl Workspace {
                     theme.muted_foreground
                 })
                 .when(terminal.read(cx).is_claude(), |el| el.min_w(CLAUDE_TAB_MIN_WIDTH))
-                .child(div().flex_1().child(terminal_label(terminal.read(cx))))
+                .when(pinned, |el| {
+                    el.child(style::lucide("pin").xsmall().text_color(theme.muted_foreground))
+                })
+                .child(div().flex_1().child(self.render_terminal_title(terminal, cx)))
                 .when(terminal.read(cx).is_claude(), |el| {
                     el.child(
                         style::icon_button_sized(
@@ -191,19 +229,28 @@ impl Workspace {
                         })),
                     )
                 })
-                .child(
-                    style::icon_button(("close-terminal", ix), IconName::Close, "Close (⌘W)").on_click(
-                        cx.listener(move |this, _, window, cx| {
-                            cx.stop_propagation();
-                            this.close_terminal_asking(ix, window, cx);
-                        }),
-                    ),
-                )
-                .on_click(cx.listener(move |this, _, window, cx| {
+                .when(!pinned, |el| {
+                    el.child(
+                        style::icon_button(("close-terminal", ix), IconName::Close, "Close (⌘W)").on_click(
+                            cx.listener(move |this, _, window, cx| {
+                                cx.stop_propagation();
+                                this.close_terminal_asking(ix, window, cx);
+                            }),
+                        ),
+                    )
+                })
+                .on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
                     this.active_terminal = ix;
+                    if event.click_count() >= 2 {
+                        return this.start_terminal_rename(ix, window, cx);
+                    }
                     this.focus_terminal(window, cx);
                     cx.notify();
                 }))
+                .context_menu(move |menu, _, cx| match workspace.upgrade() {
+                    Some(ws) => ws.read(cx).terminal_tab_menu(menu, &menu_tab, cx),
+                    None => menu,
+                })
         });
 
         v_flex()
@@ -256,6 +303,9 @@ impl Workspace {
 const CLAUDE_TAB_MIN_WIDTH: Pixels = px(180.);
 
 fn terminal_label(terminal: &TerminalView) -> String {
+    if let Some(name) = terminal.custom_name() {
+        return name.to_string();
+    }
     if terminal.is_claude() {
         return "Claude".into();
     }

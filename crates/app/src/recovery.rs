@@ -10,7 +10,7 @@ use anyhow::{Context as _, Result, bail};
 const MANIFEST: &str = "files.txt";
 
 /// Stable short name for a project folder (FNV-1a of its path).
-fn project_key(root: &Path) -> String {
+pub(crate) fn project_key(root: &Path) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for byte in root.to_string_lossy().bytes() {
         hash ^= u64::from(byte);

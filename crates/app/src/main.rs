@@ -17,6 +17,7 @@ mod mcp_bridge;
 mod menus;
 mod open_files;
 mod palette;
+mod pinned_terminals;
 mod preview;
 mod project_tree;
 mod projects;

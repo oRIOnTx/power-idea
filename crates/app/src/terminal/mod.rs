@@ -3,12 +3,14 @@
 
 mod activity;
 mod colors;
+mod cwd;
 mod input;
 mod mouse;
 mod paste;
 mod pointer;
 mod run_tab;
 mod session;
+mod tab_meta;
 
 use std::borrow::Cow;
 use std::time::{Duration, Instant};
@@ -30,6 +32,7 @@ use std::sync::Arc;
 
 pub use self::activity::foreground_programs;
 use self::colors::{ansi_color, to_rgb};
+pub use self::cwd::shell_cwds;
 use self::input::keystroke_to_bytes;
 pub use self::run_tab::{RunExit, RunState};
 use self::session::Listener;
@@ -89,6 +92,12 @@ pub struct TerminalView {
     run: Option<RunState>,
     /// A Claude Code tab (Settings → Claude Code → Terminal).
     claude: bool,
+    /// Name given with Rename (this session only unless the tab is pinned).
+    name: Option<String>,
+    /// Pinned tabs come first, have no close button and are restored with the project.
+    pinned: bool,
+    /// Last known working directory of the shell.
+    cwd: Option<std::path::PathBuf>,
     /// Project root and working folder for `file:line` links.
     link_dirs: Option<(std::path::PathBuf, std::path::PathBuf)>,
     _events_task: Task<()>,
@@ -150,6 +159,9 @@ impl TerminalView {
             was_focused: false,
             run: None,
             claude: false,
+            name: None,
+            pinned: false,
+            cwd: None,
             link_dirs: None,
             _events_task: events_task,
             _blink_task: blink_task,

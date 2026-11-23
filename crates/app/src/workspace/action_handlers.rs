@@ -137,6 +137,9 @@ impl Workspace {
         }))
         .on_action(cx.listener(|this, _: &ToggleTerminal, w, cx| this.toggle_terminal(w, cx)))
         .on_action(cx.listener(|this, _: &NewTerminal, w, cx| this.new_default_terminal(w, cx)))
+        .on_action(cx.listener(|this, action: &TerminalTabAction, w, cx| {
+            this.handle_terminal_tab_action(action, w, cx);
+        }))
         .on_action(cx.listener(|this, _: &CloseTerminal, w, cx| {
             this.close_terminal_asking(this.active_terminal, w, cx);
         }))

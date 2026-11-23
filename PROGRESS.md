@@ -10,6 +10,12 @@ is in the working tree only.
 - [x] Editor with tree-sitter highlighting (~35 languages), tabs, JetBrains line operations
 - [x] Project tree, Search Everywhere (⇧⇧), Go to File (⌘⇧O), Recent Files (⌘E), Find in Files (⌘⇧F), Find Action (⌘⇧A), Go to Line (⌘L)
 - [x] Integrated terminal (⌥F12, tabs, copy/paste, selection, scrollback)
+- [x] Terminal tabs: Rename… (context menu or double-click; Enter saves, Esc cancels, empty restores the
+      default), Pin / Unpin (pin icon, first, no ×; ⌘W refuses), Close Tab, Close Other Tabs (keeps pinned).
+      Pinned shells are saved per project in `<config>/workspaces/<key>/pinned_terminals.json` (name, order,
+      directory relative to the root; debounced atomic writes) and reopen once, in their last directory, the
+      first time the panel opens. Directory comes from the shell process (`lsof`, `/proc` on Linux) every 3 s;
+      OSC 7 is not used (alacritty_terminal 0.26 does not surface it)
 - [x] Bottom tool windows span the full window width under the Project tree (Settings → Terminal → Full window width; on by default)
 - [x] `.power-idea` folder hidden in the Project tree; Settings → Appearance → Project tree → Show .power-idea folder
 - [x] Settings → System page: "Open projects in" and Confirmations (exit / close project) moved out of Appearance

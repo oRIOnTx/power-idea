@@ -11,7 +11,6 @@ use gpui_kit::*;
 
 use super::Workspace;
 use crate::claude::{self, Binary};
-use crate::config::AppConfig;
 use crate::terminal::{Session, TerminalView};
 
 impl Workspace {
@@ -81,8 +80,7 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let shell =
-            Some(cx.global::<AppConfig>().0.terminal_shell.trim().to_string()).filter(|s| !s.is_empty());
+        let shell = Self::configured_shell(cx);
         let root = self.root.clone();
         let session = match Session::spawn_command(root.clone(), shell, command, env) {
             Ok(session) => session,
@@ -108,8 +106,11 @@ impl Workspace {
         self.start_claude_tab(Some(ix), window, cx);
     }
 
-    /// Closes a terminal tab; a running Claude session asks first.
+    /// Closes a terminal tab; a running Claude session asks first, a pinned tab stays.
     pub(super) fn close_terminal_asking(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if self.guard_pinned_close(ix, window, cx) {
+            return;
+        }
         let Some(tab) = self
             .terminals
             .get(ix)

@@ -111,6 +111,7 @@ impl Workspace {
     pub(super) fn restore_session(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let mut session = Session::load(&self.root);
         session.retain_existing(&self.root);
+        self.load_pinned_terminals();
 
         self.expanded = session.expanded.iter().cloned().collect();
         self.refresh_tree(cx);
@@ -232,6 +233,7 @@ impl Workspace {
 
     /// Writes the state right away, e.g. when the window closes.
     pub(super) fn save_session_now(&mut self, cx: &App) {
+        self.save_pinned_now(cx);
         if let Some((root, session)) = self.session_to_save(cx)
             && let Err(err) = session.save(&root)
         {

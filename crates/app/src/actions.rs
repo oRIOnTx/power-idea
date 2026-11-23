@@ -227,6 +227,24 @@ impl FileAction {
     }
 }
 
+/// Operations from the terminal tab context menu.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TerminalTabOp {
+    Rename,
+    Pin,
+    Unpin,
+    Close,
+    CloseOthers,
+}
+
+/// Runs `op` on the terminal tab whose view has entity id `tab`.
+#[derive(Clone, Debug, PartialEq, Eq, Action)]
+#[action(namespace = terminal, no_json)]
+pub struct TerminalTabAction {
+    pub op: TerminalTabOp,
+    pub tab: u64,
+}
+
 /// Runs the extension command `id` (from an `extension.toml`).
 #[derive(Clone, Debug, PartialEq, Eq, Action)]
 #[action(namespace = extensions, no_json)]
