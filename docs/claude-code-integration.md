@@ -49,9 +49,10 @@ Docs index: https://code.claude.com/docs/llms.txt
   `2` blocking error, anything else non-blocking ("hook error" notice, action continues). A failing hook does
   not block unless `onFailure: "block"`; a timed-out command hook is cancelled. **Our bridge must print nothing
   and exit 0 quickly.**
-- Hooks inside `--settings`: `hooks` is an ordinary settings key and `--settings` is a settings layer, but the
-  docs do not show hooks passed this way explicitly → **verify with a real session before relying on it**
-  (fallback: statusline + transcript).
+- Hooks inside `--settings`: not shown explicitly in the docs, **verified** on 2026-11-23 (2.1.323):
+  `claude -p … --settings <file with hooks>` ran SessionStart (`cwd, hook_event_name, session_id, source,
+  transcript_path`), UserPromptSubmit (`+ permission_mode, prompt, prompt_id`) and Stop (`+ background_tasks,
+  effort, last_assistant_message, session_crons, stop_hook_active`) hooks from that file.
 
 ## Status line (statusline.md)
 
