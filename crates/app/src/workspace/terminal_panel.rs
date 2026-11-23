@@ -33,6 +33,14 @@ impl Workspace {
         }
     }
 
+    /// ⌘T / +: a Claude tab when Claude is the default (Settings → Claude Code), else a shell.
+    pub(super) fn new_default_terminal(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.wants_claude_tab(cx) {
+            return self.start_claude_tab(None, window, cx);
+        }
+        self.new_terminal(window, cx);
+    }
+
     pub(super) fn new_terminal(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.new_terminal_in(self.root.clone(), window, cx);
     }
@@ -73,7 +81,7 @@ impl Workspace {
         self.insert_terminal(self.terminals.len(), terminal, window, cx);
     }
 
-    /// Inserts a terminal tab at `ix` (the Claude tab goes first), shows the panel and focuses it.
+    /// Inserts a terminal tab at `ix`, shows the panel and focuses it.
     // reason: `_`-prefixed fields keep a task/subscription alive; reassigning them is the intent.
     #[allow(clippy::used_underscore_binding)]
     pub(super) fn insert_terminal(
@@ -132,11 +140,8 @@ impl Workspace {
 
     /// Alt+F12, JetBrains-style: open and focus, or hide when already focused.
     pub(super) fn toggle_terminal(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.wants_claude_tab(cx) && !self.has_claude_tab(cx) {
-            return self.start_claude_tab(window, cx);
-        }
         if self.terminals.is_empty() {
-            return self.new_terminal(window, cx);
+            return self.new_default_terminal(window, cx);
         }
         if self.terminal_visible() && self.terminal_focused(window, cx) {
             self.show_bottom = false;
@@ -175,14 +180,14 @@ impl Workspace {
                 .when(terminal.read(cx).is_claude(), |el| {
                     el.child(
                         style::icon_button_sized(
-                            "restart-claude",
+                            ("restart-claude", ix),
                             style::lucide("rotate-ccw"),
                             "Restart Claude",
                             style::BUTTON_SMALL,
                         )
-                        .on_click(cx.listener(|this, _, window, cx| {
+                        .on_click(cx.listener(move |this, _, window, cx| {
                             cx.stop_propagation();
-                            this.restart_claude_tab(window, cx);
+                            this.restart_claude_tab(ix, window, cx);
                         })),
                     )
                 })
@@ -221,8 +226,9 @@ impl Workspace {
                     )
                     .children(tabs)
                     .child(
-                        style::icon_button("new-terminal", IconName::Plus, "New tab (⌘T)")
-                            .on_click(cx.listener(|this, _, window, cx| this.new_terminal(window, cx))),
+                        style::icon_button("new-terminal", IconName::Plus, "New tab (⌘T)").on_click(
+                            cx.listener(|this, _, window, cx| this.new_default_terminal(window, cx)),
+                        ),
                     )
                     .child(div().flex_1())
                     .child(

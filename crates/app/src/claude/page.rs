@@ -379,12 +379,29 @@ fn gauges_group() -> SettingGroup {
 fn terminal_group() -> SettingGroup {
     SettingGroup::new()
         .title("Terminal")
-        .description("A pinned Claude tab first in the terminal panel, started in the project root with the injected settings.")
-        .item(switch_item("Claude tab", |s| s.terminal.claude_tab, |s, v| s.terminal.claude_tab = v))
-        .item(switch_item("Start automatically", |s| s.terminal.auto_start, |s, v| s.terminal.auto_start = v))
+        .description(
+            "Claude tabs in the terminal panel, started in the project root with the injected settings.",
+        )
         .item(
-            switch_item("Continue the last session", |s| s.terminal.continue_last, |s, v| s.terminal.continue_last = v)
-                .description("--continue instead of a new session."),
+            switch_item(
+                "New tabs start Claude",
+                |s| s.terminal.claude_tab,
+                |s, v| s.terminal.claude_tab = v,
+            )
+            .description("⌘T and + open Claude; off: a shell."),
+        )
+        .item(switch_item(
+            "Start automatically",
+            |s| s.terminal.auto_start,
+            |s, v| s.terminal.auto_start = v,
+        ))
+        .item(
+            switch_item(
+                "Continue the last session",
+                |s| s.terminal.continue_last,
+                |s, v| s.terminal.continue_last = v,
+            )
+            .description("--continue instead of a new session."),
         )
 }
 

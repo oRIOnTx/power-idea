@@ -33,7 +33,7 @@ impl TerminalView {
         self
     }
 
-    /// Marks this run tab as the pinned Claude Code tab.
+    /// Marks this run tab as a Claude Code tab.
     pub fn claude_tab(mut self) -> Self {
         self.claude = true;
         self

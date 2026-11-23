@@ -1,5 +1,5 @@
-//! The pinned "Claude" terminal tab: `claude` in the project root with the injected settings
-//! (Settings → Claude Code → Terminal). One per project window, always the first tab.
+//! "Claude" terminal tabs: `claude` in the project root with the injected settings
+//! (Settings → Claude Code → Terminal). New terminal tabs start one by default.
 
 use std::collections::BTreeMap;
 
@@ -15,7 +15,7 @@ use crate::config::AppConfig;
 use crate::terminal::{Session, TerminalView};
 
 impl Workspace {
-    /// The Claude tab is switched on (and this is a project window).
+    /// New terminal tabs start Claude (it is switched on and this is a project window).
     pub(super) fn wants_claude_tab(&self, cx: &App) -> bool {
         !self.light
             && cx
@@ -23,12 +23,13 @@ impl Workspace {
                 .is_some_and(|s| s.settings.enabled && s.settings.terminal.claude_tab)
     }
 
-    pub(super) fn has_claude_tab(&self, cx: &App) -> bool {
-        self.terminals.first().is_some_and(|t| t.read(cx).is_claude())
-    }
-
-    /// Opens the Claude tab first in the terminal panel (writing its generated files first).
-    pub(super) fn start_claude_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    /// Opens a Claude tab at `ix` (the end when `None`), writing its generated files first.
+    pub(super) fn start_claude_tab(
+        &mut self,
+        ix: Option<usize>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let state = claude::state(cx);
         let terminal_settings = state.settings.terminal.clone();
         let binary = state.binary.clone();
@@ -65,7 +66,7 @@ impl Workspace {
                     let message = format!("Claude settings could not be written: {err:#}");
                     window.push_notification(Notification::error(message), cx);
                 }
-                ws.spawn_claude_terminal(&command, &env, window, cx);
+                ws.spawn_claude_terminal(ix, &command, &env, window, cx);
             })
             .ok();
         })
@@ -74,14 +75,12 @@ impl Workspace {
 
     fn spawn_claude_terminal(
         &mut self,
+        ix: Option<usize>,
         command: &str,
         env: &BTreeMap<String, String>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.has_claude_tab(cx) {
-            return;
-        }
         let shell =
             Some(cx.global::<AppConfig>().0.terminal_shell.trim().to_string()).filter(|s| !s.is_empty());
         let root = self.root.clone();
@@ -95,32 +94,34 @@ impl Workspace {
                 .claude_tab()
                 .with_links(root.clone(), root)
         });
-        self.insert_terminal(0, terminal, window, cx);
+        let ix = ix.unwrap_or(self.terminals.len());
+        self.insert_terminal(ix, terminal, window, cx);
     }
 
-    /// Stops the Claude session (if any) and starts a new one.
-    pub(super) fn restart_claude_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.has_claude_tab(cx) {
-            if let Some(tab) = self.terminals.first() {
-                tab.update(cx, TerminalView::stop);
-            }
-            self.close_terminal(0, window, cx);
-        }
-        self.start_claude_tab(window, cx);
+    /// Stops the Claude session in tab `ix` and starts a new one in its place.
+    pub(super) fn restart_claude_tab(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tab) = self.terminals.get(ix).filter(|t| t.read(cx).is_claude()).cloned() else {
+            return;
+        };
+        tab.update(cx, TerminalView::stop);
+        self.close_terminal(ix, window, cx);
+        self.start_claude_tab(Some(ix), window, cx);
     }
 
     /// Closes a terminal tab; a running Claude session asks first.
     pub(super) fn close_terminal_asking(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
-        let running_claude = self
+        let Some(tab) = self
             .terminals
             .get(ix)
-            .is_some_and(|t| t.read(cx).is_claude() && t.read(cx).is_running());
-        if !running_claude {
+            .filter(|t| t.read(cx).is_claude() && t.read(cx).is_running())
+            .cloned()
+        else {
             return self.close_terminal(ix, window, cx);
-        }
+        };
         let workspace = cx.entity().downgrade();
         window.open_alert_dialog(cx, move |dialog, _, _| {
             let workspace = workspace.clone();
+            let tab = tab.clone();
             dialog
                 .confirm()
                 .title("Stop the Claude session?")
@@ -134,9 +135,10 @@ impl Workspace {
                 .on_ok(move |_, window, cx| {
                     workspace
                         .update(cx, |ws, cx| {
-                            if let Some(tab) = ws.terminals.first().filter(|t| t.read(cx).is_claude()) {
+                            // Tabs may have moved while the dialog was open.
+                            if let Some(ix) = ws.terminals.iter().position(|t| *t == tab) {
                                 tab.update(cx, TerminalView::stop);
-                                ws.close_terminal(0, window, cx);
+                                ws.close_terminal(ix, window, cx);
                             }
                         })
                         .ok();

@@ -168,7 +168,7 @@ impl Default for GaugeSettings {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct TerminalSettings {
-    /// A pinned "Claude" tab first in the terminal panel.
+    /// New terminal tabs (⌘T, +) start Claude instead of a shell.
     pub claude_tab: bool,
     /// Start `claude` as soon as the tab opens (else on click).
     pub auto_start: bool,

@@ -247,8 +247,8 @@ is in the working tree only.
       `~/.claude/CLAUDE.md` + `~/.claude/skills/ide-*`, backups, manifest, byte-identical uninstall (tested);
       Export to project (managed block); Preview effective context (redacted). Rules card: search, tags,
       switches, scope chips, drag / arrows to reorder, Test match, Edit, 5 templates, folder import/export.
-      Skills: 4 built-ins seeded once, add from folder / Git URL, active-in-session marks. Pinned Claude terminal
-      tab (auto or Enter to start, --continue, restart, install hint, close confirmation). Hook bridge
+      Skills: 4 built-ins seeded once, add from folder / Git URL, active-in-session marks. Claude terminal
+      tabs as the default for ⌘T / + (setting "New tabs start Claude"; auto or Enter to start, --continue, restart, install hint, close confirmation). Hook bridge
       `power-idea claude-hook` / `claude-statusline` over a Unix socket (exit 0, user's status line kept) →
       gauges (context ring with thresholds, tokens/cost with transcript fallback via the Insights parser,
       activity, files changed, quality ring) in the status bar and sidebar (the Claude tab shows only its name, restart and close, at ~1.5× width; the Run widget's Stop and ⌘F2 ignore it). Code quality: clippy /
