@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://power-idea.dev/schemas/claude-settings.json",
+  "title": "Power IDEA → Claude Code settings (claude/settings.toml)",
+  "description": "Every feature is an independent toggle; with `enabled = false` the IDE behaves as if this section did not exist.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "enabled": { "type": "boolean", "default": false, "description": "The whole Claude Code section." },
+    "general": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claude_path": { "type": "string", "default": "", "description": "Path to the claude binary; empty = found on PATH." },
+        "model": { "type": "string", "default": "", "description": "--model (alias such as opus/sonnet/fable, or a full model name); empty = default." },
+        "permission_mode": {
+          "type": "string",
+          "default": "",
+          "enum": ["", "acceptEdits", "auto", "bypassPermissions", "manual", "dontAsk", "plan"],
+          "description": "--permission-mode; empty = default."
+        },
+        "effort": {
+          "type": "string",
+          "default": "",
+          "enum": ["", "low", "medium", "high", "xhigh", "max"],
+          "description": "--effort; empty = default."
+        },
+        "ide_mcp": { "type": "boolean", "default": false, "description": "Pass the IDE's MCP server with --mcp-config." }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "mode": { "$ref": "#/$defs/mode" }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "mode": { "$ref": "#/$defs/mode" },
+        "disabled": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Skill folder names (skills/<name>/SKILL.md) that are switched off."
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "run_on": {
+          "type": "string",
+          "enum": ["hook", "save", "manual"],
+          "default": "hook",
+          "description": "hook = after Claude edits a file; save = on IDE save; manual = Run button only."
+        },
+        "error_weight": { "type": "number", "minimum": 0, "default": 5.0 },
+        "warning_weight": { "type": "number", "minimum": 0, "default": 1.0 }
+      },
+      "description": "Score = 100 − error_weight × errors − warning_weight × warnings, clamped to 0…100."
+    },
+    "gauges": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "context": { "type": "boolean", "default": true, "description": "Context window usage ring." },
+        "cost": { "type": "boolean", "default": true, "description": "Tokens and cost of the session." },
+        "activity": { "type": "boolean", "default": true, "description": "What Claude is doing now." },
+        "files": { "type": "boolean", "default": true, "description": "Files changed in the session." },
+        "quality": { "type": "boolean", "default": true, "description": "Code quality score ring." },
+        "in_status_bar": { "type": "boolean", "default": true },
+        "in_tab_header": { "type": "boolean", "default": true },
+        "in_sidebar": { "type": "boolean", "default": false },
+        "context_amber": { "type": "integer", "minimum": 0, "maximum": 100, "default": 60 },
+        "context_red": { "type": "integer", "minimum": 0, "maximum": 100, "default": 85 }
+      }
+    },
+    "terminal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claude_tab": { "type": "boolean", "default": true, "description": "Pinned Claude tab first in the terminal panel." },
+        "auto_start": { "type": "boolean", "default": true, "description": "Start claude when the tab opens (else on click)." },
+        "continue_last": { "type": "boolean", "default": false, "description": "--continue the last session instead of a new one." }
+      }
+    }
+  },
+  "$defs": {
+    "mode": {
+      "type": "string",
+      "enum": ["inject", "install"],
+      "default": "inject",
+      "description": "inject = CLI flags when the IDE starts claude; install = managed, reversible copy in ~/.claude."
+    }
+  }
+}

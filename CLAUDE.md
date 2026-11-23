@@ -46,6 +46,8 @@ crates/
   insights/ Claude Code transcripts → metrics → scores → tips; SQLite store (Session Insights)
   dap/     Debug Adapter Protocol client + adapter plans (live test: cargo test -p dap -- --ignored)
   extensions/ extension manifests, protocol and processes: JSON-RPC over stdio (docs/extensions.md)
+  claude_integration/ Claude Code settings: rules, skills, resolver, launcher, installer, hook bridge
+                      (docs/claude-code-integration.md)
   app/     the gpui application; the only crate that depends on gpui-kit
     workspace.rs        Workspace entity: state + layout composition only
     workspace/*.rs      one concern per module (editors, files, git, git_panel,
