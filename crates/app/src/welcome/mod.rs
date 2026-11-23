@@ -237,8 +237,8 @@ impl Welcome {
             )
             .child(
                 div()
-                    .when(!selected, |el| el.invisible())
-                    .group_hover("recent", |s| s.visible())
+                    .when(!selected, gpui_kit::Styled::invisible)
+                    .group_hover("recent", gpui_kit::Styled::visible)
                     .child(
                         style::icon_button(("forget", ix), IconName::Close, "Remove from Recent Projects")
                             .on_click(move |_, _, cx| {

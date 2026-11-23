@@ -309,7 +309,7 @@ impl Workspace {
                         None => Ok(Vec::new()),
                     }
                 },
-                |ws, files, window, cx| ws.apply_rename(files, window, cx),
+                super::Workspace::apply_rename,
                 window,
                 cx,
             );
@@ -362,20 +362,17 @@ impl Workspace {
             CenterTab::Editor(tab) if tab.path == path => Some(tab.state.clone()),
             _ => None,
         });
-        match open {
-            Some(state) => {
-                let text = nav::apply_text_edits(&state.read(cx).value(), edits)?;
-                state.update(cx, |state, cx| {
-                    let cursor = state.cursor_position();
-                    state.set_value(text, window, cx);
-                    state.set_cursor_position(cursor, window, cx);
-                });
-                Ok(())
-            }
-            None => {
-                let text = std::fs::read_to_string(path).context("reading")?;
-                std::fs::write(path, nav::apply_text_edits(&text, edits)?).context("writing")
-            }
+        if let Some(state) = open {
+            let text = nav::apply_text_edits(&state.read(cx).value(), edits)?;
+            state.update(cx, |state, cx| {
+                let cursor = state.cursor_position();
+                state.set_value(text, window, cx);
+                state.set_cursor_position(cursor, window, cx);
+            });
+            Ok(())
+        } else {
+            let text = std::fs::read_to_string(path).context("reading")?;
+            std::fs::write(path, nav::apply_text_edits(&text, edits)?).context("writing")
         }
     }
 

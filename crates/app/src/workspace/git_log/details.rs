@@ -155,7 +155,7 @@ impl Workspace {
                 div()
                     .flex_none()
                     .text_color(color)
-                    .when(kind == ChangeKind::Deleted, |el| el.line_through())
+                    .when(kind == ChangeKind::Deleted, gpui_kit::Styled::line_through)
                     .child(name.to_string()),
             )
             .child(

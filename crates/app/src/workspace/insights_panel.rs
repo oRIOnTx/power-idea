@@ -124,7 +124,7 @@ impl Workspace {
         }
         let refresh = cx.spawn_in(window, async move |this, cx| {
             loop {
-                if this.update(cx, |ws, cx| ws.reindex_insights(cx)).is_err() {
+                if this.update(cx, super::Workspace::reindex_insights).is_err() {
                     break;
                 }
                 cx.background_executor().timer(REINDEX_EVERY).await;

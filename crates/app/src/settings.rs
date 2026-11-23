@@ -142,7 +142,7 @@ fn appearance_page() -> SettingPage {
                     "Interface font size",
                     SettingField::number_input(
                         number(10., 20.),
-                        |cx| config(cx).ui_font_size as f64,
+                        |cx| f64::from(config(cx).ui_font_size),
                         |value, cx| update_config(cx, |c| c.ui_font_size = value as f32),
                     )
                     .default_value(13.),
@@ -247,7 +247,7 @@ fn editor_page(cx: &App) -> SettingPage {
                 "Font size",
                 SettingField::number_input(
                     number(8., 32.),
-                    |cx| config(cx).editor_font_size as f64,
+                    |cx| f64::from(config(cx).editor_font_size),
                     |value, cx| update_config(cx, |c| c.editor_font_size = value as f32),
                 )
                 .default_value(13.),
@@ -302,8 +302,8 @@ fn terminal_page() -> SettingPage {
 
 fn server_status(server: &LanguageServerConfig, cx: &App) -> AnyElement {
     let theme = cx.theme();
-    match server_path(server) {
-        Some(path) => h_flex()
+    if let Some(path) = server_path(server) {
+        h_flex()
             .gap_2()
             .text_xs()
             .child(crate::style::signal_dot(theme.green))
@@ -312,37 +312,36 @@ fn server_status(server: &LanguageServerConfig, cx: &App) -> AnyElement {
                     .text_color(theme.muted_foreground)
                     .child(format!("Installed · {}", path.display())),
             )
-            .into_any_element(),
-        None => {
-            let hint = server.install_hint.clone();
-            h_flex()
-                .gap_2()
-                .text_xs()
-                .child(div().size(px(6.)).rounded_full().bg(theme.warning))
-                .child(div().text_color(theme.muted_foreground).child("Not installed"))
-                .when(!hint.is_empty(), |el| {
-                    el.child(
-                        div()
-                            .px_1p5()
-                            .rounded_sm()
-                            .bg(theme.muted)
-                            .font_family(theme.mono_font_family.clone())
-                            .child(hint.clone()),
-                    )
-                    .child(
-                        Button::new(SharedString::from(format!("copy-{hint}")))
-                            .ghost()
-                            .xsmall()
-                            .icon(IconName::Copy)
-                            .tooltip("Copy install command")
-                            .on_click(move |_, window, cx| {
-                                cx.write_to_clipboard(ClipboardItem::new_string(hint.clone()));
-                                window.push_notification(Notification::success("Install command copied"), cx);
-                            }),
-                    )
-                })
-                .into_any_element()
-        }
+            .into_any_element()
+    } else {
+        let hint = server.install_hint.clone();
+        h_flex()
+            .gap_2()
+            .text_xs()
+            .child(div().size(px(6.)).rounded_full().bg(theme.warning))
+            .child(div().text_color(theme.muted_foreground).child("Not installed"))
+            .when(!hint.is_empty(), |el| {
+                el.child(
+                    div()
+                        .px_1p5()
+                        .rounded_sm()
+                        .bg(theme.muted)
+                        .font_family(theme.mono_font_family.clone())
+                        .child(hint.clone()),
+                )
+                .child(
+                    Button::new(SharedString::from(format!("copy-{hint}")))
+                        .ghost()
+                        .xsmall()
+                        .icon(IconName::Copy)
+                        .tooltip("Copy install command")
+                        .on_click(move |_, window, cx| {
+                            cx.write_to_clipboard(ClipboardItem::new_string(hint.clone()));
+                            window.push_notification(Notification::success("Install command copied"), cx);
+                        }),
+                )
+            })
+            .into_any_element()
     }
 }
 
@@ -455,7 +454,7 @@ fn mcp_page() -> SettingPage {
                 "Port",
                 SettingField::number_input(
                     number(1024., 65535.),
-                    |cx| config(cx).mcp_port as f64,
+                    |cx| f64::from(config(cx).mcp_port),
                     |value, cx| update_config(cx, |c| c.mcp_port = value as u16),
                 )
                 .default_value(7419.),

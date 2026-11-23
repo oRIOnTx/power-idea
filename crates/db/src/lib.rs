@@ -93,21 +93,20 @@ impl Default for ConnectionConfig {
 impl ConnectionConfig {
     /// Short description for lists, e.g. `postgres@localhost:5432/app`.
     pub fn summary(&self) -> String {
-        match self.kind {
-            DbKind::Sqlite => self.file.clone(),
-            _ => {
-                let user = if self.user.is_empty() {
-                    String::new()
-                } else {
-                    format!("{}@", self.user)
-                };
-                let db = if self.database.is_empty() {
-                    String::new()
-                } else {
-                    format!("/{}", self.database)
-                };
-                format!("{user}{}:{}{db}", self.host, self.port)
-            }
+        if self.kind == DbKind::Sqlite {
+            self.file.clone()
+        } else {
+            let user = if self.user.is_empty() {
+                String::new()
+            } else {
+                format!("{}@", self.user)
+            };
+            let db = if self.database.is_empty() {
+                String::new()
+            } else {
+                format!("/{}", self.database)
+            };
+            format!("{user}{}:{}{db}", self.host, self.port)
         }
     }
 }

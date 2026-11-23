@@ -55,7 +55,7 @@ fn commit_menu(menu: PopupMenu, hash: &str, focus: FocusHandle) -> PopupMenu {
 
 /// Draws one row of the commit graph: lines through the row and the commit node.
 fn graph_cell(row: GraphRow, lanes: usize, colors: Rc<[Hsla]>) -> impl IntoElement {
-    let paint = move |bounds: Bounds<Pixels>, _: (), window: &mut Window, _: &mut App| {
+    let paint = move |bounds: Bounds<Pixels>, (): (), window: &mut Window, _: &mut App| {
         let x = |lane: usize| bounds.left() + px(LANE_WIDTH * (lane as f32 + 0.5));
         let y = |anchor: Anchor| match anchor {
             Anchor::Top => bounds.top(),

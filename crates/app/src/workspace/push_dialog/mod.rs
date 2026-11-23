@@ -346,7 +346,7 @@ impl PushDialog {
                 .id(id)
                 .text_color(theme.primary)
                 .cursor_pointer()
-                .hover(|s| s.underline())
+                .hover(gpui_kit::Styled::underline)
                 .child(text)
         };
         let mut header = row("push-branch".into(), self.selected.is_none())

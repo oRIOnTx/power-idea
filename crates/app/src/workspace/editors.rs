@@ -47,73 +47,72 @@ impl Workspace {
             return self.open_image(rel, path, window, cx);
         }
 
-        let ix = match self
+        let ix = if let Some(ix) = self
             .tabs
             .iter()
             .position(|tab| tab.editor().is_some_and(|tab| tab.rel == rel))
         {
-            Some(ix) => ix,
-            None => {
-                let text = match fs::read(&path) {
-                    Ok(bytes) if bytes.contains(&0) => {
-                        self.notify_error(format!("{rel} looks like a binary file"), window, cx);
-                        return;
+            ix
+        } else {
+            let text = match fs::read(&path) {
+                Ok(bytes) if bytes.contains(&0) => {
+                    self.notify_error(format!("{rel} looks like a binary file"), window, cx);
+                    return;
+                }
+                Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+                Err(err) => {
+                    self.notify_error(format!("Cannot open {rel}: {err}"), window, cx);
+                    return;
+                }
+            };
+            let language = editor::language_for(&path);
+            let indent = self.indent_style(&path, &language, cx);
+            let state = editor::new_editor_state(text.clone(), &language, indent, window, cx);
+            self.open_buffers.borrow_mut().push(state.downgrade());
+            let (own, buffers) = (state.entity_id(), self.open_buffers.clone());
+            state.update(cx, |state, _| {
+                WordCompletion::install(state, &language, own, buffers);
+            });
+            let subscriptions = vec![
+                cx.subscribe(&state, |this, state, event: &InputEvent, cx| {
+                    if let InputEvent::Change = event {
+                        this.lsp_did_change(&state, cx);
+                        this.send_file_changed(&state, cx);
                     }
-                    Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
-                    Err(err) => {
-                        self.notify_error(format!("Cannot open {rel}: {err}"), window, cx);
-                        return;
+                    cx.notify();
+                }),
+                cx.observe(&state, |_, _, cx| cx.notify()),
+                cx.subscribe_in(&state, window, {
+                    let language = language.clone();
+                    let pending = std::cell::RefCell::new(None);
+                    move |_, state, event: &InputEditsEvent, window, cx| {
+                        state.update(cx, |state, cx| {
+                            language_rules::reindent_after_typing(
+                                state, &language, event, &pending, window, cx,
+                            );
+                        });
                     }
-                };
-                let language = editor::language_for(&path);
-                let indent = self.indent_style(&path, &language, cx);
-                let state = editor::new_editor_state(text.clone(), &language, indent, window, cx);
-                self.open_buffers.borrow_mut().push(state.downgrade());
-                let (own, buffers) = (state.entity_id(), self.open_buffers.clone());
-                state.update(cx, |state, _| {
-                    WordCompletion::install(state, &language, own, buffers);
-                });
-                let subscriptions = vec![
-                    cx.subscribe(&state, |this, state, event: &InputEvent, cx| {
-                        if let InputEvent::Change = event {
-                            this.lsp_did_change(&state, cx);
-                            this.send_file_changed(&state, cx);
-                        }
-                        cx.notify();
-                    }),
-                    cx.observe(&state, |_, _, cx| cx.notify()),
-                    cx.subscribe_in(&state, window, {
-                        let language = language.clone();
-                        let pending = std::cell::RefCell::new(None);
-                        move |_, state, event: &InputEditsEvent, window, cx| {
-                            state.update(cx, |state, cx| {
-                                language_rules::reindent_after_typing(
-                                    state, &language, event, &pending, window, cx,
-                                );
-                            });
-                        }
-                    }),
-                ];
-                let preview = preview::preview_kind(&path).map(Preview::new);
-                self.tabs.push(CenterTab::Editor(EditorTab {
-                    path,
-                    rel: rel.to_string(),
-                    state,
-                    language,
-                    saved_text: text.into(),
-                    lsp: None,
-                    preview,
-                    breakpoint_marks: None,
-                    execution_mark: None,
-                    _subscriptions: subscriptions,
-                }));
-                let ix = self.tabs.len() - 1;
-                self.attach_language_server(ix, cx);
-                self.send_extension_event("file_opened", rel, cx);
-                let path = self.root.join(rel);
-                self.refresh_breakpoint_marks(&path, cx);
-                ix
-            }
+                }),
+            ];
+            let preview = preview::preview_kind(&path).map(Preview::new);
+            self.tabs.push(CenterTab::Editor(EditorTab {
+                path,
+                rel: rel.to_string(),
+                state,
+                language,
+                saved_text: text.into(),
+                lsp: None,
+                preview,
+                breakpoint_marks: None,
+                execution_mark: None,
+                _subscriptions: subscriptions,
+            }));
+            let ix = self.tabs.len() - 1;
+            self.attach_language_server(ix, cx);
+            self.send_extension_event("file_opened", rel, cx);
+            let path = self.root.join(rel);
+            self.refresh_breakpoint_marks(&path, cx);
+            ix
         };
 
         self.record_location_if_leaving(rel, position.is_some(), cx);
@@ -248,12 +247,11 @@ impl Workspace {
     }
 
     pub(super) fn open_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let ix = match self.tabs.iter().position(|t| matches!(t, CenterTab::Settings)) {
-            Some(ix) => ix,
-            None => {
-                self.tabs.push(CenterTab::Settings);
-                self.tabs.len() - 1
-            }
+        let ix = if let Some(ix) = self.tabs.iter().position(|t| matches!(t, CenterTab::Settings)) {
+            ix
+        } else {
+            self.tabs.push(CenterTab::Settings);
+            self.tabs.len() - 1
         };
         self.activate_tab(ix, window, cx);
     }

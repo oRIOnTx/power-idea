@@ -260,7 +260,7 @@ pub fn toggle_line_comment(text: &str, line: u32, prefix: &str) -> Option<LineEd
     } else {
         format!("{indent}{prefix} {rest}")
     };
-    let mut lines: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+    let mut lines: Vec<String> = lines.iter().map(std::string::ToString::to_string).collect();
     lines[ix] = toggled;
     let cursor_line = (line + 1).min(lines.len() as u32 - 1);
     Some(LineEdit {

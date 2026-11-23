@@ -473,7 +473,7 @@ impl BranchesPopup {
                         move |bounds, _, cx| {
                             this.update(cx, |this, _| this.submenu_bounds = Some(bounds)).ok();
                         },
-                        |_, _, _, _| {},
+                        |_, (), _, _| {},
                     )
                     .absolute()
                     .size_full(),
@@ -560,7 +560,7 @@ impl Render for BranchesPopup {
                                 .ok();
                         }
                     },
-                    |_, _, _, _| {},
+                    |_, (), _, _| {},
                 )
                 .absolute()
                 .size_full(),

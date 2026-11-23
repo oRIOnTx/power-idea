@@ -137,20 +137,19 @@ impl Repo {
                 self.branch_config(branch, "merge")
                     .and_then(|m| m.strip_prefix("refs/heads/").map(str::to_string)),
             );
-        let (remote, remote_branch) = match upstream {
-            Some(upstream) => upstream,
-            None => {
-                let remotes = self.remotes()?;
-                let remote = remotes
-                    .iter()
-                    .find(|r| *r == "origin")
-                    .or(remotes.first())
-                    .cloned();
-                let Some(remote) = remote else {
-                    return Ok(None);
-                };
-                (remote, branch.to_string())
-            }
+        let (remote, remote_branch) = if let Some(upstream) = upstream {
+            upstream
+        } else {
+            let remotes = self.remotes()?;
+            let remote = remotes
+                .iter()
+                .find(|r| *r == "origin")
+                .or(remotes.first())
+                .cloned();
+            let Some(remote) = remote else {
+                return Ok(None);
+            };
+            (remote, branch.to_string())
         };
         Ok(Some(self.target(&remote, &remote_branch)))
     }

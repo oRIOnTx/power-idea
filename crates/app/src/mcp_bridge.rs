@@ -176,23 +176,20 @@ fn dispatch(call: Call, cx: &mut App) {
     }
 
     // Explicit project, else the focused window, else the only/first one.
-    let target = match args.get("project").and_then(Value::as_str) {
-        Some(project) => {
-            let wanted = PathBuf::from(project);
-            let wanted = wanted.canonicalize().unwrap_or(wanted);
-            workspaces
-                .iter()
-                .find(|(_, ws)| ws.read(cx).root() == &wanted)
-                .cloned()
-        }
-        None => {
-            let active = cx.active_window();
-            workspaces
-                .iter()
-                .find(|(handle, _)| Some(*handle) == active)
-                .or_else(|| workspaces.first())
-                .cloned()
-        }
+    let target = if let Some(project) = args.get("project").and_then(Value::as_str) {
+        let wanted = PathBuf::from(project);
+        let wanted = wanted.canonicalize().unwrap_or(wanted);
+        workspaces
+            .iter()
+            .find(|(_, ws)| ws.read(cx).root() == &wanted)
+            .cloned()
+    } else {
+        let active = cx.active_window();
+        workspaces
+            .iter()
+            .find(|(handle, _)| Some(*handle) == active)
+            .or_else(|| workspaces.first())
+            .cloned()
     };
     let Some((handle, workspace)) = target else {
         return send(Err("no matching project is open in the IDE".into()));

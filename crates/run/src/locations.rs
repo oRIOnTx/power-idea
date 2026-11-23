@@ -177,8 +177,14 @@ mod tests {
         );
         assert_eq!(short("./pkg/x.go:42 +0x1d", &root)[0].0, "pkg/x.go");
         // Not files, or not existing: ignored.
-        assert!(short("12:30:45 INFO started at http://localhost:3000", &root).is_empty());
-        assert!(short("missing.rb:3", &root).is_empty());
+        assert_eq!(
+            short("12:30:45 INFO started at http://localhost:3000", &root),
+            [] as [(String, u32, Option<u32>, String); 0]
+        );
+        assert_eq!(
+            short("missing.rb:3", &root),
+            [] as [(String, u32, Option<u32>, String); 0]
+        );
         assert_eq!(short("a src/main.rs:1 and app/models/user.rb:2", &root).len(), 2);
         let _ = fs::remove_dir_all(&root);
     }

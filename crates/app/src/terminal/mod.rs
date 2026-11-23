@@ -571,7 +571,11 @@ impl Render for TerminalView {
                             }
                             this.selecting = false;
                             let mut term = this.term.lock();
-                            if term.selection.as_ref().is_some_and(|s| s.is_empty()) {
+                            if term
+                                .selection
+                                .as_ref()
+                                .is_some_and(alacritty_terminal::selection::Selection::is_empty)
+                            {
                                 term.selection = None;
                             }
                             cx.notify();

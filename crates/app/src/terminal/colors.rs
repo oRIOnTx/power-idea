@@ -16,9 +16,9 @@ pub(super) fn to_rgb(color: Hsla) -> Rgb {
 
 fn rgb(r: u8, g: u8, b: u8) -> Hsla {
     Rgba {
-        r: r as f32 / 255.,
-        g: g as f32 / 255.,
-        b: b as f32 / 255.,
+        r: f32::from(r) / 255.,
+        g: f32::from(g) / 255.,
+        b: f32::from(b) / 255.,
         a: 1.,
     }
     .into()

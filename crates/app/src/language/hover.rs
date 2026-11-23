@@ -55,7 +55,7 @@ pub(super) fn tidy_markdown(markdown: &str) -> String {
             continue;
         }
         out.push(format!("{indent}{fence}"));
-        out.extend(body.iter().map(|l| l.to_string()));
+        out.extend(body.iter().map(std::string::ToString::to_string));
         if closed {
             out.push(format!("{indent}{fence}"));
         }

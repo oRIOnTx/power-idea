@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::Editor;
 use gpui_kit::component::text::TextView;
 use gpui_kit::component::{
@@ -207,8 +207,8 @@ impl Workspace {
             Button::new(id)
                 .xsmall()
                 .label(label)
-                .when(actual == value, |b| b.primary())
-                .when(actual != value, |b| b.ghost())
+                .when(actual == value, ButtonVariants::primary)
+                .when(actual != value, ButtonVariants::ghost)
                 .on_click(cx.listener(move |ws, _, _, cx| {
                     if let Some(CenterTab::Image(tab)) = ws.active_tab.and_then(|ix| ws.tabs.get_mut(ix)) {
                         tab.actual_size = value;

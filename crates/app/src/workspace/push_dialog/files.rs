@@ -80,7 +80,7 @@ impl PushDialog {
                                 div()
                                     .flex_none()
                                     .text_color(kind_color(kind, cx))
-                                    .when(kind == ChangeKind::Deleted, |el| el.line_through())
+                                    .when(kind == ChangeKind::Deleted, gpui_kit::Styled::line_through)
                                     .child(name.to_string()),
                             )
                             .children(file.orig_path.clone().map(|orig| {

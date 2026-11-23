@@ -144,7 +144,7 @@ impl Workspace {
         } else {
             theme.warning
         };
-        let state = operation.map(|op| op.label());
+        let state = operation.map(vcs::Operation::label);
         let text = match (state, conflicts) {
             (Some(op), 0) => format!("{op}: resolved — continue"),
             (Some(op), n) => format!("{op}: {n} conflict{}", if n == 1 { "" } else { "s" }),

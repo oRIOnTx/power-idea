@@ -105,12 +105,11 @@ pub fn layout<'a>(commits: impl IntoIterator<Item = (&'a str, &'a [String])>) ->
 }
 
 fn free_slot(lanes: &mut Vec<Option<String>>) -> usize {
-    match lanes.iter().position(Option::is_none) {
-        Some(slot) => slot,
-        None => {
-            lanes.push(None);
-            lanes.len() - 1
-        }
+    if let Some(slot) = lanes.iter().position(Option::is_none) {
+        slot
+    } else {
+        lanes.push(None);
+        lanes.len() - 1
     }
 }
 
@@ -120,7 +119,12 @@ mod tests {
 
     fn commits(spec: &[(&str, &[&str])]) -> Vec<(String, Vec<String>)> {
         spec.iter()
-            .map(|(h, ps)| (h.to_string(), ps.iter().map(|p| p.to_string()).collect()))
+            .map(|(h, ps)| {
+                (
+                    h.to_string(),
+                    ps.iter().map(std::string::ToString::to_string).collect(),
+                )
+            })
             .collect()
     }
 

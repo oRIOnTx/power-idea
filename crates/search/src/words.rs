@@ -133,7 +133,10 @@ mod tests {
             ["user_id", "user"]
         );
         assert_eq!(word_completions("user", text, text.len(), &[], 10), ["user_id"]);
-        assert!(word_completions("12", text, text.len(), &[], 10).is_empty());
+        assert_eq!(
+            word_completions("12", text, text.len(), &[], 10),
+            [] as [String; 0]
+        );
     }
 
     #[test]

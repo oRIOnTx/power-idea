@@ -89,7 +89,10 @@ mod tests {
         assert_eq!(match_ranges(text, "user", options(false, false)).len(), 4);
         assert_eq!(match_ranges(text, "user", options(true, false)), vec![5..9]);
         assert_eq!(match_ranges(text, "user", options(false, true)), [0..4, 13..17]);
-        assert!(match_ranges(text, "", options(false, false)).is_empty());
+        assert_eq!(
+            match_ranges(text, "", options(false, false)),
+            [] as [std::ops::Range<usize>; 0]
+        );
         // Non-ASCII text keeps byte ranges on char boundaries.
         assert_eq!(
             match_ranges("Ärger ärger", "ÄRGER", options(false, true)),

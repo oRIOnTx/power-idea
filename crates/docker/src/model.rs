@@ -168,6 +168,6 @@ mod tests {
             parse_container(&json!({"Id": "x", "State": "exited", "Status": "Exited (1) 2 hours ago"}))
                 .unwrap();
         assert_eq!((exited.state, exited.health), (State::Exited, None));
-        assert!(exited.service.is_empty());
+        assert_eq!(exited.service, "");
     }
 }

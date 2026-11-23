@@ -56,15 +56,14 @@ impl Workspace {
                 .filter_map(|&line| line_range(&text, line))
                 .map(|range| GutterDecoration::new(range).with_color(color))
                 .collect();
-            match &tab.breakpoint_marks {
-                Some(collection) => collection.set(marks, cx),
-                None => {
-                    let collection = tab.state.update(cx, |state, cx| {
-                        state.set_gutter_decorations_width(px(6.), cx);
-                        state.create_gutter_decorations_collection(marks, cx)
-                    });
-                    tab.breakpoint_marks = Some(collection);
-                }
+            if let Some(collection) = &tab.breakpoint_marks {
+                collection.set(marks, cx)
+            } else {
+                let collection = tab.state.update(cx, |state, cx| {
+                    state.set_gutter_decorations_width(px(6.), cx);
+                    state.create_gutter_decorations_collection(marks, cx)
+                });
+                tab.breakpoint_marks = Some(collection);
             }
         }
     }

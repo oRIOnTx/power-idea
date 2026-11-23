@@ -98,7 +98,11 @@ impl Workspace {
             .root
             .canonicalize()
             .ok()
-            .and_then(|root| root.strip_prefix(repo.root()).ok().map(|p| p.to_path_buf()))
+            .and_then(|root| {
+                root.strip_prefix(repo.root())
+                    .ok()
+                    .map(std::path::Path::to_path_buf)
+            })
             .map(|p| p.to_string_lossy().replace('\\', "/"))
             .filter(|p| !p.is_empty())
             .map_or_default(|p| format!("{p}/"));
@@ -316,7 +320,7 @@ impl Workspace {
                             ws.run_git(
                                 "Rollback",
                                 move |repo| repo.rollback(&change),
-                                |ws, _, window, cx| ws.reload_clean_editors(window, cx),
+                                |ws, (), window, cx| ws.reload_clean_editors(window, cx),
                                 window,
                                 cx,
                             );
@@ -405,25 +409,22 @@ impl Workspace {
             .tabs
             .iter()
             .position(|t| matches!(t, CenterTab::Diff(d) if d.key == key));
-        let ix = match existing {
-            Some(ix) => {
-                if let CenterTab::Diff(tab) = &mut self.tabs[ix] {
-                    tab.title = title;
-                    tab.change_path = change_path;
-                    tab.state.update(cx, |state, cx| state.set_files(files, cx));
-                }
-                ix
+        let ix = if let Some(ix) = existing {
+            if let CenterTab::Diff(tab) = &mut self.tabs[ix] {
+                tab.title = title;
+                tab.change_path = change_path;
+                tab.state.update(cx, |state, cx| state.set_files(files, cx));
             }
-            None => {
-                let state = cx.new(|cx| DiffState::new(files, cx).with_mode(DiffMode::Split));
-                self.tabs.push(CenterTab::Diff(DiffTab {
-                    key,
-                    title,
-                    change_path,
-                    state,
-                }));
-                self.tabs.len() - 1
-            }
+            ix
+        } else {
+            let state = cx.new(|cx| DiffState::new(files, cx).with_mode(DiffMode::Split));
+            self.tabs.push(CenterTab::Diff(DiffTab {
+                key,
+                title,
+                change_path,
+                state,
+            }));
+            self.tabs.len() - 1
         };
         self.activate_tab(ix, window, cx);
     }

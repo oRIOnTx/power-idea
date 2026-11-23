@@ -91,7 +91,7 @@ impl Workspace {
             .iter()
             .position(|t| t.read(cx).run_state().is_some_and(|r| r.name == config.name))
         {
-            self.terminals[ix].update(cx, |t, cx| t.stop(cx));
+            self.terminals[ix].update(cx, super::super::terminal::TerminalView::stop);
             self.close_terminal(ix, window, cx);
         }
         let cwd = config.working_dir(&self.root);
@@ -154,7 +154,7 @@ impl Workspace {
             .or_else(|| self.terminals.iter().rev().find(|t| t.read(cx).is_running()))
             .cloned();
         if let Some(terminal) = target {
-            terminal.update(cx, |t, cx| t.stop(cx));
+            terminal.update(cx, super::super::terminal::TerminalView::stop);
             cx.notify();
         }
     }

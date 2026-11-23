@@ -156,7 +156,7 @@ mod tests {
         ];
         let groups = group_usages(usages, Path::new("/p"), |path| {
             if path.ends_with("b.rb") {
-                vec!["foo".into(), "".into(), "".into(), "  x.foo()".into()]
+                vec!["foo".into(), String::new(), String::new(), "  x.foo()".into()]
             } else {
                 Vec::new()
             }

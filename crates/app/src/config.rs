@@ -90,8 +90,8 @@ fn server(command: &str, args: &[&str], languages: &[&str], install_hint: &str) 
     LanguageServerConfig {
         enabled: true,
         command: command.into(),
-        args: args.iter().map(|a| a.to_string()).collect(),
-        languages: languages.iter().map(|l| l.to_string()).collect(),
+        args: args.iter().map(std::string::ToString::to_string).collect(),
+        languages: languages.iter().map(std::string::ToString::to_string).collect(),
         install_hint: install_hint.into(),
     }
 }

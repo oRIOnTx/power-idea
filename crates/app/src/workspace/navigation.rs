@@ -88,7 +88,7 @@ impl Workspace {
             }
             LspEvent::Exited { server_id } => {
                 if let Some(reason) = self.lsp.mark_exited(&server_id) {
-                    for tab in self.tabs.iter_mut() {
+                    for tab in &mut self.tabs {
                         if let CenterTab::Editor(tab) = tab
                             && tab.lsp.as_ref().is_some_and(|l| l.server.name() == server_id)
                         {

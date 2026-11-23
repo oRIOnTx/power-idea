@@ -1,6 +1,6 @@
 //! Git UI: Commit tool window, branch widgets and the diff toolbar.
 
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::diff::DiffMode;
 use gpui_kit::component::input::Textarea;
@@ -178,7 +178,7 @@ impl Workspace {
                             .text_ellipsis()
                             .whitespace_nowrap()
                             .text_color(color)
-                            .when(change.kind == ChangeKind::Deleted, |el| el.line_through())
+                            .when(change.kind == ChangeKind::Deleted, gpui_kit::Styled::line_through)
                             .child(name.to_string()),
                     )
                     .child(
@@ -200,7 +200,7 @@ impl Workspace {
             .child(
                 h_flex()
                     .invisible()
-                    .group_hover("change", |s| s.visible())
+                    .group_hover("change", gpui_kit::Styled::visible)
                     .gap_0p5()
                     .child(
                         Button::new(("open", ix))
@@ -467,8 +467,8 @@ impl Workspace {
             Button::new(id)
                 .xsmall()
                 .label(label)
-                .when(mode == target, |b| b.primary())
-                .when(mode != target, |b| b.ghost())
+                .when(mode == target, ButtonVariants::primary)
+                .when(mode != target, ButtonVariants::ghost)
                 .on_click(cx.listener(move |_, _, _, cx| state.update(cx, |s, cx| s.set_mode(target, cx))))
         };
 

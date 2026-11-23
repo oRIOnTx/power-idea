@@ -266,7 +266,7 @@ impl Workspace {
         let mut buttons = h_flex()
             .gap_0p5()
             .invisible()
-            .group_hover("docker-row", |s| s.visible());
+            .group_hover("docker-row", gpui_kit::Styled::visible);
         let button = |id: &'static str, icon: &str, tooltip: &'static str| {
             style::icon_button_sized((id, ix), style::lucide(icon), tooltip, style::BUTTON_SMALL)
         };

@@ -177,7 +177,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("power-idea-run-{}", std::process::id()));
         std::fs::create_dir_all(dir.join(".power-idea")).unwrap();
         std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\n").unwrap();
-        assert!(load(&dir).unwrap().is_empty());
+        assert_eq!(load(&dir).unwrap(), [] as [RunConfig; 0]);
 
         std::fs::write(
             config_file(&dir),

@@ -40,7 +40,7 @@ impl Workspace {
                     gpui_kit::component::button::ButtonVariant::Primary,
                 ))
                 .on_ok(move |_, _, cx| {
-                    workspace.update(cx, |ws, cx| ws.ask_insights_advice(cx)).ok();
+                    workspace.update(cx, super::Workspace::ask_insights_advice).ok();
                     true
                 })
         });

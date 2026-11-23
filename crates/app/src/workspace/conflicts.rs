@@ -58,12 +58,11 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let ix = match self.tabs.iter().position(|t| matches!(t, CenterTab::Conflicts)) {
-            Some(ix) => ix,
-            None => {
-                self.tabs.push(CenterTab::Conflicts);
-                self.tabs.len() - 1
-            }
+        let ix = if let Some(ix) = self.tabs.iter().position(|t| matches!(t, CenterTab::Conflicts)) {
+            ix
+        } else {
+            self.tabs.push(CenterTab::Conflicts);
+            self.tabs.len() - 1
         };
         self.activate_tab(ix, window, cx);
         match path.or_else(|| self.conflicted_paths().into_iter().next()) {
@@ -245,7 +244,10 @@ mod tests {
 
     #[test]
     fn picks_the_next_conflicted_file() {
-        let paths: Vec<String> = ["a", "b", "c"].iter().map(|s| s.to_string()).collect();
+        let paths: Vec<String> = ["a", "b", "c"]
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         assert_eq!(next_path(&paths, "a").as_deref(), Some("b"));
         assert_eq!(next_path(&paths, "c").as_deref(), Some("a"));
         assert_eq!(next_path(&paths, "x").as_deref(), Some("a"));
