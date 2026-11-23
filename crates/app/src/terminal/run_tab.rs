@@ -57,6 +57,12 @@ impl TerminalView {
         self.run.as_ref().is_some_and(|r| r.exit.is_none())
     }
 
+    /// A running process started from a run configuration; the Claude tab is not one,
+    /// so the Run widget's Stop and ⌘F2 leave it alone.
+    pub fn is_config_running(&self) -> bool {
+        !self.claude && self.is_running()
+    }
+
     /// Prints a dimmed status line into the terminal, after the program's output.
     fn print_status(&self, text: &str, color: u8) {
         let bytes = format!("\r\n\x1b[{color}m{text}\x1b[0m\r\n");

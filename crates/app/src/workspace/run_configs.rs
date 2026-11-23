@@ -86,11 +86,9 @@ impl Workspace {
             return;
         };
         self.selected_run = Some(config.name.clone());
-        if let Some(ix) = self
-            .terminals
-            .iter()
-            .position(|t| t.read(cx).run_state().is_some_and(|r| r.name == config.name))
-        {
+        if let Some(ix) = self.terminals.iter().position(|t| {
+            !t.read(cx).is_claude() && t.read(cx).run_state().is_some_and(|r| r.name == config.name)
+        }) {
             if let Some(terminal) = self.terminals.get(ix) {
                 terminal.update(cx, TerminalView::stop);
             }
@@ -151,9 +149,14 @@ impl Workspace {
         let active = self
             .terminals
             .get(self.active_terminal)
-            .filter(|t| t.read(cx).is_running());
+            .filter(|t| t.read(cx).is_config_running());
         let target = active
-            .or_else(|| self.terminals.iter().rev().find(|t| t.read(cx).is_running()))
+            .or_else(|| {
+                self.terminals
+                    .iter()
+                    .rev()
+                    .find(|t| t.read(cx).is_config_running())
+            })
             .cloned();
         if let Some(terminal) = target {
             terminal.update(cx, TerminalView::stop);
@@ -162,7 +165,7 @@ impl Workspace {
     }
 
     fn any_running(&self, cx: &App) -> bool {
-        self.terminals.iter().any(|t| t.read(cx).is_running())
+        self.terminals.iter().any(|t| t.read(cx).is_config_running())
     }
 
     /// Opens `.power-idea/run.toml`, creating it from the detected configurations.
