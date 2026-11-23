@@ -87,7 +87,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "claude_tab": { "type": "boolean", "default": true, "description": "Pinned Claude tab first in the terminal panel." },
+        "claude_tab": { "type": "boolean", "default": true, "description": "New terminal tabs (Cmd+T, +) start Claude instead of a shell." },
         "auto_start": { "type": "boolean", "default": true, "description": "Start claude when the tab opens (else on click)." },
         "continue_last": { "type": "boolean", "default": false, "description": "--continue the last session instead of a new one." }
       }
