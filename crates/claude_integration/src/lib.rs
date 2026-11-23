@@ -3,6 +3,7 @@
 //! hook/status-line bridge. Verified CLI facts: docs/claude-code-integration.md.
 
 pub mod frontmatter;
+pub mod installer;
 pub mod launcher;
 pub mod project;
 pub mod resolver;
