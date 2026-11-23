@@ -100,7 +100,7 @@ impl Workspace {
                     "tb-open",
                     IconName::FolderOpen,
                     Box::new(OpenProject),
-                    "Open Project…",
+                    "Open File or Project…",
                 )),
         )
     }

@@ -12,6 +12,7 @@ mod language;
 mod language_rules;
 mod mcp_bridge;
 mod menus;
+mod open_files;
 mod palette;
 mod preview;
 mod project_tree;
@@ -193,68 +194,80 @@ fn install_panic_log() {
 fn main() {
     install_panic_log();
     inherit_login_shell_path();
-    let arg_project = std::env::args().nth(1).map(PathBuf::from);
+    // `power-idea <folder or files…>`; Finder may add its own `-psn_…` argument.
+    let arg_paths: Vec<PathBuf> = std::env::args()
+        .skip(1)
+        .map(PathBuf::from)
+        .filter(|p| p.exists())
+        .collect();
+    let open_requests = open_files::OpenRequests::default();
 
-    gpui_kit::application()
-        .with_assets(assets::Assets)
-        .run(move |cx| {
-            gpui_kit::init(cx);
-            language_rules::register(cx);
-            cx.set_global(AppConfig(Config::load()));
+    let app = gpui_kit::application().with_assets(assets::Assets);
+    app.on_open_urls({
+        let open_requests = open_requests.clone();
+        move |urls| open_requests.handle_urls(&urls)
+    });
+    app.run(move |cx| {
+        gpui_kit::init(cx);
+        language_rules::register(cx);
+        cx.set_global(AppConfig(Config::load()));
+        apply_theme(None, cx);
+        actions::bind_keys(cx);
+        mcp_bridge::start(cx);
+        menus::install(cx);
+
+        cx.on_action(|_: &Quit, cx| workspace::request_quit(cx));
+        cx.on_app_quit(|cx| {
+            projects::remember_open_projects(cx);
+            workspace::store_recovery(cx);
+            async {}
+        })
+        .detach();
+        cx.on_action(|_: &OpenProject, cx| projects::prompt_open_project(cx));
+        cx.on_action(|_: &ToggleTheme, cx| {
+            let config = &mut cx.global_mut::<AppConfig>().0;
+            config.appearance = match config.appearance {
+                Appearance::Dark | Appearance::Graphite => Appearance::Light,
+                Appearance::Light => Appearance::Dark,
+            };
+            save_config(cx);
             apply_theme(None, cx);
-            actions::bind_keys(cx);
-            mcp_bridge::start(cx);
-            menus::install(cx);
-
-            cx.on_action(|_: &Quit, cx| workspace::request_quit(cx));
-            cx.on_app_quit(|cx| {
-                projects::remember_open_projects(cx);
-                workspace::store_recovery(cx);
-                async {}
-            })
-            .detach();
-            cx.on_action(|_: &OpenProject, cx| projects::prompt_open_project(cx));
-            cx.on_action(|_: &ToggleTheme, cx| {
-                let config = &mut cx.global_mut::<AppConfig>().0;
-                config.appearance = match config.appearance {
-                    Appearance::Dark | Appearance::Graphite => Appearance::Light,
-                    Appearance::Light => Appearance::Dark,
-                };
-                save_config(cx);
-                apply_theme(None, cx);
-                cx.refresh_windows();
-            });
-            // Like JetBrains: closing the last project shows the Welcome screen;
-            // closing the Welcome screen itself quits.
-            cx.on_window_closed(|cx, id| {
-                let was_welcome = welcome::forget_closed(id, cx);
-                // Remaining project tabs redraw their tab strip.
-                cx.refresh_windows();
-                if cx.windows().is_empty() {
-                    if was_welcome {
-                        cx.quit();
-                    } else {
-                        welcome::show(cx);
-                    }
-                }
-            })
-            .detach();
-
-            // Not deferred: nothing would flush a deferred call during launch.
-            match arg_project.filter(|p| p.is_dir()) {
-                Some(path) => projects::open_project_now(path, cx),
-                None => {
-                    let mut paths = cx.global::<AppConfig>().0.startup_projects();
-                    paths.retain(|p| p.is_dir());
-                    if paths.is_empty() {
-                        welcome::show(cx);
-                    } else {
-                        projects::reopen_projects(paths, cx);
-                    }
+            cx.refresh_windows();
+        });
+        // Like JetBrains: closing the last project shows the Welcome screen;
+        // closing the Welcome screen itself quits.
+        cx.on_window_closed(|cx, id| {
+            let was_welcome = welcome::forget_closed(id, cx);
+            // Remaining project tabs redraw their tab strip.
+            cx.refresh_windows();
+            if cx.windows().is_empty() {
+                if was_welcome {
+                    cx.quit();
+                } else {
+                    welcome::show(cx);
                 }
             }
-            cx.activate(true);
-        });
+        })
+        .detach();
+
+        // Not deferred: nothing would flush a deferred call during launch.
+        // Launched to open something (CLI, a file double-clicked in Finder): open just that,
+        // so a quick look at a file does not wait for the last session's projects.
+        let mut launch_paths = arg_paths;
+        launch_paths.extend(open_requests.attach(cx));
+        if launch_paths.is_empty() {
+            let mut paths = cx.global::<AppConfig>().0.startup_projects();
+            paths.retain(|p| p.is_dir());
+            if paths.is_empty() {
+                welcome::show(cx);
+            } else {
+                projects::reopen_projects(paths, cx);
+            }
+        } else {
+            open_files::open_paths(launch_paths, cx);
+        }
+        cx.activate(true);
+    });
 }
 
 #[cfg(test)]

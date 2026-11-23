@@ -1,7 +1,7 @@
 //! One project window: project tree, editor tabs, status bar and pickers.
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use gpui_kit::component::diff::Diff;
@@ -144,6 +144,9 @@ enum LeftPanel {
 
 pub struct Workspace {
     root: PathBuf,
+    /// LightEdit: a quick window for files opened outside any project (Finder, CLI). No
+    /// index, git, language servers or saved state; `root` is only the first file's folder.
+    light: bool,
     focus_handle: FocusHandle,
     tree: Entity<TreeState>,
     /// The project view (root row + tree): keeps ⌘X / ⌘C / ⌘V in the tree's key context
@@ -216,6 +219,38 @@ pub struct Workspace {
 
 impl Workspace {
     pub fn new(root: PathBuf, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let mut workspace = Self::create(root, false, window, cx);
+        workspace.reindex(cx);
+        workspace.init_git(window, cx);
+        workspace.start_watching(window, cx);
+        workspace.load_run_configs(false, window, cx);
+        workspace.start_lsp_event_loop(cx);
+        workspace.preload_language_servers(cx);
+        let this = cx.entity().downgrade();
+        window.defer(cx, move |window, cx| {
+            this.update(cx, |ws, cx| ws.restore_session(window, cx)).ok();
+        });
+        workspace
+    }
+
+    /// A LightEdit window showing `file`; skips everything a project needs, so it opens instantly.
+    pub fn new_light(file: PathBuf, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let folder = file.parent().map_or_else(|| file.clone(), Path::to_path_buf);
+        let mut workspace = Self::create(folder, true, window, cx);
+        workspace.show_project_view = false;
+        let this = cx.entity().downgrade();
+        window.defer(cx, move |window, cx| {
+            this.update(cx, |ws, cx| ws.open_path(&file, None, window, cx))
+                .ok();
+        });
+        workspace
+    }
+
+    pub fn is_light(&self) -> bool {
+        self.light
+    }
+
+    fn create(root: PathBuf, light: bool, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let expanded = HashSet::new();
         let tree_filter = Self::tree_filter(cx);
         let items = project_tree::build_items(&root, "", &expanded, tree_filter);
@@ -239,8 +274,9 @@ impl Workspace {
         let project = ProjectSettings::load(&root);
         let lsp = crate::language::LspStore::new(root.clone());
         let databases = crate::database::DatabaseStore::load(&root);
-        let mut workspace = Self {
+        let workspace = Self {
             root,
+            light,
             project,
             dismissed_language_hints: HashSet::new(),
             lsp,
@@ -288,18 +324,8 @@ impl Workspace {
             _subscriptions: vec![tree_subscription, tree_cursor_subscription, config_subscription],
         };
         workspace.focus_handle.focus(window, cx);
-        workspace.reindex(cx);
-        workspace.init_git(window, cx);
-        workspace.start_watching(window, cx);
-        workspace.load_run_configs(false, window, cx);
         workspace.guard_window_close(window, cx);
-        workspace.start_lsp_event_loop(cx);
-        workspace.preload_language_servers(cx);
         Workspaces::register(window.window_handle(), cx.entity().downgrade(), cx);
-        let this = cx.entity().downgrade();
-        window.defer(cx, move |window, cx| {
-            this.update(cx, |ws, cx| ws.restore_session(window, cx)).ok();
-        });
         workspace
     }
 
@@ -332,6 +358,9 @@ impl Workspace {
     }
 
     fn project_name(&self) -> String {
+        if self.light {
+            return "LightEdit".into();
+        }
         self.root
             .file_name()
             .map_or_default(|n| n.to_string_lossy().into_owned())

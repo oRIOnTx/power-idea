@@ -199,6 +199,10 @@ impl Workspace {
 
     /// The state to write, if it changed since the last save.
     fn session_to_save(&mut self, cx: &App) -> Option<(PathBuf, Session)> {
+        // LightEdit must not leave `.power-idea/` behind in whatever folder a file came from.
+        if self.light {
+            return None;
+        }
         let session = self.session_snapshot(cx);
         if self.saved_session.as_ref() == Some(&session) {
             return None;

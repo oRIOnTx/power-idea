@@ -1,6 +1,6 @@
 # Power IDEA — progress
 
-Updated: 2026-11-22. Last commit: see `git log`. Everything below marked *uncommitted*
+Updated: 2026-11-23. Last commit: see `git log`. Everything below marked *uncommitted*
 is in the working tree only.
 
 ## Done
@@ -13,6 +13,10 @@ is in the working tree only.
 - [x] Bottom tool windows span the full window width under the Project tree (Settings → Terminal → Full window width; on by default)
 - [x] `.power-idea` folder hidden in the Project tree; Settings → Appearance → Project tree → Show .power-idea folder
 - [x] Settings → System page: "Open projects in" and Confirmations (exit / close project) moved out of Appearance
+- [x] **LightEdit / quick editor**: files opened from Finder (Open With, Dock icon), `power-idea <files…>` or File → Open…
+      (now files or folders) open in the project that contains them, else in a LightEdit window (no index, git,
+      language servers or saved state, nothing written next to the file). The bundle registers ~190 text
+      extensions (`crates/app/text-extensions.txt`) plus folders; more extensions map to highlighters (ini/cfg → TOML, xml/plist → HTML, …)
 - [x] Git: status colors, Commit tool window (⌘0), side-by-side diffs, push/pull/fetch, branches, rollback
 - [x] MCP server for Claude Code (17 tools, token in Keychain-like file, localhost only)
 - [x] Neo theme (dark/light), app icon, `scripts/bundle-macos.sh`
@@ -235,6 +239,7 @@ Database gaps below.
 - Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;
   Go to Symbol lists library symbols after project ones
 - Redis TLS verified only by URL/feature tests (no TLS Redis server here)
+- LightEdit: no file watching (external changes are not reloaded), unsaved text kept on quit is restored only if that folder is opened as a project; Finder opening verified only by unit tests (URL decoding), not by hand
 - Dock → Quit cannot ask (gpui has no cancellable terminate hook); unsaved text is recovered instead
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end
 - The user's `lms` project needs `brew install libpq` + `bundle install` for full Ruby LSP (fallback mode works meanwhile)

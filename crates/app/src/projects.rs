@@ -58,6 +58,7 @@ pub fn reopen_projects(paths: Vec<PathBuf>, cx: &mut App) {
 pub fn remember_open_projects(cx: &mut App) {
     let open: Vec<PathBuf> = Workspaces::live(cx)
         .iter()
+        .filter(|(_, ws)| !ws.read(cx).is_light())
         .map(|(_, ws)| ws.read(cx).root().clone())
         .collect();
     cx.global_mut::<AppConfig>().0.open_projects = Some(open);
@@ -76,14 +77,17 @@ pub fn open_project(path: PathBuf, cx: &mut App) {
 pub fn open_project_now(path: PathBuf, cx: &mut App) {
     let path = path.canonicalize().unwrap_or(path);
     let workspaces = Workspaces::live(cx);
-    if let Some((handle, _)) = workspaces.iter().find(|(_, ws)| ws.read(cx).root() == &path) {
+    let same_project = |ws: &Entity<Workspace>| !ws.read(cx).is_light() && ws.read(cx).root() == &path;
+    if let Some((handle, _)) = workspaces.iter().find(|(_, ws)| same_project(ws)) {
         handle.update(cx, |_, window, _| window.activate_window()).ok();
         return;
     }
 
     let active = cx.active_window();
+    // LightEdit windows are no place for a project: they are not part of the project tabs.
     let Some(current) = workspaces
         .iter()
+        .filter(|(_, ws)| !ws.read(cx).is_light())
         .map(|(handle, _)| *handle)
         .find(|handle| Some(*handle) == active)
         .or_else(|| workspaces.first().map(|(handle, _)| *handle))
@@ -99,16 +103,17 @@ pub fn open_project_now(path: PathBuf, cx: &mut App) {
     }
 }
 
-/// Shows the folder picker and opens the chosen project.
+/// JetBrains "Open…": a folder opens as a project, files open in an editor
+/// (in their project if one is open, otherwise in LightEdit).
 pub fn prompt_open_project(cx: &mut App) {
     let paths = cx.prompt_for_paths(PathPromptOptions {
-        files: false,
+        files: true,
         directories: true,
-        multiple: false,
-        prompt: Some("Open Project".into()),
+        multiple: true,
+        prompt: Some("Open".into()),
     });
     cx.spawn(async move |cx| match paths.await {
-        Ok(Ok(Some(mut paths))) if !paths.is_empty() => cx.update(|cx| open_project_now(paths.remove(0), cx)),
+        Ok(Ok(Some(paths))) if !paths.is_empty() => cx.update(|cx| crate::open_files::open_paths(paths, cx)),
         // Cancelled with nothing open: fall back to the Welcome screen.
         _ => cx.update(|cx| {
             if cx.windows().is_empty() {

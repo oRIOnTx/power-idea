@@ -28,6 +28,9 @@ rm -rf "$OUT"
 mkdir -p "$OUT/Contents/MacOS" "$OUT/Contents/Resources"
 cp target/release/power-idea "$OUT/Contents/MacOS/power-idea"
 cp "$WORK/AppIcon.icns" "$OUT/Contents/Resources/AppIcon.icns"
+# Text files the app offers to open (Finder "Open With"); "Alternate" keeps other apps' defaults.
+EXTENSIONS="$(grep -v '^[[:space:]]*#' crates/app/text-extensions.txt | tr -s '[:space:]' '\n' \
+  | sed '/^$/d; s|.*|        <string>&</string>|')"
 cat > "$OUT/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -43,6 +46,42 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>${BUILD}</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key><string>Text File</string>
+      <key>CFBundleTypeRole</key><string>Editor</string>
+      <key>LSHandlerRank</key><string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>public.plain-text</string>
+        <string>public.source-code</string>
+        <string>public.script</string>
+        <string>public.shell-script</string>
+        <string>public.json</string>
+        <string>public.xml</string>
+        <string>public.yaml</string>
+        <string>public.comma-separated-values-text</string>
+        <string>net.daringfireball.markdown</string>
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key><string>Source File</string>
+      <key>CFBundleTypeRole</key><string>Editor</string>
+      <key>LSHandlerRank</key><string>Alternate</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+${EXTENSIONS}
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key><string>Project Folder</string>
+      <key>CFBundleTypeRole</key><string>Viewer</string>
+      <key>LSHandlerRank</key><string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array><string>public.folder</string></array>
+    </dict>
+  </array>
   <key>NSDocumentsFolderUsageDescription</key><string>Power IDEA opens and edits projects stored in your Documents folder.</string>
   <key>NSDesktopFolderUsageDescription</key><string>Power IDEA opens and edits projects stored on your Desktop.</string>
   <key>NSDownloadsFolderUsageDescription</key><string>Power IDEA opens and edits projects stored in Downloads.</string>

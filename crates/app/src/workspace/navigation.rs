@@ -233,6 +233,10 @@ impl Workspace {
 
     /// Binds an editor tab to its language server, starting the server if needed.
     pub(super) fn attach_language_server(&mut self, ix: usize, cx: &mut Context<Self>) {
+        // LightEdit stays fast: a server would index the file's folder (possibly $HOME).
+        if self.light {
+            return;
+        }
         let Some(CenterTab::Editor(tab)) = self.tabs.get(ix) else {
             return;
         };
@@ -341,7 +345,7 @@ impl Workspace {
     }
 
     /// Opens an absolute path, using a project-relative name when possible.
-    pub(super) fn open_path(
+    pub(crate) fn open_path(
         &mut self,
         path: &Path,
         position: Option<(usize, usize)>,

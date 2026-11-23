@@ -252,7 +252,7 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Previous Tab", Box::new(PrevTab)),
         ("Toggle Project View", Box::new(ToggleProjectView)),
         ("New Project…", Box::new(NewProject)),
-        ("Open Project…", Box::new(OpenProject)),
+        ("Open File or Project…", Box::new(OpenProject)),
         ("Close Project", Box::new(CloseWindow)),
         ("About Power IDEA", Box::new(About)),
         ("Recent Projects…", Box::new(RecentProjects)),

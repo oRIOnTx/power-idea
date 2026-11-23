@@ -307,7 +307,7 @@ impl Workspace {
             ("Recent Files", Box::new(RecentFiles)),
             ("Find in Files", Box::new(FindInFiles)),
             ("Find Action", Box::new(FindAction)),
-            ("Open Project", Box::new(OpenProject)),
+            ("Open File or Project", Box::new(OpenProject)),
         ];
         let wordmark = v_flex()
             .items_center()
@@ -348,6 +348,9 @@ impl Workspace {
 
     /// Language server configured for `tab`'s language but not installed, if any.
     fn missing_language_server(&self, tab: &EditorTab, cx: &App) -> Option<LanguageServerConfig> {
+        if self.light {
+            return None;
+        }
         let language = editor::canonical_language(&tab.language);
         if self.dismissed_language_hints.contains(language) {
             return None;

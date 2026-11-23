@@ -128,8 +128,13 @@ pub fn new_editor_state(
 pub fn language_for(path: &Path) -> String {
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
     let special = match name {
-        "Gemfile" | "Rakefile" | "Guardfile" | "Capfile" | "config.ru" => Some("ruby"),
-        "Makefile" | "makefile" | "GNUmakefile" => Some("make"),
+        "Gemfile" | "Rakefile" | "Guardfile" | "Capfile" | "config.ru" | "Brewfile" | "Podfile"
+        | "Vagrantfile" | "Fastfile" | "Appfile" | "Dangerfile" | "Berksfile" | "Thorfile" | ".irbrc"
+        | ".pryrc" => Some("ruby"),
+        "Makefile" | "makefile" | "GNUmakefile" | "Justfile" | "justfile" => Some("make"),
+        // INI-style `key = value` sections read well with the TOML highlighter.
+        ".gitconfig" | ".editorconfig" | ".npmrc" | ".pylintrc" | "setup.cfg" => Some("toml"),
+        ".zprofile" | ".zshenv" | ".zlogin" | ".profile" => Some("bash"),
         // Real shell scripts are `sh` (they get the shell language server); the rest only
         // borrow the bash highlighter.
         ".bashrc" | ".bash_profile" | ".envrc" => Some("sh"),
@@ -146,7 +151,21 @@ pub fn language_for(path: &Path) -> String {
     }
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or_default();
     match ext {
-        "rake" | "gemspec" | "ru" | "jbuilder" => "ruby",
+        "rake" | "gemspec" | "ru" | "jbuilder" | "podspec" | "thor" | "rbi" | "irbrc" | "builder" => "ruby",
+        "pyi" | "pyw" | "ipy" => "python",
+        "json5" | "jsonl" | "ndjson" | "geojson" | "webmanifest" | "ipynb" => "json",
+        "ini" | "cfg" | "conf" | "cnf" | "properties" | "prefs" | "desktop" | "service" => "toml",
+        // No XML grammar: the HTML one highlights tags and attributes the same way.
+        "xml" | "plist" | "xsd" | "xsl" | "xslt" | "xaml" | "csproj" | "fsproj" | "vbproj" | "vcxproj"
+        | "props" | "targets" | "storyboard" | "xib" | "xhtml" | "vue" => "html",
+        "markdown" | "mdown" | "mkd" => "markdown",
+        "fish" | "ksh" | "command" => "bash",
+        "m" | "mm" => "c",
+        "hh" | "hxx" => "cpp",
+        "less" => "css",
+        "pgsql" | "mysql" | "ddl" => "sql",
+        "mk" | "just" => "make",
+        "gql" => "graphql",
         "erb" => "erb",
         "mjs" | "cjs" | "jsx" => "javascript",
         "mts" | "cts" => "typescript",
@@ -314,6 +333,13 @@ mod tests {
             assert_eq!(language_for(Path::new(env)), "bash", "{env}");
         }
         assert_eq!(language_for(Path::new("environment.rb")), "rb");
+        assert_eq!(language_for(Path::new("Brewfile")), "ruby");
+        assert_eq!(language_for(Path::new("stubs/os.pyi")), "python");
+        assert_eq!(language_for(Path::new("setup.cfg")), "toml");
+        assert_eq!(language_for(Path::new("php.ini")), "toml");
+        assert_eq!(language_for(Path::new("Info.plist")), "html");
+        assert_eq!(language_for(Path::new("events.jsonl")), "json");
+        assert_eq!(language_for(Path::new("notes.txt")), "txt");
     }
 
     #[test]
