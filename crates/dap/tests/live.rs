@@ -1,6 +1,15 @@
 //! Live checks against real debug adapters. Ignored by default because they
 //! need the debuggers installed: `cargo test -p dap -- --ignored --nocapture`.
 
+// Test helpers fail loudly on purpose, and print the adapter traffic for `--nocapture`.
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::print_stdout
+)]
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -107,7 +116,7 @@ fn hit_breakpoint(
 }
 
 #[test]
-#[ignore]
+#[ignore = "needs the rdbg Ruby debugger installed"]
 fn rdbg_stops_at_a_ruby_breakpoint() {
     let dir = temp_dir("ruby");
     let script = dir.join("app.rb");
@@ -129,7 +138,7 @@ fn rdbg_stops_at_a_ruby_breakpoint() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "needs Xcode command line tools (cc, lldb-dap)"]
 fn lldb_dap_stops_at_a_c_breakpoint() {
     let dir = temp_dir("lldb");
     let source = dir.join("main.c");

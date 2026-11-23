@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -67,6 +67,12 @@ pub struct DebugAdapter {
     child: Mutex<Option<Child>>,
 }
 
+impl std::fmt::Debug for DebugAdapter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DebugAdapter").finish_non_exhaustive()
+    }
+}
+
 /// A free local TCP port for an adapter to listen on.
 pub fn free_port() -> Result<u16> {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").context("finding a free port")?;
@@ -110,7 +116,7 @@ impl DebugAdapter {
                 Self::from_streams(reader, stream, on_event)
             }
         };
-        *adapter.child.lock().unwrap() = Some(child);
+        *adapter.child.lock().unwrap_or_else(PoisonError::into_inner) = Some(child);
         Ok(adapter)
     }
 
@@ -134,7 +140,7 @@ impl DebugAdapter {
                 let Some(adapter) = weak.upgrade() else { break };
                 adapter.dispatch(message, &on_event);
             }
-            for (_, waiter) in pending.lock().unwrap().drain() {
+            for (_, waiter) in pending.lock().unwrap_or_else(PoisonError::into_inner).drain() {
                 let _ = waiter.send(Err(anyhow!("debug adapter exited")));
             }
             on_event(DapEvent::Closed);
@@ -146,16 +152,25 @@ impl DebugAdapter {
     pub fn request(&self, command: &str, arguments: Value) -> Result<Value> {
         let seq = self.seq.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = mpsc::channel();
-        self.pending.lock().unwrap().insert(seq, tx);
+        self.pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(seq, tx);
         let message = json!({ "seq": seq, "type": "request", "command": command, "arguments": arguments });
         if let Err(err) = self.send(&message) {
-            self.pending.lock().unwrap().remove(&seq);
+            self.pending
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .remove(&seq);
             return Err(err);
         }
         match rx.recv_timeout(REQUEST_TIMEOUT) {
             Ok(result) => result,
             Err(RecvTimeoutError::Timeout) => {
-                self.pending.lock().unwrap().remove(&seq);
+                self.pending
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .remove(&seq);
                 bail!("{command} timed out")
             }
             Err(RecvTimeoutError::Disconnected) => bail!("debug adapter exited"),
@@ -164,7 +179,7 @@ impl DebugAdapter {
 
     fn send(&self, message: &Value) -> Result<()> {
         let body = serde_json::to_vec(message)?;
-        let mut writer = self.writer.lock().unwrap();
+        let mut writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
         write!(writer, "Content-Length: {}\r\n\r\n", body.len())?;
         writer.write_all(&body)?;
         writer.flush().context("writing to the debug adapter")
@@ -176,7 +191,12 @@ impl DebugAdapter {
                 let Some(seq) = message.get("request_seq").and_then(Value::as_i64) else {
                     return;
                 };
-                let Some(waiter) = self.pending.lock().unwrap().remove(&seq) else {
+                let Some(waiter) = self
+                    .pending
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .remove(&seq)
+                else {
                     return;
                 };
                 let result = if message.get("success").and_then(Value::as_bool) == Some(true) {
@@ -217,7 +237,7 @@ impl DebugAdapter {
 
     /// Ends the adapter (and with it the debuggee when the adapter launched it).
     pub fn kill(&self) {
-        if let Some(mut child) = self.child.lock().unwrap().take() {
+        if let Some(mut child) = self.child.lock().unwrap_or_else(PoisonError::into_inner).take() {
             let _ = child.kill();
             let _ = child.wait();
         }
@@ -278,7 +298,7 @@ fn read_message(reader: &mut impl BufRead) -> Result<Option<Value>> {
 mod tests {
     use std::io::{BufReader, Write};
     use std::os::unix::net::UnixStream;
-    use std::sync::{Arc, Mutex};
+    use std::sync::{Arc, Mutex, PoisonError};
 
     use serde_json::{Value, json};
 
@@ -297,7 +317,7 @@ mod tests {
         let adapter = DebugAdapter::from_streams(
             ours.try_clone().unwrap(),
             ours,
-            Arc::new(move |event| sink.lock().unwrap().push(event)),
+            Arc::new(move |event| sink.lock().unwrap_or_else(PoisonError::into_inner).push(event)),
         );
         let fake = std::thread::spawn(move || {
             let mut reader = BufReader::new(theirs.try_clone().unwrap());
@@ -340,9 +360,15 @@ mod tests {
             "nope"
         );
         fake.join().unwrap();
-        assert!(events.lock().unwrap().iter().any(|e| matches!(
-            e,
-            DapEvent::Event { event, body } if event == "output" && body["output"] == "hi"
-        )));
+        assert!(
+            events
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .iter()
+                .any(|e| matches!(
+                    e,
+                    DapEvent::Event { event, body } if event == "output" && body["output"] == "hi"
+                ))
+        );
     }
 }

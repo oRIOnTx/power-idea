@@ -1,6 +1,6 @@
 //! Redis: run command lines (like `redis-cli`) and browse keys.
 
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 use std::time::Instant;
 
 use anyhow::{Context as _, Result, bail};
@@ -10,6 +10,13 @@ use super::{CONNECT_TIMEOUT, ConnectionConfig, NodeKind, QueryOutcome, ResultSet
 
 pub struct RedisDatabase {
     connection: Mutex<redis::Connection>,
+}
+
+// `redis::Connection` has no `Debug`; the connection itself is not worth printing.
+impl std::fmt::Debug for RedisDatabase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RedisDatabase").finish_non_exhaustive()
+    }
 }
 
 fn percent_encode(text: &str) -> String {
@@ -136,7 +143,7 @@ impl RedisDatabase {
     /// Runs each non-empty line as one command; the last reply is returned as a table.
     pub fn execute(&self, input: &str) -> Result<QueryOutcome> {
         let started = Instant::now();
-        let mut connection = self.connection.lock().unwrap();
+        let mut connection = self.connection.lock().unwrap_or_else(PoisonError::into_inner);
         let mut outcome = QueryOutcome::default();
         for line in input
             .lines()
@@ -144,8 +151,11 @@ impl RedisDatabase {
             .filter(|l| !l.is_empty() && !l.starts_with('#'))
         {
             let args = split_command(line)?;
-            let mut command = redis::cmd(&args[0]);
-            for arg in &args[1..] {
+            let Some((name, rest)) = args.split_first() else {
+                continue;
+            };
+            let mut command = redis::cmd(name);
+            for arg in rest {
                 command.arg(arg);
             }
             let value: Value = command
@@ -159,7 +169,7 @@ impl RedisDatabase {
 
     /// Up to `limit` keys matching `pattern` (SCAN, never KEYS) with their types.
     pub fn keys(&self, pattern: &str, limit: usize) -> Result<Vec<SchemaNode>> {
-        let mut connection = self.connection.lock().unwrap();
+        let mut connection = self.connection.lock().unwrap_or_else(PoisonError::into_inner);
         let mut keys: Vec<String> = Vec::new();
         let mut cursor: u64 = 0;
         loop {

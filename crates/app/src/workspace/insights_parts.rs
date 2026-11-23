@@ -71,53 +71,58 @@ pub(super) fn render_blocks(now: Option<[f64; 7]>, before: Option<[f64; 7]>, cx:
     v_flex()
         .px_3()
         .gap_1()
-        .children(Block::ALL.iter().enumerate().map(|(ix, block)| {
-            let value = now[ix];
-            let previous = before.map(|b| b[ix]);
-            h_flex()
-                .gap_2()
-                .text_xs()
-                .child(
-                    div()
-                        .w(px(92.))
-                        .flex_none()
-                        .text_color(theme.muted_foreground)
-                        .child(block.label()),
-                )
-                .child(
-                    div()
-                        .relative()
-                        .flex_1()
-                        .h(px(6.))
-                        .rounded_full()
-                        .bg(theme.secondary)
+        .children(
+            Block::ALL
+                .iter()
+                .zip(now)
+                .enumerate()
+                .map(|(ix, (block, value))| {
+                    let previous = before.and_then(|b| b.get(ix).copied());
+                    h_flex()
+                        .gap_2()
+                        .text_xs()
                         .child(
                             div()
-                                .h_full()
-                                .rounded_full()
-                                .w(relative((value / 100.0) as f32))
-                                .bg(score_color(value, cx)),
+                                .w(px(92.))
+                                .flex_none()
+                                .text_color(theme.muted_foreground)
+                                .child(block.label()),
                         )
-                        .when_some(previous, |el, previous| {
-                            el.child(
-                                div()
-                                    .absolute()
-                                    .top(px(-2.))
-                                    .bottom(px(-2.))
-                                    .left(relative((previous / 100.0) as f32))
-                                    .w(px(2.))
-                                    .bg(theme.foreground.opacity(0.6)),
-                            )
-                        }),
-                )
-                .child(
-                    div()
-                        .w(px(22.))
-                        .flex_none()
-                        .text_right()
-                        .child(format!("{value:.0}")),
-                )
-        }))
+                        .child(
+                            div()
+                                .relative()
+                                .flex_1()
+                                .h(px(6.))
+                                .rounded_full()
+                                .bg(theme.secondary)
+                                .child(
+                                    div()
+                                        .h_full()
+                                        .rounded_full()
+                                        .w(relative((value / 100.0) as f32))
+                                        .bg(score_color(value, cx)),
+                                )
+                                .when_some(previous, |el, previous| {
+                                    el.child(
+                                        div()
+                                            .absolute()
+                                            .top(px(-2.))
+                                            .bottom(px(-2.))
+                                            .left(relative((previous / 100.0) as f32))
+                                            .w(px(2.))
+                                            .bg(theme.foreground.opacity(0.6)),
+                                    )
+                                }),
+                        )
+                        .child(
+                            div()
+                                .w(px(22.))
+                                .flex_none()
+                                .text_right()
+                                .child(format!("{value:.0}")),
+                        )
+                }),
+        )
         .into_any_element()
 }
 

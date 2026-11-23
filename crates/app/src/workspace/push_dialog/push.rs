@@ -1,5 +1,7 @@
 //! Opening the Push dialog and running the push it confirms.
 
+use std::fmt::Write as _;
+
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
@@ -58,7 +60,7 @@ impl Workspace {
                  The push is refused if someone pushed to {name} since your last fetch."
             );
             if protected {
-                body.push_str(&format!(" {} is usually a shared branch.", target.branch));
+                let _ = write!(body, " {} is usually a shared branch.", target.branch);
             }
             style::danger_confirm(dialog, "triangle-alert", "Force Push", cx)
                 .title(format!("Force push {local} to {name}?"))

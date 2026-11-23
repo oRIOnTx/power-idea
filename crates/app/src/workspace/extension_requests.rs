@@ -118,7 +118,7 @@ impl Workspace {
                 state.update(cx, |state, cx| {
                     let range = byte_range(&state.value(), start, end.unwrap_or(start))?;
                     // Moving the cursor scrolls it into view; then the selection is applied.
-                    let cursor = gpui_kit::component::input::Position::new(
+                    let cursor = component::input::Position::new(
                         start.line.saturating_sub(1),
                         start.column.saturating_sub(1),
                     );

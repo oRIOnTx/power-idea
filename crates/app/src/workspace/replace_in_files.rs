@@ -172,7 +172,9 @@ impl ReplaceDialog {
 
     fn render_row(&self, ix: usize, query: &str, replacement: &str, cx: &App) -> AnyElement {
         let theme = cx.theme();
-        let m = &self.matches[ix];
+        let Some(m) = self.matches.get(ix) else {
+            return div().into_any_element();
+        };
         let line = m.line_text.trim_start();
         // Show the line as it will read after replacing, replacements highlighted.
         let mut segments: Vec<AnyElement> = Vec::new();

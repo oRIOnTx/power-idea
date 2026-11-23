@@ -79,7 +79,7 @@ fn emit(
         }
     }
     let mut own = node.files.clone();
-    own.sort_by_key(|ix| file_name(&files[*ix].path));
+    own.sort_by_key(|ix| files.get(*ix).map(|file| file_name(&file.path)));
     rows.extend(own.into_iter().map(|ix| TreeRow::File { ix, depth }));
 }
 

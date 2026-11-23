@@ -90,8 +90,8 @@ fn server(command: &str, args: &[&str], languages: &[&str], install_hint: &str) 
     LanguageServerConfig {
         enabled: true,
         command: command.into(),
-        args: args.iter().map(std::string::ToString::to_string).collect(),
-        languages: languages.iter().map(std::string::ToString::to_string).collect(),
+        args: args.iter().map(ToString::to_string).collect(),
+        languages: languages.iter().map(ToString::to_string).collect(),
         install_hint: install_hint.into(),
     }
 }
@@ -246,7 +246,7 @@ impl Default for Config {
             tab_size: 4,
             mcp_enabled: true,
             mcp_port: 7419,
-            open_project_mode: Default::default(),
+            open_project_mode: crate::projects::OpenProjectMode::default(),
             terminal_shell: String::new(),
             bottom_panel_full_width: true,
             language_servers: default_language_servers(),
@@ -284,7 +284,9 @@ impl Config {
 
     pub fn save(&self) -> Result<()> {
         let path = Self::path().context("no config directory on this platform")?;
-        fs::create_dir_all(path.parent().unwrap())?;
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir)?;
+        }
         fs::write(&path, toml::to_string_pretty(self)?).with_context(|| format!("writing {}", path.display()))
     }
 
@@ -329,7 +331,9 @@ impl ProjectSettings {
 
     pub fn save(&self, root: &Path) -> Result<()> {
         let path = Self::path(root);
-        fs::create_dir_all(path.parent().unwrap())?;
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir)?;
+        }
         fs::write(&path, toml::to_string_pretty(self)?).with_context(|| format!("writing {}", path.display()))
     }
 }

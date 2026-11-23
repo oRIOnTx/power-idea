@@ -21,7 +21,7 @@ pub(super) fn tidy(mut hover: Hover) -> Hover {
                 .into_iter()
                 .map(|item| match item {
                     MarkedString::String(value) => MarkedString::String(tidy_markdown(&value)),
-                    other => other,
+                    other @ MarkedString::LanguageString(_) => other,
                 })
                 .collect(),
         ),
@@ -50,12 +50,12 @@ pub(super) fn tidy_markdown(markdown: &str) -> String {
             body.push(inner);
         }
         let code: Vec<&str> = body.iter().copied().filter(|l| !l.trim().is_empty()).collect();
-        if closed && code.len() == 1 {
-            out.push(format!("{indent}{}", inline_code(code[0].trim())));
+        if closed && let [only] = code.as_slice() {
+            out.push(format!("{indent}{}", inline_code(only.trim())));
             continue;
         }
         out.push(format!("{indent}{fence}"));
-        out.extend(body.iter().map(std::string::ToString::to_string));
+        out.extend(body.iter().map(ToString::to_string));
         if closed {
             out.push(format!("{indent}{fence}"));
         }

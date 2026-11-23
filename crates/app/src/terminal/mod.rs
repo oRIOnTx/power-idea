@@ -185,7 +185,7 @@ impl TerminalView {
                     self.write(format(&text).into_bytes());
                 }
                 TermEvent::ColorRequest(index, format) => {
-                    let rgb = to_rgb(ansi_color(&AnsiColor::Indexed(index as u8), cx));
+                    let rgb = to_rgb(ansi_color(AnsiColor::Indexed(index as u8), cx));
                     self.write(format(rgb).into_bytes());
                 }
                 TermEvent::TextAreaSizeRequest(format) => {
@@ -363,8 +363,8 @@ impl TerminalView {
                 continue;
             };
 
-            let mut fg = ansi_color(&cell.fg, cx);
-            let mut bg = ansi_color(&cell.bg, cx);
+            let mut fg = ansi_color(cell.fg, cx);
+            let mut bg = ansi_color(cell.bg, cx);
             if cell.flags.contains(Flags::INVERSE) {
                 std::mem::swap(&mut fg, &mut bg);
             }
@@ -571,11 +571,7 @@ impl Render for TerminalView {
                             }
                             this.selecting = false;
                             let mut term = this.term.lock();
-                            if term
-                                .selection
-                                .as_ref()
-                                .is_some_and(alacritty_terminal::selection::Selection::is_empty)
-                            {
+                            if term.selection.as_ref().is_some_and(Selection::is_empty) {
                                 term.selection = None;
                             }
                             cx.notify();

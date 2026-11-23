@@ -25,7 +25,7 @@ fn rgb(r: u8, g: u8, b: u8) -> Hsla {
 }
 
 /// Maps ANSI colors onto the active theme so the terminal matches the IDE.
-pub(super) fn ansi_color(color: &AnsiColor, cx: &App) -> Hsla {
+pub(super) fn ansi_color(color: AnsiColor, cx: &App) -> Hsla {
     let theme: &Theme = cx.theme();
     match color {
         AnsiColor::Spec(c) => rgb(c.r, c.g, c.b),
@@ -34,9 +34,9 @@ pub(super) fn ansi_color(color: &AnsiColor, cx: &App) -> Hsla {
             NamedColor::DimForeground => theme.muted_foreground,
             NamedColor::Background => theme.background,
             NamedColor::Cursor => theme.caret,
-            other => indexed_color(*other as usize, theme),
+            other => indexed_color(other as usize, theme),
         },
-        AnsiColor::Indexed(ix) => indexed_color(*ix as usize, theme),
+        AnsiColor::Indexed(ix) => indexed_color(ix as usize, theme),
     }
 }
 

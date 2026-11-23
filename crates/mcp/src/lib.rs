@@ -16,6 +16,7 @@ const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
 const MAX_BODY: usize = 8 * 1024 * 1024;
 const READ_TIMEOUT: Duration = Duration::from_secs(30);
 
+#[derive(Debug)]
 pub struct Tool {
     pub name: &'static str,
     pub description: &'static str,

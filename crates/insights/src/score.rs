@@ -84,7 +84,7 @@ pub fn session_score(blocks: &[f64; 7], weights: &Weights) -> f64 {
 
 /// Mean of the last `n` values (a moving average for the header and trend).
 pub fn moving_average(values: &[f64], n: usize) -> Option<f64> {
-    let window = &values[values.len().saturating_sub(n)..];
+    let window = values.get(values.len().saturating_sub(n)..).unwrap_or_default();
     (!window.is_empty()).then(|| window.iter().sum::<f64>() / window.len() as f64)
 }
 

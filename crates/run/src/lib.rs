@@ -9,6 +9,7 @@ mod locations;
 mod macros;
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -139,31 +140,31 @@ pub fn template(root: &Path) -> String {
         .cloned()
         .unwrap_or_else(|| RunConfig::new("Example", "echo hello"));
     text.push_str("[[config]]\n");
-    text.push_str(&format!(
-        "name = {:?}\ncommand = {:?}\n",
-        sample.name, sample.command
-    ));
+    // Writing to a String cannot fail, so the `writeln!` results below are ignored.
+    let _ = writeln!(text, "name = {:?}\ncommand = {:?}", sample.name, sample.command);
     text.push_str("# cwd = \"subfolder\"\n# env = { RAILS_ENV = \"development\" }\n");
     match &sample.debug {
         Some(debug) => {
-            text.push_str(&format!(
-                "\n[config.debug]   # Debug ⌃D\nadapter = {:?}\n",
+            let _ = writeln!(
+                text,
+                "\n[config.debug]   # Debug ⌃D\nadapter = {:?}",
                 debug.adapter
-            ));
+            );
             if let Some(program) = &debug.program {
-                text.push_str(&format!("program = {program:?}\n"));
+                let _ = writeln!(text, "program = {program:?}");
             }
             if let Some(build) = &debug.build {
-                text.push_str(&format!("build = {build:?}\n"));
+                let _ = writeln!(text, "build = {build:?}");
             }
         }
         None => text.push_str("# [config.debug]   # adapter = \"ruby\" | \"lldb\" | \"python\" | \"go\"\n"),
     }
     for other in examples.iter().skip(1) {
-        text.push_str(&format!(
-            "\n# [[config]]\n# name = {:?}\n# command = {:?}\n",
+        let _ = writeln!(
+            text,
+            "\n# [[config]]\n# name = {:?}\n# command = {:?}",
             other.name, other.command
-        ));
+        );
     }
     text
 }

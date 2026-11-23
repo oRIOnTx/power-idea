@@ -31,7 +31,7 @@ impl<T> Default for Inbox<T> {
 
 impl<T> Inbox<T> {
     pub fn push(&self, item: T) {
-        let mut state = self.0.lock().unwrap();
+        let mut state = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.items.push(item);
         if let Some(waker) = state.waker.take() {
             waker.wake();
@@ -40,12 +40,18 @@ impl<T> Inbox<T> {
 
     /// Takes whatever is queued right now without waiting.
     pub fn take_all(&self) -> Vec<T> {
-        std::mem::take(&mut self.0.lock().unwrap().items)
+        std::mem::take(
+            &mut self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .items,
+        )
     }
 
     /// Ends `next_batch` loops once the pending items are drained.
     pub fn close(&self) {
-        let mut state = self.0.lock().unwrap();
+        let mut state = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.closed = true;
         if let Some(waker) = state.waker.take() {
             waker.wake();
@@ -55,7 +61,7 @@ impl<T> Inbox<T> {
     /// Resolves with all queued items, or `None` once closed and empty.
     pub fn next_batch(&self) -> impl Future<Output = Option<Vec<T>>> + '_ {
         std::future::poll_fn(move |cx| {
-            let mut state = self.0.lock().unwrap();
+            let mut state = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if !state.items.is_empty() {
                 return Poll::Ready(Some(std::mem::take(&mut state.items)));
             }

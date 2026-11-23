@@ -82,9 +82,10 @@ impl Workspace {
             self.select_root_row(cx);
             return;
         }
-        let parents = crumbs(rel);
-        self.expanded
-            .extend(parents[..parents.len() - 1].iter().map(|c| c.rel.clone()));
+        let crumbs = crumbs(rel);
+        if let Some((_, parents)) = crumbs.split_last() {
+            self.expanded.extend(parents.iter().map(|c| c.rel.clone()));
+        }
         self.tree_selection.select_only(rel);
         self.tree_cursor = Some(rel.to_string());
         self.root_selected = false;

@@ -178,7 +178,7 @@ impl Workspace {
                             .text_ellipsis()
                             .whitespace_nowrap()
                             .text_color(color)
-                            .when(change.kind == ChangeKind::Deleted, gpui_kit::Styled::line_through)
+                            .when(change.kind == ChangeKind::Deleted, Styled::line_through)
                             .child(name.to_string()),
                     )
                     .child(
@@ -200,7 +200,7 @@ impl Workspace {
             .child(
                 h_flex()
                     .invisible()
-                    .group_hover("change", gpui_kit::Styled::visible)
+                    .group_hover("change", Styled::visible)
                     .gap_0p5()
                     .child(
                         Button::new(("open", ix))

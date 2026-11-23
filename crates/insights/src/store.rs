@@ -10,6 +10,7 @@ use sqlx::{Row as _, SqlitePool};
 
 use super::SessionSummary;
 
+#[derive(Debug)]
 pub struct Store {
     pool: SqlitePool,
     runtime: tokio::runtime::Runtime,

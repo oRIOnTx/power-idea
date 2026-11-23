@@ -142,9 +142,8 @@ fn parse_refs(decorations: &str, remotes: &[String]) -> Vec<RefLabel> {
                 name: tag.into(),
                 kind: RefKind::Tag,
             });
-        } else if part.ends_with("/HEAD") {
-            continue;
-        } else {
+        } else if !part.ends_with("/HEAD") {
+            // `origin/HEAD` only aliases a remote branch that is listed on its own.
             let is_remote = remotes.iter().any(|r| part.starts_with(&format!("{r}/")));
             refs.push(RefLabel {
                 name: part.into(),

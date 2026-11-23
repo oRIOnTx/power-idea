@@ -5,7 +5,7 @@ use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::Duration;
 
@@ -48,6 +48,12 @@ pub struct Connection {
     stderr: Arc<Mutex<VecDeque<String>>>,
 }
 
+impl std::fmt::Debug for Connection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Connection").finish_non_exhaustive()
+    }
+}
+
 impl Connection {
     /// Starts reading `reader` on a thread named `name`.
     pub fn new(
@@ -68,7 +74,7 @@ impl Connection {
             while let Ok(Some(message)) = read_message(&mut reader) {
                 dispatch(message, &pending, &handler);
             }
-            for (_, waiter) in pending.lock().unwrap().drain() {
+            for (_, waiter) in pending.lock().unwrap_or_else(PoisonError::into_inner).drain() {
                 let _ = waiter.send(Err(anyhow!("the extension exited")));
             }
             handler(Incoming::Closed);
@@ -88,7 +94,7 @@ impl Connection {
                 if let Some(log) = log.as_mut() {
                     let _ = writeln!(log, "{line}");
                 }
-                let mut tail = tail.lock().unwrap();
+                let mut tail = tail.lock().unwrap_or_else(PoisonError::into_inner);
                 if tail.len() == STDERR_TAIL {
                     tail.pop_front();
                 }
@@ -98,23 +104,37 @@ impl Connection {
     }
 
     pub fn stderr_tail(&self) -> Vec<String> {
-        self.stderr.lock().unwrap().iter().cloned().collect()
+        self.stderr
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .cloned()
+            .collect()
     }
 
     /// Sends a request and blocks until the answer (or `timeout`); call off the UI thread.
     pub fn request(&self, method: &str, params: Value, timeout: Duration) -> Result<Value> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = mpsc::channel();
-        self.pending.lock().unwrap().insert(id, tx);
+        self.pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(id, tx);
         let message = json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params });
         if let Err(err) = self.send(&message) {
-            self.pending.lock().unwrap().remove(&id);
+            self.pending
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .remove(&id);
             return Err(err);
         }
         match rx.recv_timeout(timeout) {
             Ok(result) => result,
             Err(RecvTimeoutError::Timeout) => {
-                self.pending.lock().unwrap().remove(&id);
+                self.pending
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .remove(&id);
                 bail!("{method} timed out")
             }
             Err(RecvTimeoutError::Disconnected) => bail!("the extension exited"),
@@ -138,7 +158,7 @@ impl Connection {
 
     fn send(&self, message: &Value) -> Result<()> {
         let body = serde_json::to_vec(message)?;
-        let mut writer = self.writer.lock().unwrap();
+        let mut writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
         write!(writer, "Content-Length: {}\r\n\r\n", body.len())?;
         writer.write_all(&body)?;
         writer.flush().context("writing to the extension")
@@ -152,7 +172,10 @@ fn dispatch(message: Value, pending: &Pending, handler: &Handler) {
         (Some(method), Some(id)) => handler(Incoming::Request { id, method, params }),
         (Some(method), None) => handler(Incoming::Notification { method, params }),
         (None, Some(id)) => {
-            let Some(waiter) = id.as_i64().and_then(|id| pending.lock().unwrap().remove(&id)) else {
+            let Some(waiter) = id
+                .as_i64()
+                .and_then(|id| pending.lock().unwrap_or_else(PoisonError::into_inner).remove(&id))
+            else {
                 return;
             };
             let result = match message.get("error") {
@@ -229,7 +252,7 @@ mod tests {
             "test",
             ours.try_clone().unwrap(),
             ours,
-            Arc::new(move |message| sink.lock().unwrap().push(message)),
+            Arc::new(move |message| sink.lock().unwrap_or_else(PoisonError::into_inner).push(message)),
         );
 
         let extension = thread::spawn(move || {
@@ -254,10 +277,12 @@ mod tests {
                 .unwrap();
         });
 
-        while incoming.lock().unwrap().is_empty() {
+        while incoming.lock().unwrap_or_else(PoisonError::into_inner).is_empty() {
             thread::sleep(Duration::from_millis(5));
         }
-        let Incoming::Request { id, method, .. } = incoming.lock().unwrap()[0].clone() else {
+        let Incoming::Request { id, method, .. } =
+            incoming.lock().unwrap_or_else(PoisonError::into_inner)[0].clone()
+        else {
             panic!("expected a request");
         };
         assert_eq!((id.clone(), method.as_str()), (json!("x1"), "workspace/info"));
@@ -266,11 +291,11 @@ mod tests {
         assert_eq!(result.unwrap(), json!({ "root": "/p" }));
 
         extension.join().unwrap();
-        while incoming.lock().unwrap().last() != Some(&Incoming::Closed) {
+        while incoming.lock().unwrap_or_else(PoisonError::into_inner).last() != Some(&Incoming::Closed) {
             thread::sleep(Duration::from_millis(5));
         }
         assert_eq!(
-            incoming.lock().unwrap()[1],
+            incoming.lock().unwrap_or_else(PoisonError::into_inner)[1],
             Incoming::Notification {
                 method: "log".into(),
                 params: json!([1])

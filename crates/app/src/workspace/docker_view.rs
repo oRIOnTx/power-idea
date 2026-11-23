@@ -249,9 +249,8 @@ impl Workspace {
             .is_some_and(|c| c.state == State::Exited && !c.status.starts_with("Exited (0)"));
         let color = match (row_state, row.container.as_ref().and_then(|c| c.health)) {
             (State::Running, Some(Health::Unhealthy)) => theme.danger,
-            (State::Running, Some(Health::Starting)) => theme.yellow,
+            (State::Running, Some(Health::Starting)) | (State::Paused | State::Restarting, _) => theme.yellow,
             (State::Running, _) => theme.green,
-            (State::Paused | State::Restarting, _) => theme.yellow,
             (State::Exited | State::Dead, _) if exited_badly => theme.danger,
             _ => theme.muted_foreground,
         };
@@ -266,7 +265,7 @@ impl Workspace {
         let mut buttons = h_flex()
             .gap_0p5()
             .invisible()
-            .group_hover("docker-row", gpui_kit::Styled::visible);
+            .group_hover("docker-row", Styled::visible);
         let button = |id: &'static str, icon: &str, tooltip: &'static str| {
             style::icon_button_sized((id, ix), style::lucide(icon), tooltip, style::BUTTON_SMALL)
         };

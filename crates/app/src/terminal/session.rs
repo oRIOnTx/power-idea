@@ -29,7 +29,7 @@ pub(super) struct Listener(Arc<Mutex<Mailbox>>);
 
 impl EventListener for Listener {
     fn send_event(&self, event: TermEvent) {
-        let mut mailbox = self.0.lock().unwrap();
+        let mut mailbox = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         mailbox.events.push(event);
         if let Some(waker) = mailbox.waker.take() {
             waker.wake();
@@ -41,7 +41,7 @@ impl Listener {
     /// Resolves with all pending events, or `None` once the listener is closed.
     pub(super) fn next_batch(&self) -> impl Future<Output = Option<Vec<TermEvent>>> + '_ {
         std::future::poll_fn(move |cx| {
-            let mut mailbox = self.0.lock().unwrap();
+            let mut mailbox = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if !mailbox.events.is_empty() {
                 return Poll::Ready(Some(std::mem::take(&mut mailbox.events)));
             }
@@ -54,7 +54,7 @@ impl Listener {
     }
 
     pub(super) fn close(&self) {
-        let mut mailbox = self.0.lock().unwrap();
+        let mut mailbox = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         mailbox.closed = true;
         if let Some(waker) = mailbox.waker.take() {
             waker.wake();
@@ -137,6 +137,9 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
+    use alacritty_terminal::grid::Dimensions as _;
+    use alacritty_terminal::index::{Column, Line};
+
     use super::Session;
 
     #[test]
@@ -157,8 +160,6 @@ mod tests {
             assert!(std::time::Instant::now() < deadline, "command did not exit");
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
-        use alacritty_terminal::grid::Dimensions as _;
-        use alacritty_terminal::index::{Column, Line};
         let term = session.term.lock();
         let screen: String = (0..term.screen_lines() as i32)
             .flat_map(|line| (0..term.columns()).map(move |col| (line, col)))

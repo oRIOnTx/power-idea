@@ -62,7 +62,12 @@ fn graph_cell(row: GraphRow, lanes: usize, colors: Rc<[Hsla]>) -> impl IntoEleme
             Anchor::Middle => bounds.center().y,
             Anchor::Bottom => bounds.bottom(),
         };
-        let color = |lane: usize| colors[lane % colors.len()];
+        let color = |lane: usize| {
+            colors
+                .get(lane % colors.len().max(1))
+                .copied()
+                .unwrap_or_default()
+        };
         for segment in &row.segments {
             let from = point(x(segment.from.0), y(segment.from.1));
             let to = point(x(segment.to.0), y(segment.to.1));
@@ -128,8 +133,13 @@ struct RowContext {
 impl RowContext {
     fn row(&self, row_ix: usize, cx: &App) -> AnyElement {
         let theme = cx.theme();
-        let entry_ix = self.visible[row_ix];
-        let entry = &self.entries[entry_ix];
+        let Some((entry_ix, entry)) = self
+            .visible
+            .get(row_ix)
+            .and_then(|&ix| Some((ix, self.entries.get(ix)?)))
+        else {
+            return div().into_any_element();
+        };
         let selected = self.selected.as_deref() == Some(entry.hash.as_str());
         let graph = self
             .graph

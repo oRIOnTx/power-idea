@@ -22,8 +22,8 @@ pub struct EditorTab {
     /// Live preview for Markdown and SVG.
     pub preview: Option<crate::preview::Preview>,
     /// Breakpoint marks in the gutter and the debugger's paused-line highlight.
-    pub breakpoint_marks: Option<gpui_kit::component::input::GutterDecorationCollection>,
-    pub execution_mark: Option<gpui_kit::component::input::RangeDecorationCollection>,
+    pub breakpoint_marks: Option<component::input::GutterDecorationCollection>,
+    pub execution_mark: Option<component::input::RangeDecorationCollection>,
     pub _subscriptions: Vec<Subscription>,
 }
 
@@ -134,11 +134,10 @@ pub fn language_for(path: &Path) -> String {
         "Makefile" | "makefile" | "GNUmakefile" | "Justfile" | "justfile" => Some("make"),
         // INI-style `key = value` sections read well with the TOML highlighter.
         ".gitconfig" | ".editorconfig" | ".npmrc" | ".pylintrc" | "setup.cfg" => Some("toml"),
-        ".zprofile" | ".zshenv" | ".zlogin" | ".profile" => Some("bash"),
+        ".zprofile" | ".zshenv" | ".zlogin" | ".profile" | ".zshrc" | "Dockerfile" => Some("bash"),
         // Real shell scripts are `sh` (they get the shell language server); the rest only
         // borrow the bash highlighter.
         ".bashrc" | ".bash_profile" | ".envrc" => Some("sh"),
-        "Dockerfile" | ".zshrc" => Some("bash"),
         "CMakeLists.txt" => Some("cmake"),
         _ => None,
     };
@@ -146,7 +145,10 @@ pub fn language_for(path: &Path) -> String {
         return lang.into();
     }
     // dotenv files (`.env`, `.env.local`, `prod.env`) are `KEY=value` lines: shell syntax.
-    if name == ".env" || name.starts_with(".env.") || name.ends_with(".env") {
+    if name == ".env"
+        || name.starts_with(".env.")
+        || name.rsplit_once('.').is_some_and(|(_, ext)| ext == "env")
+    {
         return "bash".into();
     }
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or_default();
@@ -157,26 +159,20 @@ pub fn language_for(path: &Path) -> String {
         "ini" | "cfg" | "conf" | "cnf" | "properties" | "prefs" | "desktop" | "service" => "toml",
         // No XML grammar: the HTML one highlights tags and attributes the same way.
         "xml" | "plist" | "xsd" | "xsl" | "xslt" | "xaml" | "csproj" | "fsproj" | "vbproj" | "vcxproj"
-        | "props" | "targets" | "storyboard" | "xib" | "xhtml" | "vue" => "html",
+        | "props" | "targets" | "storyboard" | "xib" | "xhtml" | "vue" | "htm" => "html",
         "markdown" | "mdown" | "mkd" => "markdown",
-        "fish" | "ksh" | "command" => "bash",
-        "m" | "mm" => "c",
-        "hh" | "hxx" => "cpp",
-        "less" => "css",
-        "pgsql" | "mysql" | "ddl" => "sql",
+        "fish" | "ksh" | "command" | "zsh" => "bash",
+        "m" | "mm" | "h" => "c",
+        "hh" | "hxx" | "hpp" | "cc" | "cxx" => "cpp",
+        "less" | "scss" => "css",
+        "pgsql" | "mysql" | "ddl" | "psql" => "sql",
         "mk" | "just" => "make",
         "gql" => "graphql",
         "erb" => "erb",
         "mjs" | "cjs" | "jsx" => "javascript",
         "mts" | "cts" => "typescript",
-        "h" => "c",
-        "hpp" | "cc" | "cxx" => "cpp",
-        "zsh" => "bash",
         "bash" => "sh",
-        "htm" => "html",
-        "scss" => "css",
         "ex" | "exs" => "elixir",
-        "psql" => "sql",
         other => other,
     }
     .to_string()
@@ -260,8 +256,8 @@ pub fn toggle_line_comment(text: &str, line: u32, prefix: &str) -> Option<LineEd
     } else {
         format!("{indent}{prefix} {rest}")
     };
-    let mut lines: Vec<String> = lines.iter().map(std::string::ToString::to_string).collect();
-    lines[ix] = toggled;
+    let mut lines: Vec<String> = lines.iter().map(ToString::to_string).collect();
+    *lines.get_mut(ix)? = toggled;
     let cursor_line = (line + 1).min(lines.len() as u32 - 1);
     Some(LineEdit {
         text: join_lines(&lines, nl),

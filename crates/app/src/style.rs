@@ -31,7 +31,7 @@ pub fn tracking_arrows(ahead: u32, behind: u32, cx: &App) -> Option<Div> {
     if ahead == 0 && behind == 0 {
         return None;
     }
-    let theme = gpui_kit::component::ActiveTheme::theme(cx);
+    let theme = component::ActiveTheme::theme(cx);
     let arrow = |text: String, color: Hsla| div().text_color(color).child(text);
     Some(
         div()
@@ -173,7 +173,7 @@ impl RenderOnce for ConfirmButtons {
 /// workspace (or any other entity) without re-entering it; the dialog's input owns the
 /// subscription's lifetime, so it is detached.
 pub fn submit_on_enter(
-    input: &Entity<gpui_kit::component::input::InputState>,
+    input: &Entity<component::input::InputState>,
     window: &mut Window,
     cx: &mut App,
     submit: impl Fn(&mut Window, &mut App) + 'static,

@@ -7,7 +7,7 @@ use lsp::lsp_types::{self, notification, request};
 use lsp::{LanguageServer, path_to_uri};
 
 #[test]
-#[ignore]
+#[ignore = "needs a live ruby-lsp installed"]
 fn ruby_lsp_goes_to_definition_across_files() {
     let dir = std::env::temp_dir().join(format!("power-idea-ruby-lsp-{}", std::process::id()));
     std::fs::create_dir_all(dir.join("lib")).unwrap();
@@ -43,8 +43,8 @@ fn ruby_lsp_goes_to_definition_across_files() {
                     text_document: lsp_types::TextDocumentIdentifier { uri: uri.clone() },
                     position: lsp_types::Position::new(1, 2), // on `Greeter`
                 },
-                work_done_progress_params: Default::default(),
-                partial_result_params: Default::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
             })
             .unwrap();
         links = match response {
@@ -66,7 +66,7 @@ fn ruby_lsp_goes_to_definition_across_files() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "needs a live ruby-lsp installed"]
 fn ruby_lsp_navigation_and_refactoring() {
     use lsp::nav;
 
@@ -94,8 +94,8 @@ fn ruby_lsp_navigation_and_refactoring() {
     let symbols = server
         .request::<request::DocumentSymbolRequest>(lsp_types::DocumentSymbolParams {
             text_document: doc.clone(),
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
+            work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            partial_result_params: lsp_types::PartialResultParams::default(),
         })
         .unwrap();
     let outline: Vec<_> = nav::document_symbols(symbols)
@@ -111,8 +111,8 @@ fn ruby_lsp_navigation_and_refactoring() {
         let response = server
             .request::<request::WorkspaceSymbolRequest>(lsp_types::WorkspaceSymbolParams {
                 query: "Greeter".into(),
-                work_done_progress_params: Default::default(),
-                partial_result_params: Default::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
             })
             .unwrap();
         found = nav::workspace_symbols(response);
@@ -137,8 +137,8 @@ fn ruby_lsp_navigation_and_refactoring() {
             context: lsp_types::ReferenceContext {
                 include_declaration: true,
             },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
+            work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            partial_result_params: lsp_types::PartialResultParams::default(),
         })
         .unwrap()
         .unwrap_or_default();
@@ -152,7 +152,7 @@ fn ruby_lsp_navigation_and_refactoring() {
                     position: lsp_types::Position::new(0, 7),
                 },
                 new_name: "Welcomer".into(),
-                work_done_progress_params: Default::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
             })
             .unwrap();
         if let Some(edit) = edit {
@@ -170,7 +170,7 @@ fn ruby_lsp_navigation_and_refactoring() {
             insert_spaces: true,
             ..Default::default()
         },
-        work_done_progress_params: Default::default(),
+        work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
     });
     println!("formatting: {formatting:?}");
     let _ = std::fs::remove_dir_all(&dir);

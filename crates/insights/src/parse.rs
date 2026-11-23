@@ -67,11 +67,14 @@ impl Session {
 /// `2026-11-22T10:30:05.123Z` → Unix seconds (UTC offsets other than Z are ignored).
 pub fn parse_timestamp(text: &str) -> Option<i64> {
     let (date, time) = text.split_once('T')?;
-    let mut d = date.split('-').map(|p| p.parse::<i64>().ok());
-    let (y, m, day) = (d.next()??, d.next()??, d.next()??);
-    let mut t = time.trim_end_matches('Z').split(':');
-    let (h, min) = (t.next()?.parse::<i64>().ok()?, t.next()?.parse::<i64>().ok()?);
-    let sec = t
+    let mut date_parts = date.split('-').map(|p| p.parse::<i64>().ok());
+    let (y, m, day) = (date_parts.next()??, date_parts.next()??, date_parts.next()??);
+    let mut clock = time.trim_end_matches('Z').split(':');
+    let (h, min) = (
+        clock.next()?.parse::<i64>().ok()?,
+        clock.next()?.parse::<i64>().ok()?,
+    );
+    let sec = clock
         .next()
         .and_then(|s| s.split('.').next()?.parse::<i64>().ok())
         .unwrap_or(0);
@@ -260,8 +263,8 @@ pub fn parse_session(lines: impl Iterator<Item = String>) -> Option<Session> {
                         .get("tool_use_id")
                         .and_then(Value::as_str)
                         .unwrap_or_default();
-                    if let Some(&ix) = pending.get(id) {
-                        session.tools[ix].error = part.get("is_error").and_then(Value::as_bool) == Some(true);
+                    if let Some(tool) = pending.get(id).and_then(|&ix| session.tools.get_mut(ix)) {
+                        tool.error = part.get("is_error").and_then(Value::as_bool) == Some(true);
                     }
                 }
             }

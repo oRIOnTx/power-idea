@@ -1,6 +1,8 @@
 //! Warns before closing a project window or quitting while terminals still run
 //! programs (a server, a build, a run configuration): closing ends them.
 
+use std::fmt::Write as _;
+
 use gpui_kit::component::{ActiveTheme as _, WindowExt as _};
 use gpui_kit::*;
 
@@ -47,7 +49,7 @@ fn describe(programs: &[String]) -> String {
         .collect::<Vec<_>>()
         .join(", ");
     if programs.len() > SHOWN {
-        list.push_str(&format!(" and {} more", programs.len() - SHOWN));
+        let _ = write!(list, " and {} more", programs.len() - SHOWN);
     }
     format!("Running in the terminal: {list}. Closing will stop it.")
 }
@@ -70,9 +72,9 @@ fn ask(
             .icon(style::lucide("square-terminal").text_color(cx.theme().primary))
             .title(title)
             .description(message.clone())
-            .footer(crate::style::confirm_buttons(
+            .footer(style::confirm_buttons(
                 "Terminate",
-                gpui_kit::component::button::ButtonVariant::Primary,
+                component::button::ButtonVariant::Primary,
             ))
             .on_ok(move |_, window, cx| {
                 on_ok(window, cx);

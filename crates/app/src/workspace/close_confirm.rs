@@ -50,7 +50,7 @@ fn ask(
             )
             .footer(style::confirm_buttons(
                 confirmation.ok_text,
-                gpui_kit::component::button::ButtonVariant::Primary,
+                component::button::ButtonVariant::Primary,
             ))
             .on_ok(move |_, window, cx| {
                 if *dont_ask.read(cx) {

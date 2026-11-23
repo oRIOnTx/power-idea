@@ -53,18 +53,25 @@ pub fn layout<'a>(commits: impl IntoIterator<Item = (&'a str, &'a [String])>) ->
                     to: (column, Anchor::Middle),
                     lane: j,
                 });
-                if j != column {
-                    lanes[j] = None; // another branch converges into this commit
+                // Another branch converges into this commit.
+                if j != column
+                    && let Some(lane) = lanes.get_mut(j)
+                {
+                    *lane = None;
                 }
             }
         }
 
         // Continue towards the parents.
-        lanes[column] = parents.first().cloned();
+        if let Some(lane) = lanes.get_mut(column) {
+            *lane = parents.first().cloned();
+        }
         for parent in parents.iter().skip(1) {
             if !lanes.iter().any(|l| l.as_deref() == Some(parent.as_str())) {
                 let slot = free_slot(&mut lanes);
-                lanes[slot] = Some(parent.clone());
+                if let Some(lane) = lanes.get_mut(slot) {
+                    *lane = Some(parent.clone());
+                }
             }
         }
         for parent in parents {
@@ -119,12 +126,7 @@ mod tests {
 
     fn commits(spec: &[(&str, &[&str])]) -> Vec<(String, Vec<String>)> {
         spec.iter()
-            .map(|(h, ps)| {
-                (
-                    h.to_string(),
-                    ps.iter().map(std::string::ToString::to_string).collect(),
-                )
-            })
+            .map(|(h, ps)| (h.to_string(), ps.iter().map(ToString::to_string).collect()))
             .collect()
     }
 

@@ -308,7 +308,7 @@ fn merge_into_tabs(window: AnyWindowHandle, cx: &mut App) {
         cx.background_executor()
             .timer(std::time::Duration::from_millis(150))
             .await;
-        cx.update(gpui_kit::App::refresh_windows);
+        cx.update(App::refresh_windows);
     })
     .detach();
 }

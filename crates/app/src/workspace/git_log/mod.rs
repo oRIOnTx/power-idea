@@ -52,7 +52,9 @@ pub(super) struct GitLogState {
 impl GitLogState {
     pub(super) fn selected_index(&self) -> Option<usize> {
         let hash = self.selected.as_deref()?;
-        self.visible.iter().position(|&ix| self.entries[ix].hash == hash)
+        self.visible
+            .iter()
+            .position(|&ix| self.entries.get(ix).is_some_and(|entry| entry.hash == hash))
     }
 
     fn refilter(&mut self, cx: &App) {
@@ -209,7 +211,11 @@ impl Workspace {
         log.operation = snapshot.operation;
         log.refilter(cx);
         let keep = log.selected_index().is_some();
-        let first = log.visible.first().map(|&ix| log.entries[ix].hash.clone());
+        let first = log
+            .visible
+            .first()
+            .and_then(|&ix| log.entries.get(ix))
+            .map(|entry| entry.hash.clone());
         cx.notify();
         match (keep, first) {
             (true, _) => {
@@ -225,7 +231,7 @@ impl Workspace {
         if log.selected == hash && log.details.is_some() {
             return;
         }
-        log.selected = hash.clone();
+        log.selected.clone_from(&hash);
         if let Some(ix) = log.selected_index() {
             log.scroll.scroll_to_item(ix, ScrollStrategy::Nearest);
         }
@@ -270,7 +276,10 @@ impl Workspace {
             Some(ix) => ix.saturating_add_signed(delta).min(log.visible.len() - 1),
             None => 0,
         };
-        let hash = log.entries[log.visible[next]].hash.clone();
+        let Some(entry) = log.visible.get(next).and_then(|&ix| log.entries.get(ix)) else {
+            return;
+        };
+        let hash = entry.hash.clone();
         self.select_commit(Some(hash), cx);
     }
 

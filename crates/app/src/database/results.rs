@@ -54,14 +54,12 @@ impl ResultsDelegate {
 
     /// Statements that would be submitted, in order: deletes, updates, inserts.
     pub fn statements(&self, kind: DbKind, table: &TableRef, key: &[usize]) -> Vec<String> {
-        let key_of = |row: usize| -> Vec<(String, Option<String>)> {
+        // `None` when a key column or row is out of range: skipping the statement is safer
+        // than a WHERE clause with fewer key columns than intended.
+        let key_of = |row: usize| -> Option<Vec<(String, Option<String>)>> {
+            let cells = self.set.rows.get(row)?;
             key.iter()
-                .map(|&k| {
-                    (
-                        self.set.columns[k].clone(),
-                        self.set.rows[row].get(k).cloned().flatten(),
-                    )
-                })
+                .map(|&k| Some((self.set.columns.get(k)?.clone(), cells.get(k).cloned().flatten())))
                 .collect()
         };
         let live = |row: usize| !self.deleted.contains(&row);
@@ -69,18 +67,18 @@ impl ResultsDelegate {
             .deleted
             .iter()
             .filter(|&&row| !self.is_new(row))
-            .map(|&row| delete_statement(kind, table, &key_of(row)));
+            .filter_map(|&row| Some(delete_statement(kind, table, &key_of(row)?)));
         let updates = self
             .edits
             .iter()
             .filter(|&(&(row, _), _)| !self.is_new(row) && live(row))
-            .map(|(&(row, col), value)| {
+            .filter_map(|(&(row, col), value)| {
                 let edit = CellEdit {
-                    column: self.set.columns[col].clone(),
+                    column: self.set.columns.get(col)?.clone(),
                     value: value.clone(),
-                    key: key_of(row),
+                    key: key_of(row)?,
                 };
-                update_statement(kind, table, &edit)
+                Some(update_statement(kind, table, &edit))
             });
         let inserts = (self.original_rows..self.set.rows.len())
             .filter(|&row| live(row))
@@ -88,7 +86,9 @@ impl ResultsDelegate {
                 let values: Vec<(String, Option<String>)> = self
                     .edits
                     .range((row, 0)..(row + 1, 0))
-                    .map(|(&(_, col), value)| (self.set.columns[col].clone(), value.clone()))
+                    .filter_map(|(&(_, col), value)| {
+                        Some((self.set.columns.get(col)?.clone(), value.clone()))
+                    })
                     .collect();
                 insert_statement(kind, table, &values)
             });

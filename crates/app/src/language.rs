@@ -292,11 +292,11 @@ fn server_event(server_id: &str, method: &str, params: Value) -> Option<LspEvent
             })
         }
         "$/progress" => {
-            let token = match &params["token"] {
+            let token = match params.get("token").unwrap_or(&Value::Null) {
                 Value::String(s) => s.clone(),
                 other => other.to_string(),
             };
-            let value = &params["value"];
+            let value = params.get("value").unwrap_or(&Value::Null);
             Some(LspEvent::Progress {
                 server_id: server_id.to_string(),
                 token,
@@ -522,8 +522,8 @@ impl DefinitionProvider for DocumentLsp {
         cx.background_spawn(async move {
             let params = lsp_types::GotoDefinitionParams {
                 text_document_position_params: params,
-                work_done_progress_params: Default::default(),
-                partial_result_params: Default::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
             };
             Ok(definition_links(
                 server.request::<request::GotoDefinition>(params)?,
@@ -544,7 +544,7 @@ impl HoverProvider for DocumentLsp {
         cx.background_spawn(async move {
             let hover = server.request::<request::HoverRequest>(lsp_types::HoverParams {
                 text_document_position_params: params,
-                work_done_progress_params: Default::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
             })?;
             Ok(hover.map(hover::tidy))
         })
@@ -564,8 +564,8 @@ impl CompletionProvider for DocumentLsp {
         cx.background_spawn(async move {
             let response = server.request::<request::Completion>(lsp_types::CompletionParams {
                 text_document_position: params,
-                work_done_progress_params: Default::default(),
-                partial_result_params: Default::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
                 context: Some(trigger),
             })?;
             Ok(response.unwrap_or(lsp_types::CompletionResponse::Array(Vec::new())))

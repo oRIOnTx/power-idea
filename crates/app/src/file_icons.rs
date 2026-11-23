@@ -46,7 +46,11 @@ pub fn file_icon(name: &str) -> (&'static str, Tint) {
         "license" | "license.md" | "copying" => Some(("scroll-text", Tint::Muted)),
         _ if lower.starts_with(".env") => Some(("key-round", Tint::Yellow)),
         _ if lower.starts_with(".git") => Some(("git-branch", Tint::Orange)),
-        _ if lower.ends_with(".lock") || lower.ends_with("-lock.json") => Some(("file-lock", Tint::Muted)),
+        _ if lower.rsplit_once('.').is_some_and(|(_, ext)| ext == "lock")
+            || lower.ends_with("-lock.json") =>
+        {
+            Some(("file-lock", Tint::Muted))
+        }
         _ if lower.ends_with("_spec.rb") || lower.ends_with("_test.rb") || lower.contains(".test.") => {
             Some(("flask-conical", Tint::Green))
         }
@@ -65,8 +69,7 @@ pub fn file_icon(name: &str) -> (&'static str, Tint) {
         "rs" => ("file-code", Tint::Orange),
         "js" | "mjs" | "cjs" | "jsx" => ("file-code", Tint::Yellow),
         "ts" | "mts" | "cts" | "tsx" => ("file-code", Tint::Blue),
-        "py" | "pyi" => ("file-code", Tint::Cyan),
-        "go" => ("file-code", Tint::Cyan),
+        "py" | "pyi" | "go" => ("file-code", Tint::Cyan),
         "java" | "kt" | "kts" | "scala" | "swift" | "c" | "h" | "cc" | "cpp" | "hpp" | "cs" | "php"
         | "ex" | "exs" | "lua" | "zig" => ("file-code", Tint::Magenta),
         "json" | "jsonc" => ("braces", Tint::Yellow),

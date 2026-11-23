@@ -204,11 +204,7 @@ impl Workspace {
     }
 
     /// `file_changed` for the editor `state` (an edit in its buffer).
-    pub(super) fn send_file_changed(
-        &self,
-        state: &Entity<gpui_kit::component::input::EditorState>,
-        cx: &App,
-    ) {
+    pub(super) fn send_file_changed(&self, state: &Entity<component::input::EditorState>, cx: &App) {
         if self.extensions.slots.is_empty() {
             return;
         }

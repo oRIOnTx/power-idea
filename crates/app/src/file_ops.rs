@@ -53,7 +53,7 @@ pub fn destination(source: &Path, dir: &Path, mode: ClipMode) -> Result<PathBuf>
         }
         bail!("{name} already exists in the target folder");
     }
-    (1..)
+    (1..usize::MAX)
         .map(|n| dir.join(copy_name(&name, n)))
         .find(|candidate| !candidate.exists())
         .context("no free name")
@@ -76,7 +76,7 @@ fn copy_recursive(from: &Path, to: &Path) -> Result<()> {
 
 /// `image.png`, then `image 2.png`, … — the first name not taken in `dir`.
 fn free_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
-    (1..)
+    (1..usize::MAX)
         .map(|n| match n {
             1 => dir.join(format!("{stem}.{ext}")),
             n => dir.join(format!("{stem} {n}.{ext}")),

@@ -145,7 +145,7 @@ impl Workspace {
                                 workspace
                                     .update(cx, |ws, cx| {
                                         if let Some(state) = ws.insights.as_mut() {
-                                            state.project = choice.clone();
+                                            state.project.clone_from(&choice);
                                             state.selected = None;
                                         }
                                         cx.notify();
@@ -232,7 +232,10 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let theme = cx.theme();
-        let recent = &report.sessions[report.sessions.len().saturating_sub(CHART_SESSIONS)..];
+        let recent = report
+            .sessions
+            .get(report.sessions.len().saturating_sub(CHART_SESSIONS)..)
+            .unwrap_or_default();
         let bars = recent.iter().enumerate().map(|(ix, session)| {
             let id = session.id.clone();
             let is_selected = selected.is_some_and(|s| s.id == session.id);

@@ -63,7 +63,7 @@ impl Workspace {
 
     fn open_run_chooser_now(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let mut source = self.palette_source(cx);
-        source.run_configs = self.run_configs.clone();
+        source.run_configs.clone_from(&self.run_configs);
         Palette::open(PaletteMode::RunConfigs, source, window, cx);
     }
 
@@ -91,7 +91,9 @@ impl Workspace {
             .iter()
             .position(|t| t.read(cx).run_state().is_some_and(|r| r.name == config.name))
         {
-            self.terminals[ix].update(cx, super::super::terminal::TerminalView::stop);
+            if let Some(terminal) = self.terminals.get(ix) {
+                terminal.update(cx, TerminalView::stop);
+            }
             self.close_terminal(ix, window, cx);
         }
         let cwd = config.working_dir(&self.root);
@@ -130,7 +132,7 @@ impl Workspace {
         let file = self.active().map(|tab| tab.path.clone());
         if config.uses_current_file()
             && let Some(ix) = self.active_tab
-            && self.tabs[ix].is_dirty(cx)
+            && self.tabs.get(ix).is_some_and(|tab| tab.is_dirty(cx))
             && !self.save_tab(ix, window, cx)
         {
             return None;
@@ -154,7 +156,7 @@ impl Workspace {
             .or_else(|| self.terminals.iter().rev().find(|t| t.read(cx).is_running()))
             .cloned();
         if let Some(terminal) = target {
-            terminal.update(cx, super::super::terminal::TerminalView::stop);
+            terminal.update(cx, TerminalView::stop);
             cx.notify();
         }
     }
@@ -183,7 +185,7 @@ impl Workspace {
         let running = self.any_running(cx);
         let label = self.selected_run.clone().unwrap_or_else(|| "Run…".into());
         let theme = cx.theme();
-        let mut row = gpui_kit::component::h_flex().gap_0p5().child(
+        let mut row = component::h_flex().gap_0p5().child(
             Button::new("run-config-widget")
                 .ghost()
                 .xsmall()

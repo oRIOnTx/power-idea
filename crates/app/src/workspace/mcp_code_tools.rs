@@ -110,8 +110,8 @@ impl Workspace {
                     let result = server
                         .request::<request::WorkspaceSymbolRequest>(lsp_types::WorkspaceSymbolParams {
                             query,
-                            work_done_progress_params: Default::default(),
-                            partial_result_params: Default::default(),
+                            work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                            partial_result_params: lsp_types::PartialResultParams::default(),
                         })
                         .map_err(|e| format!("{e:#}"))
                         .and_then(|response| {
@@ -160,7 +160,7 @@ impl Workspace {
                 };
                 let (root, path) = (self.root.clone(), self.root.join(&rel));
                 cx.background_spawn(async move {
-                    let result = (|| -> anyhow::Result<String> {
+                    let result = (|| -> Result<String> {
                         let params = lsp_types::ReferenceParams {
                             text_document_position: lsp_types::TextDocumentPositionParams {
                                 text_document: language::text_document(&lsp::path_to_uri(&path)?),
@@ -172,8 +172,8 @@ impl Workspace {
                             context: lsp_types::ReferenceContext {
                                 include_declaration: true,
                             },
-                            work_done_progress_params: Default::default(),
-                            partial_result_params: Default::default(),
+                            work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                            partial_result_params: lsp_types::PartialResultParams::default(),
                         };
                         let locations = server.request::<request::References>(params)?.unwrap_or_default();
                         let usages: Vec<Value> = super::code_nav::usage_groups(locations, &root)
@@ -216,8 +216,8 @@ impl Workspace {
                     let result = server
                         .request::<request::DocumentSymbolRequest>(lsp_types::DocumentSymbolParams {
                             text_document: language::text_document(&uri),
-                            work_done_progress_params: Default::default(),
-                            partial_result_params: Default::default(),
+                            work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                            partial_result_params: lsp_types::PartialResultParams::default(),
                         })
                         .map_err(|e| format!("{e:#}"))
                         .and_then(|response| {

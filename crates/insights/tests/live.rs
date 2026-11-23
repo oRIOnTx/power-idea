@@ -2,7 +2,7 @@
 //! only (never transcript text). Ignored: `cargo test -p insights -- --ignored --nocapture`.
 
 #[test]
-#[ignore]
+#[ignore = "reads the real ~/.claude transcripts of this machine"]
 fn indexes_local_transcripts() {
     let home = std::path::PathBuf::from(std::env::var("HOME").unwrap());
     let db = std::env::temp_dir().join(format!("pi-insights-live-{}.sqlite", std::process::id()));

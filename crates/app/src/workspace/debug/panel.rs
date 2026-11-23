@@ -176,7 +176,7 @@ impl Workspace {
     fn render_variables(&self, session: &DebugSession, cx: &mut Context<Self>) -> AnyElement {
         let mut rows = Vec::new();
         for scope in &session.scopes {
-            self.variable_row(
+            Self::variable_row(
                 session,
                 &scope.name,
                 None,
@@ -203,7 +203,6 @@ impl Workspace {
     /// One row, then its children when expanded (depth-first).
     #[allow(clippy::too_many_arguments)]
     fn variable_row(
-        &self,
         session: &DebugSession,
         name: &str,
         value: Option<&str>,
@@ -264,7 +263,7 @@ impl Workspace {
             match session.children.get(&reference) {
                 Some(children) => {
                     for child in children {
-                        self.variable_row(
+                        Self::variable_row(
                             session,
                             &child.name,
                             Some(&child.value),

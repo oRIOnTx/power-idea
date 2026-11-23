@@ -181,7 +181,7 @@ impl Workspace {
     /// Closes every console tab of the data source `id`.
     fn close_consoles(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         for ix in (0..self.tabs.len()).rev() {
-            if let CenterTab::Console { console, .. } = &self.tabs[ix]
+            if let Some(CenterTab::Console { console, .. }) = self.tabs.get(ix)
                 && console.read(cx).connection_id == id
             {
                 self.close_tab_now(ix, window, cx);
@@ -278,7 +278,7 @@ impl Workspace {
                                 .child(lucide("database").size_6())
                                 .child("No data sources yet")
                                 .child(
-                                    gpui_kit::component::button::Button::new("db-empty-new")
+                                    component::button::Button::new("db-empty-new")
                                         .small()
                                         .label("Add Data Source")
                                         .on_click(cx.listener(|_, _, window, cx| {

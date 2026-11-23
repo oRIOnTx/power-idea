@@ -80,9 +80,9 @@ pub fn rows(root: &Path, project: Option<&ComposeProject>, containers: &[Contain
     let mut used = vec![false; containers.len()];
     for service in project.map_or(&[][..], |p| &p.services[..]) {
         let mut found = false;
-        for (ix, container) in containers.iter().enumerate() {
+        for (container, used) in containers.iter().zip(used.iter_mut()) {
             if container.service == *service && belongs(container, root, project) {
-                used[ix] = true;
+                *used = true;
                 found = true;
                 rows.push(Row {
                     title: service.clone(),
@@ -98,8 +98,8 @@ pub fn rows(root: &Path, project: Option<&ComposeProject>, containers: &[Contain
         }
     }
     // Project containers of services no longer in the file, then (optionally) the rest.
-    for (ix, container) in containers.iter().enumerate() {
-        if used[ix] {
+    for (container, used) in containers.iter().zip(&used) {
+        if *used {
             continue;
         }
         if all || belongs(container, root, project) {

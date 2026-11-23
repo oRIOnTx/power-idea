@@ -361,7 +361,10 @@ impl Palette {
 
     fn render_item(&self, ix: usize, window: &Window, cx: &App) -> ListItem {
         let theme = cx.theme();
-        let row = match &self.items[ix] {
+        let Some(item) = self.items.get(ix) else {
+            return ListItem::new(ix);
+        };
+        let row = match item {
             PaletteItem::File(path) => {
                 let (dir, name) = path.rsplit_once('/').unwrap_or(("", path));
                 h_flex()
@@ -446,8 +449,10 @@ impl Palette {
                         .text_color(theme.muted_foreground)
                         .child(".power-idea/run.toml"),
                 ),
-            PaletteItem::Choice(ix) => {
-                let (label, detail) = &self.source.choices[*ix];
+            PaletteItem::Choice(choice) => {
+                let Some((label, detail)) = self.source.choices.get(*choice) else {
+                    return ListItem::new(ix);
+                };
                 h_flex().w_full().gap_2().child(label.clone()).children(
                     detail
                         .clone()

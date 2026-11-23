@@ -1,5 +1,6 @@
 //! `file://` URI ⇄ filesystem path conversion with percent-encoding.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, Result, bail};
@@ -19,7 +20,8 @@ pub fn path_to_uri(path: &Path) -> Result<Uri> {
         if is_unreserved(byte) {
             uri.push(byte as char);
         } else {
-            uri.push_str(&format!("%{byte:02X}"));
+            // Writing to a String cannot fail.
+            let _ = write!(uri, "%{byte:02X}");
         }
     }
     uri.parse()
@@ -31,17 +33,17 @@ pub fn uri_to_path(uri: &Uri) -> Result<PathBuf> {
         .as_str()
         .strip_prefix("file://")
         .context("not a file:// URI")?;
-    let bytes = encoded.as_bytes();
-    let mut decoded = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            let hex = std::str::from_utf8(&bytes[i + 1..i + 3])?;
-            decoded.push(u8::from_str_radix(hex, 16)?);
-            i += 3;
+    let mut rest = encoded.as_bytes();
+    let mut decoded = Vec::with_capacity(rest.len());
+    while let Some((&byte, tail)) = rest.split_first() {
+        if byte == b'%'
+            && let Some((hex, after)) = tail.split_at_checked(2)
+        {
+            decoded.push(u8::from_str_radix(std::str::from_utf8(hex)?, 16)?);
+            rest = after;
         } else {
-            decoded.push(bytes[i]);
-            i += 1;
+            decoded.push(byte);
+            rest = tail;
         }
     }
     Ok(PathBuf::from(String::from_utf8(decoded)?))

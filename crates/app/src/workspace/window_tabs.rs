@@ -85,7 +85,7 @@ impl Workspace {
                         .flex()
                         .items_center()
                         .invisible()
-                        .group_hover("window-tab", gpui_kit::Styled::visible)
+                        .group_hover("window-tab", Styled::visible)
                         .child(
                             style::icon_button(("close-window-tab", ix), IconName::Close, "Close Project")
                                 .on_click(move |_, _, cx| {

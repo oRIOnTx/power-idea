@@ -82,7 +82,7 @@ impl BranchesPopup {
             submenu: None,
             submenu_bounds: None,
             popup_top: None,
-            trail: Default::default(),
+            trail: std::collections::VecDeque::default(),
             _aim_task: None,
             scroll: ScrollHandle::new(),
             focused_once: false,
@@ -155,6 +155,8 @@ impl BranchesPopup {
     /// The pointer moved over row `ix`. While it heads for the open submenu (predicted from
     /// its recent trail), crossing other rows doesn't move or close the submenu; a row takes
     /// over only once the pointer rests on it.
+    // reason: `_`-prefixed fields keep a task/subscription alive; reassigning them is the intent.
+    #[allow(clippy::used_underscore_binding)]
     fn hover_row(&mut self, ix: usize, position: Point<Pixels>, cx: &mut Context<Self>) {
         let heading_to_submenu = match (self.trail.front(), self.submenu, self.submenu_bounds) {
             (Some(from), Some((row, _)), Some(target)) if row != ix => model::heads_for_submenu(
@@ -205,7 +207,7 @@ impl BranchesPopup {
             } else {
                 (ix + len - 1) % len
             };
-            if self.rows[ix].selectable() {
+            if self.rows.get(ix).is_some_and(Row::selectable) {
                 break;
             }
         }
@@ -269,9 +271,8 @@ impl BranchesPopup {
             return;
         }
         match event.keystroke.key.as_str() {
-            "escape" if self.submenu.is_some() => self.submenu = None,
+            "escape" | "left" if self.submenu.is_some() => self.submenu = None,
             "escape" => cx.emit(BranchesPopupEvent::Dismiss),
-            "left" if self.submenu.is_some() => self.submenu = None,
             "right" if self.submenu.is_none() && self.branch_at(self.selected).is_some() => {
                 self.open_submenu(self.selected, cx);
             }
@@ -287,7 +288,9 @@ impl BranchesPopup {
 
     fn render_row(&self, ix: usize, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme();
-        let row = &self.rows[ix];
+        let Some(row) = self.rows.get(ix) else {
+            return div().into_any_element();
+        };
         if *row == Row::Separator {
             return div().mx_2().my_1().h(px(1.)).bg(theme.border).into_any_element();
         }
@@ -355,7 +358,9 @@ impl BranchesPopup {
                 .child(group.title())
                 .into_any_element(),
             Row::Branch { ix: branch_ix, .. } => {
-                let branch = &self.branches[*branch_ix];
+                let Some(branch) = self.branches.get(*branch_ix) else {
+                    return div().into_any_element();
+                };
                 let tint = if branch.is_current { theme.primary } else { muted };
                 let open = self.submenu.is_some_and(|(row, _)| row == ix);
                 base.pl(px(26.))
@@ -412,6 +417,8 @@ impl BranchesPopup {
         }
     }
 
+    // reason: `_`-prefixed fields keep a task/subscription alive; reassigning them is the intent.
+    #[allow(clippy::used_underscore_binding)]
     fn render_submenu(&self, window: &Window, cx: &mut Context<Self>) -> Option<impl IntoElement> {
         let (row, selected) = self.submenu?;
         let branch = self.branch_at(row)?.clone();

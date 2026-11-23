@@ -31,7 +31,8 @@ fn next_path(paths: &[String], current: &str) -> Option<String> {
     let Some(ix) = paths.iter().position(|p| p == current) else {
         return paths.first().cloned();
     };
-    paths[ix + 1..].iter().chain(&paths[..ix]).next().cloned()
+    let (before, from) = paths.split_at(ix);
+    from.iter().skip(1).chain(before).next().cloned()
 }
 
 impl Workspace {
@@ -118,7 +119,7 @@ impl Workspace {
         }
         match paths.into_iter().next() {
             Some(path) => self.select_conflict(path, cx),
-            None if current.is_some() => self.conflicts = Default::default(),
+            None if current.is_some() => self.conflicts = ConflictsState::default(),
             None => {}
         }
     }
@@ -195,7 +196,7 @@ impl Workspace {
         &mut self,
         path: String,
         label: &'static str,
-        op: impl FnOnce(vcs::Repo) -> anyhow::Result<()> + Send + 'static,
+        op: impl FnOnce(vcs::Repo) -> Result<()> + Send + 'static,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -213,7 +214,7 @@ impl Workspace {
                 window.push_notification(Notification::success(text), cx);
                 match next_path(&paths, &path) {
                     Some(next) => ws.select_conflict(next, cx),
-                    None => ws.conflicts = Default::default(),
+                    None => ws.conflicts = ConflictsState::default(),
                 }
             },
             window,
@@ -244,10 +245,7 @@ mod tests {
 
     #[test]
     fn picks_the_next_conflicted_file() {
-        let paths: Vec<String> = ["a", "b", "c"]
-            .iter()
-            .map(std::string::ToString::to_string)
-            .collect();
+        let paths: Vec<String> = ["a", "b", "c"].iter().map(ToString::to_string).collect();
         assert_eq!(next_path(&paths, "a").as_deref(), Some("b"));
         assert_eq!(next_path(&paths, "c").as_deref(), Some("a"));
         assert_eq!(next_path(&paths, "x").as_deref(), Some("a"));

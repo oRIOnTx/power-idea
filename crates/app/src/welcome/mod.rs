@@ -46,7 +46,7 @@ pub fn show(cx: &mut App) {
         window_min_size: Some(size(px(640.), px(420.))),
         ..TitleBar::window_options()
     };
-    let opened = gpui_kit::open_window(options, cx, |window, cx| {
+    let opened = open_window(options, cx, |window, cx| {
         window.set_window_title("Welcome to Power IDEA");
         cx.new(|cx| Welcome::new(window, cx))
     });
@@ -181,7 +181,10 @@ impl Welcome {
             theme.cyan,
             theme.primary,
         ];
-        let color = palette[avatar_slot(&name, palette.len())];
+        let color = palette
+            .get(avatar_slot(&name, palette.len()))
+            .copied()
+            .unwrap_or(theme.primary);
         let missing = !path.is_dir();
         let (open_path, forget_path) = (path.clone(), path.clone());
         h_flex()
@@ -237,8 +240,8 @@ impl Welcome {
             )
             .child(
                 div()
-                    .when(!selected, gpui_kit::Styled::invisible)
-                    .group_hover("recent", gpui_kit::Styled::visible)
+                    .when(!selected, Styled::invisible)
+                    .group_hover("recent", Styled::visible)
                     .child(
                         style::icon_button(("forget", ix), IconName::Close, "Remove from Recent Projects")
                             .on_click(move |_, _, cx| {
@@ -296,7 +299,7 @@ impl Render for Welcome {
                                     .cursor_pointer()
                                     .hover(|s| s.text_color(theme.primary))
                                     .tooltip(|window, cx| {
-                                        gpui_kit::component::tooltip::Tooltip::new(format!(
+                                        component::tooltip::Tooltip::new(format!(
                                             "{} — click to copy",
                                             crate::APP_VERSION_DETAILS
                                         ))
@@ -372,7 +375,7 @@ impl Render for Welcome {
                             .flex_none()
                             .icon(IconName::Plus)
                             .label("New Project")
-                            .on_click(|_, window, cx| new_project::open_new_project_dialog(window, cx)),
+                            .on_click(|_, window, cx| open_new_project_dialog(window, cx)),
                     )
                     .child(
                         Button::new("open-project")

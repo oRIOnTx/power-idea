@@ -28,7 +28,7 @@ pub struct RunState {
 impl TerminalView {
     /// Marks this terminal as running the configuration `name`.
     pub fn for_run(mut self, name: String) -> Self {
-        self.title = name.clone();
+        self.title.clone_from(&name);
         self.run = Some(RunState { name, exit: None });
         self
     }

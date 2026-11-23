@@ -111,7 +111,7 @@ fn open_light_window(path: PathBuf, cx: &mut App) {
         window_min_size: Some(size(px(480.), px(320.))),
         ..TitleBar::window_options()
     };
-    let opened = gpui_kit::open_window(options, cx, |window, cx| {
+    let opened = open_window(options, cx, |window, cx| {
         window.set_window_title(&file_name(&path));
         cx.new(|cx| Workspace::new_light(path, window, cx))
     });

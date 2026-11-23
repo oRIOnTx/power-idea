@@ -11,7 +11,7 @@ mod sql;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use serde::{Deserialize, Serialize};
 
 pub use export::to_csv;
@@ -146,6 +146,7 @@ pub enum NodeKind {
 }
 
 /// An open connection (pool for SQL, single connection for Redis).
+#[derive(Debug)]
 pub enum Database {
     Sql(sql::SqlDatabase),
     Redis(redis_db::RedisDatabase),
@@ -194,14 +195,17 @@ impl Database {
 }
 
 /// Shared runtime for the async drivers.
-fn runtime() -> &'static tokio::runtime::Runtime {
+fn runtime() -> Result<&'static tokio::runtime::Runtime> {
     static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
-    RUNTIME.get_or_init(|| {
-        tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
-            .thread_name("db")
-            .enable_all()
-            .build()
-            .expect("failed to start the database runtime")
-    })
+    if let Some(runtime) = RUNTIME.get() {
+        return Ok(runtime);
+    }
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .thread_name("db")
+        .enable_all()
+        .build()
+        .context("failed to start the database runtime")?;
+    // A concurrent first call may have won the race; its runtime is kept and ours dropped.
+    Ok(RUNTIME.get_or_init(|| runtime))
 }

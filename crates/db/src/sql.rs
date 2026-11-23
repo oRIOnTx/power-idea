@@ -3,6 +3,7 @@
 //! back as text, which is exactly what a results grid needs.
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::pin::Pin;
 use std::time::Instant;
 
@@ -21,6 +22,7 @@ use super::{
     CONNECT_TIMEOUT, ConnectionConfig, DbKind, NodeKind, QueryOutcome, ResultSet, SchemaNode, runtime,
 };
 
+#[derive(Debug)]
 pub enum SqlDatabase {
     Postgres(PgPool),
     MySql(MySqlPool),
@@ -82,7 +84,7 @@ macro_rules! run_in_transaction {
 
 impl SqlDatabase {
     pub fn connect(config: &ConnectionConfig, password: Option<&str>) -> Result<Self> {
-        let db = runtime().block_on(async {
+        let db = runtime()?.block_on(async {
             anyhow::Ok(match config.kind {
                 DbKind::Postgres => {
                     let mut options = PgConnectOptions::new()
@@ -151,7 +153,7 @@ impl SqlDatabase {
 
     pub fn execute(&self, query: &str, limit: usize) -> Result<QueryOutcome> {
         let started = Instant::now();
-        let mut outcome = runtime().block_on(async {
+        let mut outcome = runtime()?.block_on(async {
             match self {
                 Self::Postgres(pool) => collect_results!(pool, query, limit, format_pg),
                 Self::MySql(pool) => collect_results!(pool, query, limit, format_mysql),
@@ -164,7 +166,7 @@ impl SqlDatabase {
 
     /// Runs `statements` atomically; returns the total rows affected.
     pub fn execute_batch(&self, statements: &[String]) -> Result<u64> {
-        runtime().block_on(async {
+        runtime()?.block_on(async {
             match self {
                 Self::Postgres(pool) => run_in_transaction!(pool, statements),
                 Self::MySql(pool) => run_in_transaction!(pool, statements),
@@ -277,7 +279,8 @@ fn build_schema_tree(rows: Vec<Vec<Option<String>>>) -> Vec<SchemaNode> {
 fn hex(bytes: &[u8]) -> String {
     let mut out = String::from("0x");
     for b in bytes.iter().take(64) {
-        out.push_str(&format!("{b:02x}"));
+        // Writing to a String cannot fail.
+        let _ = write!(out, "{b:02x}");
     }
     if bytes.len() > 64 {
         out.push('…');
@@ -404,7 +407,7 @@ mod tests {
 
     #[test]
     fn edits_rows_by_primary_key() {
-        use crate::edit::{CellEdit, editable_table, update_statement};
+        use crate::edit::{CellEdit, delete_statement, editable_table, insert_statement, update_statement};
 
         let (db, path) = sqlite_db();
         db.execute(
@@ -436,7 +439,6 @@ mod tests {
             [[Some("member".to_string())], [Some("o'wner".to_string())]]
         );
 
-        use crate::edit::{delete_statement, insert_statement};
         let key = |user: &str| {
             vec![
                 ("org".to_string(), Some("acme".to_string())),

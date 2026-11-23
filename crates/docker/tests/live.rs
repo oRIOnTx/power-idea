@@ -2,7 +2,7 @@
 //! `cargo test -p docker -- --ignored --nocapture`.
 
 #[test]
-#[ignore]
+#[ignore = "needs a running local Docker daemon"]
 fn talks_to_the_local_daemon() {
     let home = std::env::var("HOME").unwrap();
     let socket = docker::resolve_socket(

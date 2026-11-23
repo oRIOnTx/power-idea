@@ -37,9 +37,8 @@ pub(super) fn keystroke_to_bytes(keystroke: &Keystroke, mode: TermMode) -> Optio
     }
 
     if m.control {
-        let key = keystroke.key.as_bytes();
-        if key.len() == 1 {
-            let byte = match key[0] {
+        if let &[key] = keystroke.key.as_bytes() {
+            let byte = match key {
                 b @ b'a'..=b'z' => b - b'a' + 1,
                 b'@' | b' ' | b'2' => 0,
                 b'[' | b'3' => 0x1b,

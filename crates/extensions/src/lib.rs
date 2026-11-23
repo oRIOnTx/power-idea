@@ -26,6 +26,7 @@ pub const COMMAND_TIMEOUT: Duration = Duration::from_secs(600);
 const SHUTDOWN_GRACE: Duration = Duration::from_millis(500);
 
 /// A running extension process for one project.
+#[derive(Debug)]
 pub struct Host {
     connection: Arc<rpc::Connection>,
     child: Mutex<Option<Child>>,

@@ -113,11 +113,13 @@ impl QueryConsole {
         self.execute(self.last_query.clone(), window, cx);
     }
 
+    // reason: `_`-prefixed fields keep a task/subscription alive; reassigning them is the intent.
+    #[allow(clippy::used_underscore_binding)]
     fn execute(&mut self, query: String, window: &mut Window, cx: &mut Context<Self>) {
         if query.trim().is_empty() {
             return;
         }
-        self.last_query = query.clone();
+        self.last_query.clone_from(&query);
         self.status = Status::Running;
         cx.notify();
 

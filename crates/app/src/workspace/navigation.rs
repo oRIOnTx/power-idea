@@ -41,7 +41,9 @@ impl Workspace {
         cx.spawn(async move |this, cx| {
             while let Some(batch) = events.next_batch().await {
                 let alive = this.update(cx, |ws, cx| {
-                    batch.into_iter().for_each(|e| ws.handle_lsp_event(e, cx));
+                    for event in batch {
+                        ws.handle_lsp_event(event, cx);
+                    }
                 });
                 if alive.is_err() {
                     break;

@@ -168,10 +168,11 @@ pub fn apply_text_edits(text: &str, edits: &[TextEdit]) -> Result<String> {
         .collect();
     // Stable sort keeps the server's order for inserts at the same spot.
     ranges.sort_by_key(|&(start, end, _)| (start, end));
-    for pair in ranges.windows(2) {
-        if pair[1].0 < pair[0].1 {
-            bail!("language server returned overlapping edits");
-        }
+    if ranges
+        .windows(2)
+        .any(|pair| matches!(pair, [prev, next] if next.0 < prev.1))
+    {
+        bail!("language server returned overlapping edits");
     }
     let mut out = String::with_capacity(text.len());
     let mut cursor = 0;

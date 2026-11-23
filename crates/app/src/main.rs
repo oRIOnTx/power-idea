@@ -218,13 +218,13 @@ fn main() {
         .collect();
     let open_requests = open_files::OpenRequests::default();
 
-    let app = gpui_kit::application().with_assets(assets::Assets);
+    let app = application().with_assets(assets::Assets);
     app.on_open_urls({
         let open_requests = open_requests.clone();
         move |urls| open_requests.handle_urls(&urls)
     });
     app.run(move |cx| {
-        gpui_kit::init(cx);
+        init(cx);
         language_rules::register(cx);
         cx.set_global(AppConfig(Config::load()));
         apply_theme(None, cx);

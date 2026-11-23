@@ -116,7 +116,7 @@ pub fn rows(branches: &[Branch], recent: &[String], query: &str, collapsed: &Has
     for (group, ixs) in groups {
         let named: Vec<(usize, &str)> = ixs
             .into_iter()
-            .map(|ix| (ix, branches[ix].name.as_str()))
+            .filter_map(|ix| Some((ix, branches.get(ix)?.name.as_str())))
             .collect();
         let ixs: Vec<usize> = fuzzy_filter(query, named, |(_, name)| name)
             .into_iter()

@@ -45,6 +45,7 @@ impl Response {
 }
 
 /// Reads a chunked transfer-encoded body as a plain byte stream.
+#[derive(Debug)]
 pub struct Chunked<R> {
     inner: R,
     left: usize,
@@ -84,8 +85,8 @@ impl<R: BufRead> Read for Chunked<R> {
                 return Ok(0);
             }
         }
-        let max = buf.len().min(self.left);
-        let n = self.inner.read(&mut buf[..max])?;
+        // `take` caps the read at the rest of the current chunk.
+        let n = (&mut self.inner).take(self.left as u64).read(buf)?;
         self.left -= n;
         Ok(n)
     }

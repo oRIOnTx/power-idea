@@ -51,7 +51,7 @@ impl WordCompletion {
         buffers
             .iter()
             .filter(|buffer| buffer.entity_id() != self.own)
-            .filter_map(gpui_kit::WeakEntity::upgrade)
+            .filter_map(WeakEntity::upgrade)
             .map(|buffer| buffer.read(cx).text().clone())
             .filter(|text| text.len() <= MAX_OTHER_BYTES)
             .collect()

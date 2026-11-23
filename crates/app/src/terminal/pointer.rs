@@ -16,11 +16,11 @@ fn button(button: MouseButton) -> Option<Button> {
         MouseButton::Left => Some(Button::Left),
         MouseButton::Middle => Some(Button::Middle),
         MouseButton::Right => Some(Button::Right),
-        _ => None,
+        MouseButton::Navigate(_) => None,
     }
 }
 
-fn mods(modifiers: &Modifiers) -> Mods {
+fn mods(modifiers: Modifiers) -> Mods {
     Mods {
         shift: modifiers.shift,
         alt: modifiers.alt,
@@ -47,7 +47,7 @@ impl TerminalView {
         &mut self,
         action: MouseAction,
         position: Point<Pixels>,
-        modifiers: &Modifiers,
+        modifiers: Modifiers,
     ) -> bool {
         let mode = *self.term.lock().mode();
         if modifiers.shift || !wants_mouse(mode) {
@@ -69,17 +69,17 @@ impl TerminalView {
 
     pub(super) fn on_mouse_down_button(&mut self, event: &MouseDownEvent) -> bool {
         button(event.button)
-            .is_some_and(|b| self.report_mouse(MouseAction::Press(b), event.position, &event.modifiers))
+            .is_some_and(|b| self.report_mouse(MouseAction::Press(b), event.position, event.modifiers))
     }
 
     pub(super) fn on_mouse_up_button(&mut self, event: &MouseUpEvent) -> bool {
         button(event.button)
-            .is_some_and(|b| self.report_mouse(MouseAction::Release(b), event.position, &event.modifiers))
+            .is_some_and(|b| self.report_mouse(MouseAction::Release(b), event.position, event.modifiers))
     }
 
     pub(super) fn on_mouse_motion(&mut self, event: &MouseMoveEvent) -> bool {
         let held = event.pressed_button.and_then(button);
-        self.report_mouse(MouseAction::Move(held), event.position, &event.modifiers)
+        self.report_mouse(MouseAction::Move(held), event.position, event.modifiers)
     }
 
     pub(super) fn on_wheel(&mut self, event: &ScrollEvent, cx: &mut Context<Self>) {
@@ -100,7 +100,7 @@ impl TerminalView {
                 MouseAction::WheelDown
             };
             for _ in 0..lines.abs().min(MAX_WHEEL_EVENTS) {
-                self.report_mouse(action, event.position, &event.modifiers);
+                self.report_mouse(action, event.position, event.modifiers);
             }
         } else if let Some(bytes) = alternate_scroll(mode, lines.clamp(-MAX_WHEEL_EVENTS, MAX_WHEEL_EVENTS)) {
             self.write(bytes);

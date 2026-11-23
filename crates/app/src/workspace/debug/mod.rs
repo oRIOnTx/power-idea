@@ -126,7 +126,7 @@ fn build(command: &str, target: &DebugTarget) -> Result<()> {
     if !output.status.success() {
         let text = String::from_utf8_lossy(&output.stderr);
         let lines: Vec<&str> = text.lines().collect();
-        let tail = &lines[lines.len().saturating_sub(20)..];
+        let tail = lines.get(lines.len().saturating_sub(20)..).unwrap_or_default();
         bail!("{command} failed:\n{}", tail.join("\n"));
     }
     Ok(())
@@ -337,7 +337,11 @@ impl Workspace {
                 }
                 "terminated" => self.end_debug("Finished", cx),
                 "power-idea/launchFailed" => {
-                    let message = body["message"].as_str().unwrap_or("launch failed").to_string();
+                    let message = body
+                        .get("message")
+                        .and_then(Value::as_str)
+                        .unwrap_or("launch failed")
+                        .to_string();
                     session.log(&message);
                     window.push_notification(Notification::error(message).title("Debugging failed"), cx);
                     self.end_debug("Launch failed", cx);
@@ -552,7 +556,7 @@ impl Workspace {
             this.update(cx, |ws, cx| {
                 let Some(session) = ws.debug.as_mut() else { return };
                 match result {
-                    Ok(body) => session.log(body["result"].as_str().unwrap_or("")),
+                    Ok(body) => session.log(body.get("result").and_then(Value::as_str).unwrap_or("")),
                     Err(err) => session.log(&format!("error: {err:#}")),
                 }
                 cx.notify();

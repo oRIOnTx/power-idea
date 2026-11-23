@@ -2,6 +2,7 @@
 //! are put into one request to the local `claude` CLI. Runs only when the user
 //! asks for it; nothing else in this crate leaves the machine.
 
+use std::fmt::Write as _;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -26,7 +27,9 @@ pub struct Sample {
 }
 
 fn last(sessions: &[SessionSummary]) -> &[SessionSummary] {
-    &sessions[sessions.len().saturating_sub(SESSIONS)..]
+    sessions
+        .get(sessions.len().saturating_sub(SESSIONS)..)
+        .unwrap_or_default()
 }
 
 fn truncate(text: &str) -> String {
@@ -77,12 +80,14 @@ pub fn request(sessions: &[SessionSummary], samples: &[Sample]) -> String {
          Plain text, a numbered list, no Markdown headings or tables, under 300 words.\n\n",
     );
     out.push_str("Recent sessions (oldest first):\n");
+    // Writing to a String cannot fail, so the `writeln!` results below are ignored.
     for s in recent {
         let m = &s.metrics;
-        out.push_str(&format!(
+        let _ = writeln!(
+            out,
             "- score {:.0}/100, {} prompts ({} corrections), {} tool calls ({} failed), \
              {} interrupts, {} loops, {} compactions, verified: {}, committed: {}, \
-             {} min, {}k tokens\n",
+             {} min, {}k tokens",
             s.score,
             m.prompts,
             m.corrections,
@@ -95,7 +100,7 @@ pub fn request(sessions: &[SessionSummary], samples: &[Sample]) -> String {
             if m.committed { "yes" } else { "no" },
             m.duration_secs / 60,
             m.total_tokens / 1000,
-        ));
+        );
     }
     let fired: Vec<String> = RULES
         .iter()
@@ -110,9 +115,9 @@ pub fn request(sessions: &[SessionSummary], samples: &[Sample]) -> String {
     if !samples.is_empty() {
         out.push_str("\nTheir first prompts per session:\n");
         for sample in samples {
-            out.push_str(&format!("[{}]\n", sample.project));
+            let _ = writeln!(out, "[{}]", sample.project);
             for prompt in &sample.prompts {
-                out.push_str(&format!("> {}\n", prompt.replace('\n', "\n> ")));
+                let _ = writeln!(out, "> {}", prompt.replace('\n', "\n> "));
             }
         }
     }

@@ -132,7 +132,8 @@ impl Workspace {
 
     /// Saves every editor tab; returns false if any save failed.
     fn save_all(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        (0..self.tabs.len()).all(|ix| !self.tabs[ix].is_dirty(cx) || self.save_tab(ix, window, cx))
+        (0..self.tabs.len())
+            .all(|ix| !self.tabs.get(ix).is_some_and(|tab| tab.is_dirty(cx)) || self.save_tab(ix, window, cx))
     }
 
     /// Installs the window-close guard. Called once from `Workspace::new`.

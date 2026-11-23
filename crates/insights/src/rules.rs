@@ -75,7 +75,9 @@ const fn general(
 }
 
 fn last(sessions: &[SessionSummary], n: usize) -> &[SessionSummary] {
-    &sessions[sessions.len().saturating_sub(n)..]
+    sessions
+        .get(sessions.len().saturating_sub(n)..)
+        .unwrap_or_default()
 }
 
 fn mean(values: impl Iterator<Item = f64>) -> Option<f64> {
@@ -124,7 +126,7 @@ fn long_sessions(sessions: &[SessionSummary]) -> Option<Insight> {
     }
     let mut tokens: Vec<u64> = recent.iter().map(|s| s.metrics.total_tokens).collect();
     tokens.sort_unstable();
-    let threshold = tokens[tokens.len() * 3 / 4];
+    let threshold = *tokens.get(tokens.len() * 3 / 4)?;
     let long = mean(
         recent
             .iter()

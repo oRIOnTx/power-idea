@@ -35,12 +35,12 @@ impl Workspace {
                      sent to Claude through the claude CLI. Nothing is saved as a Claude Code session.",
                     insights::advice::SESSIONS
                 ))
-                .footer(crate::style::confirm_buttons(
+                .footer(style::confirm_buttons(
                     "Ask Claude",
-                    gpui_kit::component::button::ButtonVariant::Primary,
+                    component::button::ButtonVariant::Primary,
                 ))
                 .on_ok(move |_, _, cx| {
-                    workspace.update(cx, super::Workspace::ask_insights_advice).ok();
+                    workspace.update(cx, Workspace::ask_insights_advice).ok();
                     true
                 })
         });

@@ -348,7 +348,7 @@ fn default_keymap() -> Vec<KeyBinding> {
         // JetBrains: Tab accepts the highlighted completion item.
         KeyBinding::new("tab", SmartTab, ed),
         // JetBrains Basic Completion.
-        KeyBinding::new("ctrl-space", gpui_kit::component::input::ShowCompletions, ed),
+        KeyBinding::new("ctrl-space", component::input::ShowCompletions, ed),
         KeyBinding::new("cmd-shift-a", FindAction, ws),
         KeyBinding::new("cmd-l", GotoLine, ws),
         KeyBinding::new("cmd-s", SaveFile, ws),
@@ -371,7 +371,7 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-alt-h", HideOtherApps, None),
         KeyBinding::new("cmd-m", MinimizeWindow, None),
         KeyBinding::new("cmd-/", ToggleLineComment, ed),
-        KeyBinding::new("cmd-b", gpui_kit::component::input::GoToDefinition, ed),
+        KeyBinding::new("cmd-b", component::input::GoToDefinition, ed),
         KeyBinding::new(
             "cmd-enter",
             crate::database::console::RunQuery,
@@ -392,7 +392,7 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-backspace", DeleteLine, ed),
         KeyBinding::new("alt-shift-up", MoveLineUp, ed),
         KeyBinding::new("alt-shift-down", MoveLineDown, ed),
-        KeyBinding::new("cmd-r", gpui_kit::component::input::Replace, ed),
+        KeyBinding::new("cmd-r", component::input::Replace, ed),
         KeyBinding::new("alt-f12", ToggleTerminal, ws),
         KeyBinding::new("cmd-0", ToggleCommitView, ws),
         KeyBinding::new("cmd-,", OpenSettings, ws),

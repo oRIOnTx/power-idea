@@ -2,6 +2,7 @@
 //! Class / Symbol (⌘O / ⌘⌥O), File Structure (⌘F12), Rename (⇧F6) and
 //! Reformat Code (⌥⌘L). Requests block, so they run in the background.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -174,8 +175,8 @@ impl Workspace {
                     context: lsp_types::ReferenceContext {
                         include_declaration: true,
                     },
-                    work_done_progress_params: Default::default(),
-                    partial_result_params: Default::default(),
+                    work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                    partial_result_params: lsp_types::PartialResultParams::default(),
                 };
                 let locations = doc.server.request::<request::References>(params)?;
                 Ok(usage_groups(locations.unwrap_or_default(), &root))
@@ -183,8 +184,7 @@ impl Workspace {
             move |ws, groups, window, cx| match groups.as_slice() {
                 [] => window.push_notification(Notification::info("No usages found"), cx),
                 // A single usage is a plain jump, like JetBrains.
-                [only] if only.usages.len() == 1 => {
-                    let usage = &only.usages[0];
+                [only] if let [usage] = only.usages.as_slice() => {
                     ws.jump_to(&only.path.clone(), usage.line, usage.column, window, cx);
                 }
                 _ => ws.show_usages(title, groups, window, cx),
@@ -203,8 +203,8 @@ impl Workspace {
             move || {
                 let params = lsp_types::DocumentSymbolParams {
                     text_document: text_document(&doc.uri),
-                    work_done_progress_params: Default::default(),
-                    partial_result_params: Default::default(),
+                    work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                    partial_result_params: lsp_types::PartialResultParams::default(),
                 };
                 let symbols = doc.server.request::<request::DocumentSymbolRequest>(params)?;
                 Ok(nav::document_symbols(symbols)
@@ -251,8 +251,8 @@ impl Workspace {
         let search: SymbolSearch = Arc::new(move |query: &str| {
             let params = lsp_types::WorkspaceSymbolParams {
                 query: query.to_string(),
-                work_done_progress_params: Default::default(),
-                partial_result_params: Default::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                partial_result_params: lsp_types::PartialResultParams::default(),
             };
             let response = server
                 .request::<request::WorkspaceSymbolRequest>(params)
@@ -302,14 +302,14 @@ impl Workspace {
                     let params = lsp_types::RenameParams {
                         text_document_position: doc.position_params(),
                         new_name: name,
-                        work_done_progress_params: Default::default(),
+                        work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
                     };
                     match doc.server.request::<request::Rename>(params)? {
                         Some(edit) => nav::workspace_edit_files(edit),
                         None => Ok(Vec::new()),
                     }
                 },
-                super::Workspace::apply_rename,
+                Workspace::apply_rename,
                 window,
                 cx,
             );
@@ -341,7 +341,7 @@ impl Workspace {
             (_, true) => {
                 let mut text = format!("Renamed in {changed} file{}", if changed == 1 { "" } else { "s" });
                 if skipped > 0 {
-                    text.push_str(&format!("; skipped {skipped} outside the project"));
+                    let _ = write!(text, "; skipped {skipped} outside the project");
                 }
                 Notification::success(text)
             }
@@ -393,7 +393,7 @@ impl Workspace {
                         insert_spaces: !indent.hard_tabs,
                         ..Default::default()
                     },
-                    work_done_progress_params: Default::default(),
+                    work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
                 };
                 doc.server.request::<request::Formatting>(params)
             },

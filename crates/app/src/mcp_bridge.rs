@@ -2,6 +2,7 @@
 //! on the main thread against the right workspace, and answered via a channel.
 
 use std::collections::VecDeque;
+use std::fmt::Write as _;
 use std::fs;
 use std::io::Read as _;
 use std::path::PathBuf;
@@ -40,7 +41,7 @@ struct Bridge(Arc<Mutex<Inbox>>);
 impl Bridge {
     async fn next_batch(&self) -> Vec<Call> {
         std::future::poll_fn(|cx| {
-            let mut inbox = self.0.lock().unwrap();
+            let mut inbox = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if inbox.calls.is_empty() {
                 inbox.waker = Some(cx.waker().clone());
                 return Poll::Pending;
@@ -59,7 +60,7 @@ impl mcp::Handler for Bridge {
     fn call(&self, name: &str, args: Value) -> Result<String, String> {
         let (reply, response) = mpsc::channel();
         {
-            let mut inbox = self.0.lock().unwrap();
+            let mut inbox = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             inbox.calls.push_back(Call {
                 name: name.to_string(),
                 args,
@@ -97,8 +98,13 @@ fn load_or_create_token() -> Result<String> {
     }
     let mut bytes = [0u8; 32];
     fs::File::open("/dev/urandom")?.read_exact(&mut bytes)?;
-    let token: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
-    fs::create_dir_all(path.parent().unwrap())?;
+    let token = bytes.iter().fold(String::with_capacity(64), |mut hex, b| {
+        let _ = write!(hex, "{b:02x}");
+        hex
+    });
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
     fs::write(&path, &token)?;
     #[cfg(unix)]
     {
@@ -236,10 +242,15 @@ pub fn copy_claude_command(window: &mut Window, cx: &mut App) {
 
 fn schema(properties: Value, required: &[&str]) -> Value {
     let mut properties = properties;
-    properties["project"] = json!({
-        "type": "string",
-        "description": "Absolute project root. Defaults to the focused IDE window.",
-    });
+    if let Some(map) = properties.as_object_mut() {
+        map.insert(
+            "project".to_string(),
+            json!({
+                "type": "string",
+                "description": "Absolute project root. Defaults to the focused IDE window.",
+            }),
+        );
+    }
     json!({ "type": "object", "properties": properties, "required": required })
 }
 

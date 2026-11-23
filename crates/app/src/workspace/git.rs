@@ -37,7 +37,7 @@ pub struct GitState {
 }
 
 /// Status plus the operation in progress, loaded together off the UI thread.
-fn load_status(repo: &Repo) -> anyhow::Result<(Status, Option<Operation>)> {
+fn load_status(repo: &Repo) -> Result<(Status, Option<Operation>)> {
     Ok((repo.status()?, repo.operation_in_progress()))
 }
 
@@ -158,7 +158,7 @@ impl Workspace {
         .detach();
     }
 
-    fn apply_status(&mut self, status: anyhow::Result<(Status, Option<Operation>)>, cx: &mut Context<Self>) {
+    fn apply_status(&mut self, status: Result<(Status, Option<Operation>)>, cx: &mut Context<Self>) {
         let (Some(git), Ok((status, operation))) = (self.git.as_mut(), status) else {
             return;
         };
@@ -188,7 +188,7 @@ impl Workspace {
     pub(super) fn run_git<T: Send + 'static>(
         &mut self,
         label: &'static str,
-        op: impl FnOnce(Repo) -> anyhow::Result<T> + Send + 'static,
+        op: impl FnOnce(Repo) -> Result<T> + Send + 'static,
         on_success: impl FnOnce(&mut Self, T, &mut Window, &mut Context<Self>) + 'static,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -370,7 +370,7 @@ impl Workspace {
         key: String,
         title: String,
         change_path: Option<String>,
-        load: impl FnOnce(Repo) -> anyhow::Result<String> + Send + 'static,
+        load: impl FnOnce(Repo) -> Result<String> + Send + 'static,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -410,7 +410,7 @@ impl Workspace {
             .iter()
             .position(|t| matches!(t, CenterTab::Diff(d) if d.key == key));
         let ix = if let Some(ix) = existing {
-            if let CenterTab::Diff(tab) = &mut self.tabs[ix] {
+            if let Some(CenterTab::Diff(tab)) = self.tabs.get_mut(ix) {
                 tab.title = title;
                 tab.change_path = change_path;
                 tab.state.update(cx, |state, cx| state.set_files(files, cx));
@@ -503,7 +503,9 @@ impl Workspace {
         } else {
             (ix + changes.len() - 1) % changes.len()
         };
-        let change = changes[next].clone();
+        let Some(change) = changes.get(next).cloned() else {
+            return;
+        };
         self.open_change_diff(change, window, cx);
     }
 }

@@ -177,21 +177,28 @@ mod editorconfig {
     }
 
     fn matches(glob: &[u8], text: &[u8]) -> bool {
+        // Suffixes of `text` starting at `0..=last`.
+        let suffixes = |last: usize| (0..=last).filter_map(|ix| text.get(ix..));
+        let first = text.first();
+        let tail = text.get(1..).unwrap_or_default();
         match glob {
             [] => text.is_empty(),
-            [b'*', b'*', rest @ ..] => (0..=text.len()).any(|ix| matches(rest, &text[ix..])),
-            [b'*', rest @ ..] => (0..=text.len())
-                .take_while(|ix| *ix == 0 || text[ix - 1] != b'/')
-                .any(|ix| matches(rest, &text[ix..])),
-            [b'?', rest @ ..] => text.first().is_some_and(|c| *c != b'/') && matches(rest, &text[1..]),
+            [b'*', b'*', rest @ ..] => suffixes(text.len()).any(|t| matches(rest, t)),
+            // `*` stays within one path segment: it may consume up to the first `/`, not past it.
+            [b'*', rest @ ..] => {
+                let slash = text.iter().position(|c| *c == b'/').unwrap_or(text.len());
+                suffixes(slash).any(|t| matches(rest, t))
+            }
+            [b'?', rest @ ..] => first.is_some_and(|c| *c != b'/') && matches(rest, tail),
             [b'[', rest @ ..] => {
                 let Some(end) = rest.iter().position(|c| *c == b']') else {
-                    return text.first() == Some(&b'[') && matches(rest, &text[1..]);
+                    return first == Some(&b'[') && matches(rest, tail);
                 };
-                let Some(first) = text.first() else { return false };
-                rest[..end].contains(first) && matches(&rest[end + 1..], &text[1..])
+                let Some(first) = first else { return false };
+                let (class, after) = rest.split_at(end);
+                class.contains(first) && matches(after.get(1..).unwrap_or_default(), tail)
             }
-            [c, rest @ ..] => text.first() == Some(c) && matches(rest, &text[1..]),
+            [c, rest @ ..] => first == Some(c) && matches(rest, tail),
         }
     }
 

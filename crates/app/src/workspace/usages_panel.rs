@@ -95,11 +95,14 @@ impl Workspace {
             (Some(ix), true) => (ix + 1).min(rows.len() - 1),
             (Some(ix), false) => ix.saturating_sub(1),
         };
-        state.selected = Some(rows[next]);
+        let Some(&(group, usage)) = rows.get(next) else {
+            return;
+        };
+        state.selected = Some((group, usage));
         if let Some(row_ix) = state
             .rows()
             .iter()
-            .position(|r| *r == UsageRow::Usage(rows[next].0, rows[next].1))
+            .position(|r| *r == UsageRow::Usage(group, usage))
         {
             state.scroll.scroll_to_item(row_ix, ScrollStrategy::Nearest);
         }
@@ -160,10 +163,11 @@ impl Workspace {
         let focus = state.focus.clone();
         let list = uniform_list("usage-rows", rows.len(), move |range, _, cx| {
             range
-                .map(|ix| {
-                    usage_row(
-                        rows[ix], ix, &groups, &collapsed, selected, &workspace, &focus, cx,
-                    )
+                .filter_map(|ix| {
+                    let row = *rows.get(ix)?;
+                    Some(usage_row(
+                        row, ix, &groups, &collapsed, selected, &workspace, &focus, cx,
+                    ))
                 })
                 .collect()
         })
@@ -215,7 +219,9 @@ fn usage_row(
         .cursor_pointer();
     match row {
         UsageRow::File(g) => {
-            let group = &groups[g];
+            let Some(group) = groups.get(g) else {
+                return base.into_any_element();
+            };
             let name = group
                 .path
                 .file_name()
@@ -255,7 +261,9 @@ fn usage_row(
                 .into_any_element()
         }
         UsageRow::Usage(g, u) => {
-            let usage = &groups[g].usages[u];
+            let Some(usage) = groups.get(g).and_then(|group| group.usages.get(u)) else {
+                return base.into_any_element();
+            };
             let is_selected = selected == Some((g, u));
             base.pl(px(40.))
                 .when(is_selected, |el| el.bg(theme.list_active))

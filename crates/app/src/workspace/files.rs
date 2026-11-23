@@ -288,7 +288,7 @@ impl Workspace {
     ) {
         let mut kept_dirty = 0;
         for ix in (0..self.tabs.len()).rev() {
-            let tab = &self.tabs[ix];
+            let Some(tab) = self.tabs.get(ix) else { continue };
             if !matches(tab.editor().map(|e| e.rel.as_str())) {
                 continue;
             }
@@ -396,12 +396,12 @@ impl Workspace {
                 let apply = apply.clone();
                 let result = workspace.update(cx, |ws, cx| apply(ws, name, window, cx));
                 match result {
-                    Ok(Ok(())) => window.close_dialog(cx),
                     Ok(Err(err)) => error.update(cx, |e, cx| {
                         *e = Some(format!("{err:#}"));
                         cx.notify();
                     }),
-                    Err(_) => window.close_dialog(cx),
+                    // Applied, or the workspace is gone: either way the dialog is done.
+                    Ok(Ok(())) | Err(_) => window.close_dialog(cx),
                 }
             })
         };
@@ -429,13 +429,13 @@ impl Workspace {
                         .gap_2()
                         .justify_end()
                         .child(
-                            crate::style::dialog_button("cancel")
+                            style::dialog_button("cancel")
                                 .ghost()
                                 .label("Cancel")
                                 .on_click(|_, window, cx| window.close_dialog(cx)),
                         )
                         .child(
-                            crate::style::dialog_button("ok")
+                            style::dialog_button("ok")
                                 .primary()
                                 .label("OK")
                                 .on_click(move |_, window, cx| submit(window, cx)),

@@ -71,7 +71,9 @@ impl PushDialog {
                         }))
                         .into_any_element(),
                     TreeRow::File { ix, depth } => {
-                        let file = &files[ix];
+                        let Some(file) = files.get(ix) else {
+                            return base.into_any_element();
+                        };
                         let name = tree::file_name(&file.path);
                         let kind = file.kind();
                         base.pl(px(8. + INDENT * depth as f32 + 14.))
@@ -80,7 +82,7 @@ impl PushDialog {
                                 div()
                                     .flex_none()
                                     .text_color(kind_color(kind, cx))
-                                    .when(kind == ChangeKind::Deleted, gpui_kit::Styled::line_through)
+                                    .when(kind == ChangeKind::Deleted, Styled::line_through)
                                     .child(name.to_string()),
                             )
                             .children(file.orig_path.clone().map(|orig| {

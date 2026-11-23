@@ -65,7 +65,8 @@ fn loops(session: &Session) -> usize {
     let mut count = 0;
     let mut run = 1;
     for pair in session.tools.windows(2) {
-        if pair[0].name == pair[1].name && pair[0].input == pair[1].input {
+        let [prev, next] = pair else { continue };
+        if prev.name == next.name && prev.input == next.input {
             run += 1;
             if run == 3 {
                 count += 1;

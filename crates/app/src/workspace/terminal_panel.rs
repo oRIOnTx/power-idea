@@ -64,6 +64,8 @@ impl Workspace {
     }
 
     /// Adds a terminal tab, shows the panel and focuses it.
+    // reason: `_`-prefixed fields keep a task/subscription alive; reassigning them is the intent.
+    #[allow(clippy::used_underscore_binding)]
     pub(super) fn add_terminal(
         &mut self,
         terminal: Entity<TerminalView>,
@@ -145,7 +147,7 @@ impl Workspace {
                 .border_color(if active {
                     theme.primary
                 } else {
-                    gpui_kit::transparent_black()
+                    transparent_black()
                 })
                 .when(active, |el| el.shadow(style::glow(theme.primary, 0.4)))
                 .text_color(if active {

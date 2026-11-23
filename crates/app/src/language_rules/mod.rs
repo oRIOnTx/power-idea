@@ -122,6 +122,8 @@ fn continues(keyword: &str, line: &str) -> bool {
 /// The keyword closing the block that `line` opens, if `language` closes blocks with
 /// keywords. One-line blocks (`def x; end`, endless `def x = 1`) open nothing.
 pub fn block_closer(language: &str, line: &str) -> Option<&'static str> {
+    // reason: the pattern is a literal covered by the tests below; it cannot fail at runtime.
+    #[allow(clippy::expect_used)]
     static CLOSED_INLINE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r"[\s;](end|fi|done|esac)$|^\s*def\s+[\w.?!]+(\(.*\))?\s*=[^=~]")
             .expect("valid one-line block pattern")

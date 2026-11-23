@@ -57,7 +57,7 @@ impl Workspace {
                 .map(|range| GutterDecoration::new(range).with_color(color))
                 .collect();
             if let Some(collection) = &tab.breakpoint_marks {
-                collection.set(marks, cx)
+                collection.set(marks, cx);
             } else {
                 let collection = tab.state.update(cx, |state, cx| {
                     state.set_gutter_decorations_width(px(6.), cx);

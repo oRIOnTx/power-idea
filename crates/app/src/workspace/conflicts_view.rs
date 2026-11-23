@@ -19,12 +19,9 @@ fn elide(text: &str, head: usize, tail: usize) -> (String, usize, String) {
     if lines.len() <= head + tail {
         return (lines.join("\n"), 0, String::new());
     }
-    let hidden = lines.len() - head - tail;
-    (
-        lines[..head].join("\n"),
-        hidden,
-        lines[lines.len() - tail..].join("\n"),
-    )
+    let (first, rest) = lines.split_at(head);
+    let (hidden, last) = rest.split_at(rest.len() - tail);
+    (first.join("\n"), hidden.len(), last.join("\n"))
 }
 
 /// Column titles for (ours, theirs): in a rebase "ours" is the branch being rebased onto.
@@ -249,7 +246,13 @@ impl Workspace {
                     body.push(self.render_context(text, head, tail, cx));
                 }
                 ConflictSegment::Conflict(c) => {
-                    body.push(self.render_chunk(chunk, c, state.choices[chunk], titles, cx));
+                    body.push(self.render_chunk(
+                        chunk,
+                        c,
+                        state.choices.get(chunk).copied().flatten(),
+                        titles,
+                        cx,
+                    ));
                     chunk += 1;
                 }
             }

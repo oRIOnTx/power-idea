@@ -130,17 +130,19 @@ pub fn plan(target: &DebugTarget, port: u16, lldb_dap: &[String]) -> Result<Laun
             }
         }
         AdapterKind::Python => {
-            let mut arguments = json!({
+            // debugpy runs either a module (`-m`) or a script.
+            let (entry_key, entry) = match target.module.as_deref().filter(|m| !m.is_empty()) {
+                Some(module) => ("module", json!(module)),
+                None => ("program", json!(program_path()?)),
+            };
+            let arguments = json!({
                 "args": target.args,
                 "cwd": target.cwd,
                 "env": target.env,
                 "console": "internalConsole",
                 "justMyCode": true,
+                entry_key: entry,
             });
-            match target.module.as_deref().filter(|m| !m.is_empty()) {
-                Some(module) => arguments["module"] = json!(module),
-                None => arguments["program"] = json!(program_path()?),
-            }
             LaunchPlan {
                 adapter: adapter(
                     "python3".into(),

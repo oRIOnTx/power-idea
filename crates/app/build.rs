@@ -5,8 +5,9 @@
 
 use std::process::Command;
 
+#[derive(Debug)]
 struct Version {
-    version: String,
+    marketing: String,
     build: String,
     sha: String,
     full: String,
@@ -21,7 +22,7 @@ fn parse(output: &str) -> Option<Version> {
         })
     };
     Some(Version {
-        version: get("VERSION")?,
+        marketing: get("VERSION")?,
         build: get("BUILD")?,
         sha: get("SHA")?,
         full: get("FULL")?,
@@ -58,7 +59,7 @@ fn fallback() -> Version {
     let build = std::env::var("APP_BUILD").unwrap_or_else(|_| "0".into());
     Version {
         full: format!("{version} ({build})"),
-        version,
+        marketing: version,
         build,
         sha: std::env::var("GIT_SHA").unwrap_or_else(|_| "unknown".into()),
     }
@@ -66,7 +67,7 @@ fn fallback() -> Version {
 
 fn main() {
     let version = from_script().unwrap_or_else(fallback);
-    println!("cargo:rustc-env=POWER_IDEA_VERSION={}", version.version);
+    println!("cargo:rustc-env=POWER_IDEA_VERSION={}", version.marketing);
     println!("cargo:rustc-env=POWER_IDEA_BUILD={}", version.build);
     println!("cargo:rustc-env=POWER_IDEA_SHA={}", version.sha);
     println!("cargo:rustc-env=POWER_IDEA_FULL={}", version.full);

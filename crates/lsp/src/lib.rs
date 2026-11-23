@@ -13,7 +13,7 @@ use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::Duration;
 
@@ -46,6 +46,14 @@ pub struct LanguageServer {
     stderr: Arc<Mutex<VecDeque<String>>>,
 }
 
+impl std::fmt::Debug for LanguageServer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LanguageServer")
+            .field("name", &self.name)
+            .finish_non_exhaustive()
+    }
+}
+
 impl LanguageServer {
     /// Spawns `command` in `root` (with extra `env`) and completes the
     /// `initialize` handshake.
@@ -71,7 +79,7 @@ impl LanguageServer {
         let stderr = child.stderr.take().context("no stderr")?;
         let server = Self::from_streams(name, stdout, stdin, on_notification);
         server.capture_stderr(stderr);
-        *server.child.lock().unwrap() = Some(child);
+        *server.child.lock().unwrap_or_else(PoisonError::into_inner) = Some(child);
         if let Err(err) = server.initialize(root) {
             // Give the stderr reader a moment to collect the crash report.
             thread::sleep(Duration::from_millis(300));
@@ -108,7 +116,7 @@ impl LanguageServer {
                 server.dispatch(&message, &on_notification);
             }
             // The server went away: fail everything still waiting.
-            for (_, waiter) in pending.lock().unwrap().drain() {
+            for (_, waiter) in pending.lock().unwrap_or_else(PoisonError::into_inner).drain() {
                 let _ = waiter.send(Err(anyhow!("language server exited")));
             }
             on_notification(EXIT_NOTIFICATION, Value::Null);
@@ -122,7 +130,7 @@ impl LanguageServer {
             .name(format!("lsp-{}-stderr", self.name))
             .spawn(move || {
                 for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                    let mut tail = tail.lock().unwrap();
+                    let mut tail = tail.lock().unwrap_or_else(PoisonError::into_inner);
                     if tail.len() == STDERR_TAIL {
                         tail.pop_front();
                     }
@@ -133,7 +141,12 @@ impl LanguageServer {
 
     /// Recent stderr output of the server process.
     pub fn stderr_tail(&self) -> Vec<String> {
-        self.stderr.lock().unwrap().iter().cloned().collect()
+        self.stderr
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .cloned()
+            .collect()
     }
 
     /// The most telling stderr line after a crash (an error message if any).
@@ -147,14 +160,14 @@ impl LanguageServer {
 
     /// Whether the server advertises `capability` (e.g. "definitionProvider").
     pub fn supports(&self, capability: &str) -> bool {
-        let caps = self.capabilities.lock().unwrap();
+        let caps = self.capabilities.lock().unwrap_or_else(PoisonError::into_inner);
         caps.get(capability)
             .is_some_and(|v| !v.is_null() && v != &Value::Bool(false))
     }
 
     /// Characters that should open the completion menu (e.g. ".").
     pub fn completion_triggers(&self) -> Vec<String> {
-        let caps = self.capabilities.lock().unwrap();
+        let caps = self.capabilities.lock().unwrap_or_else(PoisonError::into_inner);
         caps.pointer("/completionProvider/triggerCharacters")
             .and_then(Value::as_array)
             .map_or_default(|chars| {
@@ -179,7 +192,8 @@ impl LanguageServer {
             "capabilities": client_capabilities(),
         });
         let result = self.request_raw("initialize", params)?;
-        *self.capabilities.lock().unwrap() = result.get("capabilities").cloned().unwrap_or(Value::Null);
+        *self.capabilities.lock().unwrap_or_else(PoisonError::into_inner) =
+            result.get("capabilities").cloned().unwrap_or(Value::Null);
         self.notify_raw("initialized", json!({}))
     }
 
@@ -197,16 +211,25 @@ impl LanguageServer {
     pub fn request_raw(&self, method: &str, params: Value) -> Result<Value> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = mpsc::channel();
-        self.pending.lock().unwrap().insert(id, tx);
+        self.pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(id, tx);
         let message = json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params });
         if let Err(err) = self.send(&message) {
-            self.pending.lock().unwrap().remove(&id);
+            self.pending
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .remove(&id);
             return Err(err);
         }
         match rx.recv_timeout(REQUEST_TIMEOUT) {
             Ok(result) => result,
             Err(RecvTimeoutError::Timeout) => {
-                self.pending.lock().unwrap().remove(&id);
+                self.pending
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .remove(&id);
                 let _ = self.notify_raw("$/cancelRequest", json!({ "id": id }));
                 bail!("{method} timed out")
             }
@@ -220,7 +243,7 @@ impl LanguageServer {
 
     fn send(&self, message: &Value) -> Result<()> {
         let body = serde_json::to_vec(message)?;
-        let mut writer = self.writer.lock().unwrap();
+        let mut writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
         write!(writer, "Content-Length: {}\r\n\r\n", body.len())?;
         writer.write_all(&body)?;
         writer.flush().context("writing to language server")
@@ -232,7 +255,12 @@ impl LanguageServer {
             // Response to one of our requests.
             (None, Some(id)) => {
                 let Some(id) = id.as_i64() else { return };
-                let Some(waiter) = self.pending.lock().unwrap().remove(&id) else {
+                let Some(waiter) = self
+                    .pending
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .remove(&id)
+                else {
                     return;
                 };
                 let result = match message.get("error") {
@@ -286,8 +314,9 @@ pub fn summarize_failure(lines: &[String]) -> Option<String> {
         .find_map(|marker| lines.iter().position(|l| !is_frame(l) && l.contains(marker)))
         .or_else(|| lines.iter().rposition(|l| !l.is_empty()))?;
     // Messages are often wrapped over a few lines; keep the continuation.
-    let message = lines[start..]
+    let message = lines
         .iter()
+        .skip(start)
         .take(3)
         .enumerate()
         .take_while(|(i, l)| *i == 0 || is_continuation(l))
@@ -367,7 +396,10 @@ mod tests {
     use std::os::unix::net::UnixStream;
 
     use lsp_types::request::GotoDefinition;
-    use lsp_types::{GotoDefinitionParams, Position, TextDocumentIdentifier, TextDocumentPositionParams};
+    use lsp_types::{
+        GotoDefinitionParams, PartialResultParams, Position, TextDocumentIdentifier,
+        TextDocumentPositionParams, WorkDoneProgressParams,
+    };
 
     use super::*;
 
@@ -440,7 +472,10 @@ mod tests {
         let (tx, rx) = mpsc::channel();
         let tx = Mutex::new(tx);
         let handler: NotificationHandler = Arc::new(move |method, _| {
-            let _ = tx.lock().unwrap().send(method.to_string());
+            let _ = tx
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .send(method.to_string());
         });
         let server =
             LanguageServer::from_streams("fake", client_end.try_clone().unwrap(), client_end, handler);
@@ -452,8 +487,8 @@ mod tests {
                 },
                 position: Position::new(0, 0),
             },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
+            work_done_progress_params: WorkDoneProgressParams::default(),
+            partial_result_params: PartialResultParams::default(),
         };
         let response = server.request::<GotoDefinition>(params).unwrap();
         let Some(lsp_types::GotoDefinitionResponse::Scalar(location)) = response else {

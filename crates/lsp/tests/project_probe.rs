@@ -8,7 +8,7 @@ use lsp::lsp_types::{self, notification, request};
 use lsp::{LanguageServer, path_to_uri};
 
 #[test]
-#[ignore]
+#[ignore = "needs ruby-lsp installed and LSP_PROBE_ROOT pointing at a project"]
 fn probe_ruby_project() {
     let Ok(root) = std::env::var("LSP_PROBE_ROOT") else {
         return;
@@ -85,8 +85,8 @@ fn probe_ruby_project() {
                 text_document: lsp_types::TextDocumentIdentifier { uri: uri.clone() },
                 position: lsp_types::Position::new(line, col),
             },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
+            work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            partial_result_params: lsp_types::PartialResultParams::default(),
         });
         eprintln!(
             "[{:>5.1?}] definition -> {:?}",

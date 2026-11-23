@@ -76,6 +76,8 @@ impl PushDialog {
     }
 
     /// Loads what goes to `target` (remote, branch), or to the branch's default target.
+    // reason: `_`-prefixed fields keep a task/subscription alive; reassigning them is the intent.
+    #[allow(clippy::used_underscore_binding)]
     fn load(&mut self, target: Option<(String, String)>, cx: &mut Context<Self>) {
         let (repo, branch) = (self.repo.clone(), self.branch.clone());
         self.load = Load::Loading;
@@ -157,6 +159,8 @@ impl PushDialog {
         (anything && self.editing.is_none()).then_some((outgoing, target))
     }
 
+    // reason: `_`-prefixed fields keep a task/subscription alive; reassigning them is the intent.
+    #[allow(clippy::used_underscore_binding)]
     fn select(&mut self, selected: Option<usize>, cx: &mut Context<Self>) {
         self.selected = selected;
         cx.notify();
@@ -346,7 +350,7 @@ impl PushDialog {
                 .id(id)
                 .text_color(theme.primary)
                 .cursor_pointer()
-                .hover(gpui_kit::Styled::underline)
+                .hover(Styled::underline)
                 .child(text)
         };
         let mut header = row("push-branch".into(), self.selected.is_none())

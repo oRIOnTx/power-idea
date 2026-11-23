@@ -164,13 +164,13 @@ impl Workspace {
                         .gap_2()
                         .justify_end()
                         .child(
-                            crate::style::dialog_button("cancel")
+                            style::dialog_button("cancel")
                                 .ghost()
                                 .label("Cancel")
                                 .on_click(|_, window, cx| window.close_dialog(cx)),
                         )
                         .child(
-                            crate::style::dialog_button("create-worktree")
+                            style::dialog_button("create-worktree")
                                 .primary()
                                 .label("Create")
                                 .on_click(move |_, window, cx| submit(window, cx)),

@@ -9,8 +9,8 @@ pub use words::{is_word_char, word_before, word_completions};
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, PoisonError};
 
 use ignore::{WalkBuilder, WalkState};
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
@@ -75,13 +75,13 @@ impl FileIndex {
                     && let Ok(rel) = entry.path().strip_prefix(root)
                 {
                     let rel = rel.to_string_lossy().replace('\\', "/");
-                    files.lock().unwrap().push(rel);
+                    files.lock().unwrap_or_else(PoisonError::into_inner).push(rel);
                 }
                 WalkState::Continue
             })
         });
 
-        let mut files = files.into_inner().unwrap();
+        let mut files = files.into_inner().unwrap_or_else(PoisonError::into_inner);
         files.sort_unstable();
         Self { root, files }
     }
@@ -233,7 +233,7 @@ pub fn find_in_files(
             let Ok(bytes) = fs::read(entry.path()) else {
                 return WalkState::Continue;
             };
-            if bytes[..bytes.len().min(BINARY_SNIFF_LEN)].contains(&0) {
+            if bytes.iter().take(BINARY_SNIFF_LEN).any(|&b| b == 0) {
                 return WalkState::Continue;
             }
             let text = String::from_utf8_lossy(&bytes);
@@ -257,13 +257,16 @@ pub fn find_in_files(
             }
             if !local.is_empty() {
                 found.fetch_add(local.len(), Ordering::Relaxed);
-                results.lock().unwrap().extend(local);
+                results
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .extend(local);
             }
             WalkState::Continue
         })
     });
 
-    let mut results = results.into_inner().unwrap();
+    let mut results = results.into_inner().unwrap_or_else(PoisonError::into_inner);
     results.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
     results.truncate(limit);
     results

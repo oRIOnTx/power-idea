@@ -309,7 +309,7 @@ impl Render for ConnectionForm {
             .child(field("Name", Input::new(&self.name)))
             .child(field("Type", kinds))
             .child(connection_fields)
-            .children(test_status.map(gpui_kit::Styled::text_sm))
+            .children(test_status.map(Styled::text_sm))
             .child(
                 h_flex()
                     .gap_2()

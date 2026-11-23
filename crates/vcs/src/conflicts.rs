@@ -48,8 +48,8 @@ pub fn parse_conflicts(text: &str) -> Vec<ConflictSegment> {
     let mut segments = Vec::new();
     let mut common = String::new();
     let mut ix = 0;
-    while ix < lines.len() {
-        if is_marker(lines[ix], "<<<<<<<")
+    while let Some(&line) = lines.get(ix) {
+        if is_marker(line, "<<<<<<<")
             && let Some((chunk, next)) = parse_chunk(&lines, ix)
         {
             if !common.is_empty() {
@@ -58,7 +58,7 @@ pub fn parse_conflicts(text: &str) -> Vec<ConflictSegment> {
             segments.push(ConflictSegment::Conflict(chunk));
             ix = next;
         } else {
-            common.push_str(lines[ix]);
+            common.push_str(line);
             ix += 1;
         }
     }
@@ -73,9 +73,9 @@ fn parse_chunk(lines: &[&str], start: usize) -> Option<(ConflictChunk, usize)> {
     let (mut ours, mut base, mut theirs) = (String::new(), None::<String>, String::new());
     let mut base_marker = String::new();
     let mut middle = None;
+    let opening = lines.get(start)?;
     let mut ix = start + 1;
-    while ix < lines.len() {
-        let line = lines[ix];
+    while let Some(&line) = lines.get(ix) {
         if middle.is_none() && base.is_none() && is_marker(line, "|||||||") {
             base = Some(String::new());
             base_marker = line.to_string();
@@ -86,7 +86,7 @@ fn parse_chunk(lines: &[&str], start: usize) -> Option<(ConflictChunk, usize)> {
                 ours,
                 base,
                 theirs,
-                markers: [lines[start].to_string(), base_marker, middle?, line.to_string()],
+                markers: [opening.to_string(), base_marker, middle?, line.to_string()],
             };
             return Some((chunk, ix + 1));
         } else if is_marker(line, "<<<<<<<") {

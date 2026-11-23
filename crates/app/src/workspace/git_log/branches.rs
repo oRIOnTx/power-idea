@@ -103,7 +103,9 @@ impl Workspace {
                     .on_click(cx.listener(move |ws, _, _, cx| ws.toggle_branch_group(key.clone(), cx)))
                     .into_any_element(),
                 BranchRow::Branch { ix, label, depth } => {
-                    let branch = &log.branches[ix];
+                    let Some(branch) = log.branches.get(ix) else {
+                        continue;
+                    };
                     let selected = log.branch.as_deref() == Some(branch.name.as_str());
                     let base = row(SharedString::from(format!("bb-{}", branch.name)), depth, selected);
                     self.render_branch_row(base, branch, label, cx).into_any_element()

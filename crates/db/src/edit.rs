@@ -77,13 +77,6 @@ fn ident(token: &str) -> Option<String> {
 /// The table of `SELECT … FROM [schema.]table [WHERE …] [ORDER BY …] [LIMIT …]`;
 /// `None` for joins, unions, grouping, functions, subqueries or several statements.
 pub fn editable_table(query: &str) -> Option<TableRef> {
-    let mut tokens = tokens(query);
-    while tokens.last().is_some_and(|t| t == ";") {
-        tokens.pop();
-    }
-    if tokens.first()? != "select" || tokens.iter().any(|t| t == ";") {
-        return None;
-    }
     const BLOCKERS: [&str; 9] = [
         "join",
         "union",
@@ -95,6 +88,13 @@ pub fn editable_table(query: &str) -> Option<TableRef> {
         "with",
         "(",
     ];
+    let mut tokens = tokens(query);
+    while tokens.last().is_some_and(|t| t == ";") {
+        tokens.pop();
+    }
+    if tokens.first()? != "select" || tokens.iter().any(|t| t == ";") {
+        return None;
+    }
     let from = tokens.iter().position(|t| t == "from")?;
     // Any parenthesis means functions or subqueries: the columns may not be plain table columns.
     if tokens.iter().any(|t| BLOCKERS.contains(&t.as_str())) {
@@ -213,26 +213,26 @@ pub fn delete_statement(kind: DbKind, table: &TableRef, key: &[(String, Option<S
 mod tests {
     use super::*;
 
-    fn table(schema: Option<&str>, name: &str) -> Option<TableRef> {
-        Some(TableRef {
+    fn table(schema: Option<&str>, name: &str) -> TableRef {
+        TableRef {
             schema: schema.map(str::to_string),
             name: name.into(),
-        })
+        }
     }
 
     #[test]
     fn finds_single_table_selects() {
         assert_eq!(
             editable_table("SELECT * FROM users LIMIT 100;"),
-            table(None, "users")
+            Some(table(None, "users"))
         );
         assert_eq!(
             editable_table("select id, name from \"billing\".\"In voices\" where id > 3 order by id"),
-            table(Some("billing"), "In voices")
+            Some(table(Some("billing"), "In voices"))
         );
         assert_eq!(
             editable_table("SELECT * FROM `order` -- note\n"),
-            table(None, "order")
+            Some(table(None, "order"))
         );
         assert_eq!(editable_table("SELECT * FROM a JOIN b ON a.id = b.a_id"), None);
         assert_eq!(editable_table("SELECT * FROM a, b"), None);
@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(editable_table("UPDATE a SET x = 1"), None);
         assert_eq!(
             editable_table("SELECT * FROM a WHERE name = 'x join y'"),
-            table(None, "a")
+            Some(table(None, "a"))
         );
     }
 

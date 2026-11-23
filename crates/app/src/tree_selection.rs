@@ -51,7 +51,7 @@ impl TreeSelection {
         } else {
             target..=anchor
         };
-        self.paths = visible[range].to_vec();
+        self.paths = visible.get(range).map_or_else(Vec::new, <[String]>::to_vec);
     }
 
     /// Drops paths that no longer exist.
@@ -81,7 +81,7 @@ mod tests {
     use super::{TreeSelection, outermost};
 
     fn strings(items: &[&str]) -> Vec<String> {
-        items.iter().map(std::string::ToString::to_string).collect()
+        items.iter().map(ToString::to_string).collect()
     }
 
     #[test]
