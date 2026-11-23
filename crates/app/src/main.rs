@@ -40,15 +40,30 @@ use gpui_kit::*;
 use crate::actions::{OpenProject, Quit, ToggleTheme};
 use crate::config::{AppConfig, Appearance, Config};
 
-/// Version shown to the user, e.g. `0.2.0 (build 61, 5d0e08f)`; see `build.rs`.
-pub(crate) const APP_VERSION: &str = concat!(
-    env!("CARGO_PKG_VERSION"),
-    " (build ",
+/// Version shown to the user, from git tags (`scripts/version.sh`, `build.rs`):
+/// `1.5.0 (412)` for a release build, `1.5.0-dev.3+abc1234[.dirty]` for a dev build.
+pub(crate) const APP_VERSION: &str = env!("POWER_IDEA_FULL");
+
+/// Everything a bug report needs: version, build number and commit.
+pub(crate) const APP_VERSION_DETAILS: &str = concat!(
+    "Power IDEA ",
+    env!("POWER_IDEA_FULL"),
+    " · build ",
     env!("POWER_IDEA_BUILD"),
-    ", ",
-    env!("POWER_IDEA_COMMIT"),
-    ")"
+    " · ",
+    env!("POWER_IDEA_SHA")
 );
+
+/// Copies `APP_VERSION_DETAILS` for a bug report.
+pub(crate) fn copy_version(window: &mut Window, cx: &mut App) {
+    use gpui_kit::component::WindowExt as _;
+    use gpui_kit::component::notification::Notification;
+    cx.write_to_clipboard(ClipboardItem::new_string(APP_VERSION_DETAILS.to_string()));
+    window.push_notification(
+        Notification::success(APP_VERSION_DETAILS).title("Version copied"),
+        cx,
+    );
+}
 
 /// Bundled theme sets: "Neo" (dark + light) and "Graphite" (a lighter dark).
 const NEO_THEME: &str = include_str!("../themes/neo.json");

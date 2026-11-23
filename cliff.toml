@@ -1,0 +1,70 @@
+# git-cliff config: CHANGELOG.md in Keep a Changelog format, generated from commits
+# (bin/changelog, bin/release). Never edit CHANGELOG.md by hand.
+#
+# Conventional Commits map to sections; commits from before the convention
+# ("Add …", "Fix …") are mapped by their first word.
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to Power IDEA. Generated from the git history by
+[git-cliff](https://git-cliff.org) (`bin/changelog`); the format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
+[Semantic Versioning](https://semver.org).
+
+"""
+# Group names start with an HTML comment that fixes their order; it is stripped on output.
+body = """
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+{% for commit in commits -%}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif -%}
+  {{ commit.message | split(pat="\n") | first | trim | trim_end_matches(pat=".") | upper_first }} \
+  ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/oRIOnTx/power-idea/commit/{{ commit.id }}))
+{% endfor -%}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+# Keep the commits from before the convention; the parsers below sort them.
+filter_unconventional = false
+split_commits = false
+protect_breaking_commits = true
+filter_commits = false
+tag_pattern = "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+sort_commits = "oldest"
+commit_parsers = [
+  # Release and version-bump commits never show up.
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "(?i)^bump (the )?version", skip = true },
+  { message = "^Merge ", skip = true },
+  # Breaking changes first, whatever their type.
+  { field = "breaking", pattern = "true", group = "<!-- 0 -->Breaking" },
+  { message = "^feat", group = "<!-- 1 -->Added" },
+  { message = "^fix", group = "<!-- 3 -->Fixed" },
+  { message = "^(refactor|perf)", group = "<!-- 2 -->Changed" },
+  { message = "^revert", group = "<!-- 4 -->Removed" },
+  { message = "^(docs|chore|test|ci|build|style)", skip = true },
+  # Before Conventional Commits: documentation-only commits are skipped, the rest are
+  # sorted by their imperative verb.
+  { message = "(?i)^(add|redraw|illustrate|remove|track)\\b[^\\n]*(readme|backlog|claude\\.md|screenshot|progress)", skip = true },
+  { message = "^(Add|Show|Support|Detect|Introduce|Implement|Allow|Enable|Set up|Open|Embed|Highlight|Track)\\b", group = "<!-- 1 -->Added" },
+  { message = "^Fix\\b", group = "<!-- 3 -->Fixed" },
+  { message = "^(Remove|Drop|Delete)\\b", group = "<!-- 4 -->Removed" },
+  { message = ".*", group = "<!-- 2 -->Changed" },
+]
+
+# bin/release auto: breaking → major (minor while on 0.x), feat → minor, otherwise patch.
+[bump]
+features_always_bump_minor = true
+breaking_always_bump_major = false
+initial_tag = "v0.1.0"

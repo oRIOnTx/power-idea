@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Cuts a release: CHANGELOG.md section, release-notes/vX.Y.Z.md, a "chore(release)" commit
+# and an annotated tag vX.Y.Z. Never pushes.
+#
+# Usage: bin/release [major|minor|patch|auto]   (default: auto)
+#   auto: breaking → major (minor while on 0.x), feat → minor, otherwise patch (cliff.toml [bump]).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PART="${1:-auto}"
+case "$PART" in
+  major | minor | patch | auto) ;;
+  *) echo "usage: bin/release [major|minor|patch|auto]" >&2; exit 2 ;;
+esac
+MAIN_BRANCH="main"
+
+fail() { echo "release: $*" >&2; exit 1; }
+
+command -v git-cliff >/dev/null 2>&1 || fail "git-cliff not found: brew install git-cliff"
+[[ -z "$(git status --porcelain)" ]] || fail "the working tree has uncommitted or untracked changes; commit or stash them first"
+branch="$(git rev-parse --abbrev-ref HEAD)"
+[[ "$branch" == "$MAIN_BRANCH" ]] || fail "on branch '$branch'; releases are cut from '$MAIN_BRANCH'"
+
+current="$(git describe --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+if [[ -n "$current" ]] && [[ -z "$(git log --format=%h "$current..HEAD")" ]]; then
+  fail "no commits since $current"
+fi
+next="$(git-cliff --bump "$PART" --bumped-version 2>/dev/null)"
+[[ "$next" == v* ]] || fail "could not compute the next version (got '$next')"
+version="${next#v}"
+
+echo "Release: ${current:-(no release yet)} → $next"
+echo
+echo "Commits:"
+range="${current:+$current..}HEAD"
+git log --format='  %h %s' "$range"
+echo
+echo "Changelog section:"
+echo
+git-cliff --unreleased --tag "$next" --strip all 2>/dev/null
+echo
+
+notes="release-notes/$next.md"
+read -r -p "Proceed? [y/N] " answer
+[[ "$answer" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
+
+git-cliff --tag "$next" --output CHANGELOG.md 2>/dev/null
+
+# Short user-facing notes: new things and fixes, no hashes, at most six bullets.
+mkdir -p release-notes
+git-cliff --unreleased --tag "$next" --strip all --body '
+## Power IDEA {{ version | trim_start_matches(pat="v") }}
+{% set picks = commits | filter(attribute="group", value="<!-- 0 -->Breaking")
+  | concat(with=commits | filter(attribute="group", value="<!-- 1 -->Added"))
+  | concat(with=commits | filter(attribute="group", value="<!-- 3 -->Fixed")) %}
+{% for commit in picks | slice(end=6) -%}
+- {{ commit.message | split(pat="\n") | first | trim | trim_end_matches(pat=".") | upper_first }}
+{% endfor %}' 2>/dev/null >"$notes"
+echo "Draft release notes ($notes):"
+cat "$notes"
+read -r -p "Edit them now (benefits for users, not internals)? [y/N] " answer
+if [[ "$answer" =~ ^[Yy]$ ]]; then
+  "${EDITOR:-vi}" "$notes"
+fi
+
+git add CHANGELOG.md "$notes"
+git commit -m "chore(release): $next"
+git tag -a "$next" -m "Power IDEA $version"
+
+echo
+echo "Released $next locally (commit + annotated tag). Nothing was pushed. Next:"
+echo "  git push --follow-tags"
+if command -v gh >/dev/null 2>&1; then
+  echo "  gh release create $next --notes-file $notes   # or let the release workflow do it"
+fi

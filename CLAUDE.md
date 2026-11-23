@@ -15,8 +15,16 @@ scripts/check.sh [--live]        # fmt + clippy + test; must be clean before a c
 scripts/build.sh [--no-open]     # release "Power IDEA.app" (scripts/bundle-macos.sh) and open it
 scripts/dmg.sh [--install]       # dist/*.dmg installer; --install also updates /Applications
 scripts/install.sh [file.dmg]    # install / update /Applications from a disk image
-scripts/bump-version.sh [patch|minor|major]   # semantic version; the build number is automatic
+scripts/version.sh [--json]      # the app version, computed from git tags (never edit versions by hand)
+bin/changelog                    # regenerate CHANGELOG.md (git-cliff) and preview [Unreleased]
+bin/release [major|minor|patch|auto]   # changelog + release notes + commit + annotated tag (no push)
+bin/setup                        # check tools, install git hooks (lefthook.yml)
+just check                       # everything CI runs (fmt, lint, test, deny, …); see justfile
 ```
+
+Versions come from annotated `v*` tags: `1.5.0 (412)` on a tag, `1.5.0-dev.3+abc1234[.dirty]`
+after it (`scripts/version.sh`, embedded by `crates/app/build.rs`). The `version` in Cargo.toml
+is a placeholder.
 
 The scripts find rustup themselves (`scripts/env.sh`; Homebrew's rustup is keg-only).
 
@@ -101,8 +109,10 @@ Rules:
 
 - **Commit after every finished change, without asking**: once `scripts/check.sh`
   is clean and `PROGRESS.md` is updated, commit on the current branch (`main`).
-- One commit per feature or fix; English, imperative subject ("Add …", "Fix …"),
-  ending with the session's attribution trailer.
+- One commit per feature or fix, in **Conventional Commits** form (the commit-msg hook checks it):
+  `feat(scope): add …`, `fix: …`, `perf`, `refactor`, `docs`, `test`, `chore`, `ci`, `build`;
+  `!` or a `BREAKING CHANGE:` footer for breaking changes. English, imperative description, ending with
+  the session's attribution trailer. `CHANGELOG.md` is generated from these subjects (`bin/changelog`).
 - Commit only files that belong to the change; look at unknown files before adding them.
 - `git push`, force-push and history rewrites still need the owner's explicit request.
 

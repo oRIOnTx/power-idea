@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# One-time developer setup: checks the tools and installs the git hooks (lefthook.yml).
+# Usage: bin/setup
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# tool → Homebrew formula
+tools=(
+  "lefthook:lefthook" "just:just" "git-cliff:git-cliff" "cog:cocogitto" "taplo:taplo"
+  "typos:typos-cli" "gitleaks:gitleaks" "cargo-deny:cargo-deny" "cargo-nextest:cargo-nextest"
+  "cargo-llvm-cov:cargo-llvm-cov" "cargo-audit:cargo-audit" "cargo-msrv:cargo-msrv"
+  "actionlint:actionlint" "zizmor:zizmor"
+)
+missing=()
+for entry in "${tools[@]}"; do
+  command -v "${entry%%:*}" >/dev/null 2>&1 || missing+=("${entry#*:}")
+done
+command -v cargo-machete >/dev/null 2>&1 || echo "optional: cargo install --locked cargo-machete (unused dependencies; runs in CI)"
+if ((${#missing[@]})); then
+  echo "Missing tools. Install them with:"
+  echo "  brew install ${missing[*]}"
+  exit 1
+fi
+
+lefthook install
+echo "Git hooks installed (pre-commit, commit-msg, pre-push). Run 'just check' for everything CI runs."

@@ -1,0 +1,40 @@
+# Git hooks, installed by `bin/setup` (or `just setup`). The same checks run in CI, so
+# "green locally" means "green in CI". Skip only explicitly: git commit/push --no-verify.
+# Cargo commands go through scripts/env.sh, which finds rustup (keg-only in Homebrew).
+
+pre-commit:
+  parallel: true
+  commands:
+    rustfmt:
+      glob: "*.rs"
+      run: bash -c 'source scripts/env.sh && cargo fmt --all -- --check'
+    taplo:
+      glob: "*.toml"
+      run: taplo fmt --check {staged_files}
+    typos:
+      run: typos --force-exclude {staged_files}
+    gitleaks:
+      run: gitleaks git --staged --no-banner --redact
+
+commit-msg:
+  commands:
+    conventional-commits:
+      run: |
+        first="$(head -n1 {1})"
+        case "$first" in
+          'Revert "'* | fixup!* | squash!* | amend!*) exit 0 ;;
+        esac
+        cog verify --file {1} || {
+          echo "Use Conventional Commits: <type>[(scope)][!]: <description>"
+          echo "  types: feat fix perf refactor docs test chore ci build revert   e.g. feat(git): add a Fetch button"
+          exit 1
+        }
+
+pre-push:
+  commands:
+    clippy:
+      run: bash -c 'source scripts/env.sh && cargo clippy --workspace --all-targets --locked -- -D warnings'
+    tests:
+      run: bash -c 'source scripts/env.sh && cargo nextest run --workspace --locked'
+    deny:
+      run: bash -c 'source scripts/env.sh && cargo deny check'

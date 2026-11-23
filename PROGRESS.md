@@ -48,7 +48,7 @@ is in the working tree only.
       LSP requests verified against real ruby-lsp (`cargo test -p lsp -- --ignored`)
 
 ### Committed 2026-11-22 (third batch)
-- [x] Self-contained scripts: `scripts/run.sh`, `check.sh`, `build.sh`, `bump-version.sh` (find rustup themselves)
+- [x] Self-contained scripts: `scripts/run.sh`, `check.sh`, `build.sh` (find rustup themselves)
 - [x] Installer: `scripts/dmg.sh` (drag-to-Applications disk image in `dist/`, signed with the local
       certificate when present) and `scripts/install.sh` (install / update, quits the running app gracefully)
 - [x] Welcome screen (JetBrains style) after closing the last project: recent projects with search, New Project
@@ -236,11 +236,16 @@ is in the working tree only.
       actions so Enter/Esc/`on_ok` keep working) and hand-built dialog footers (`style::dialog_button`, 24 → 30 px);
       the Push dialog keeps its size (gpui-kit's split button has a fixed-height caret)
 - [x] Git Log commit details (changed files + message) scroll: rows used to shrink to fit instead of overflowing
+- [x] **Versioning from git** (spec `docs/backlog/versioning-and-changelogs.md`): `scripts/version.sh` (annotated
+      `v*` tag → version, commit count → build, `X.Y.Z (N)` on a tag / `X.Y.Z-dev.N+sha[.dirty]` after it,
+      `APP_VERSION`/`APP_BUILD` without git) feeds `build.rs`, the bundle's Info.plist and the Welcome / About
+      version (click or "Copy Version Details" copies version + build + commit); `bump-version.sh` removed.
+      Conventional Commits with a `cog verify` commit-msg hook (lefthook, `bin/setup`); `CHANGELOG.md` from
+      git-cliff (`cliff.toml`, Keep a Changelog; pre-convention "Add/Fix/Remove …" commits sorted by verb, doc-only
+      ones skipped) via `bin/changelog`; `bin/release` (dirty/branch guard, auto bump, plan + confirm, changelog
+      section, `release-notes/vX.md`, `chore(release)` commit, annotated tag, no push). No tag exists yet
 
 ## Backlog
-- [ ] **Automatic versioning and changelogs** (spec: `docs/backlog/versioning-and-changelogs.md`): version from
-      git tags (`1.5.0-dev.3+sha[.dirty]` / `1.5.0 (412)`), one `scripts/version.sh`, Conventional Commits +
-      commit-msg hook, `git-cliff` CHANGELOG, `bin/changelog`, `bin/release` (no push)
 - [ ] **Strict quality / security / CI-CD pipeline** (spec: `docs/backlog/quality-pipeline.md`): pinned toolchain
       + MSRV, stricter workspace lints, taplo / typos / machete, cargo-deny / audit / gitleaks, nextest + coverage,
       lefthook hooks, justfile, GitHub Actions (ci-ok, audit, CodeQL, Scorecard), dependabot, release-plz or

@@ -290,8 +290,19 @@ impl Render for Welcome {
                             )
                             .child(
                                 div()
+                                    .id("app-version")
                                     .text_size(px(10.))
                                     .text_color(theme.muted_foreground)
+                                    .cursor_pointer()
+                                    .hover(|s| s.text_color(theme.primary))
+                                    .tooltip(|window, cx| {
+                                        gpui_kit::component::tooltip::Tooltip::new(format!(
+                                            "{} — click to copy",
+                                            crate::APP_VERSION_DETAILS
+                                        ))
+                                        .build(window, cx)
+                                    })
+                                    .on_click(|_, window, cx| crate::copy_version(window, cx))
                                     .child(crate::APP_VERSION),
                             ),
                     ),

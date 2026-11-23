@@ -6,9 +6,8 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 APP_NAME="Power IDEA"
 BUNDLE_ID="dev.power-idea.app"
-VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-# Build number = commit count, matching the version shown inside the app.
-BUILD="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
+# VERSION (latest v* tag) and BUILD (commit count), the same values the app shows.
+eval "$(scripts/version.sh)"
 OUT="target/release/${APP_NAME}.app"
 WORK="target/bundle"
 

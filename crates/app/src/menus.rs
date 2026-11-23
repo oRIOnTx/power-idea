@@ -31,6 +31,11 @@ fn show_about(cx: &mut App) {
             dialog
                 .title("Power IDEA")
                 .child(format!("Version {}", crate::APP_VERSION))
+                .child(
+                    gpui_kit::component::button::Button::new("copy-version")
+                        .label("Copy Version Details")
+                        .on_click(|_, window, cx| crate::copy_version(window, cx)),
+                )
         });
     });
 }

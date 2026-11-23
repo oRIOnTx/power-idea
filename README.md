@@ -94,7 +94,7 @@ All scripts find the Rust toolchain on their own:
 scripts/run.sh [project-dir]     # debug build, opens a project
 scripts/build.sh                 # release "Power IDEA.app" in target/release/, then opens it
 scripts/check.sh [--live]        # fmt + clippy + tests (--live: also against real ruby-lsp, rdbg, lldb-dap)
-scripts/bump-version.sh minor    # semantic version; the build number comes from git automatically
+scripts/version.sh               # the version this checkout builds (from git tags, see below)
 ```
 
 ### Install or update
@@ -114,6 +114,26 @@ a local certificate, "Power IDEA Local". The first build creates it in the login
 keychain (macOS asks for your password once); later builds and updates reuse it, so
 permissions survive. `POWER_IDEA_ADHOC=1` skips it (ad-hoc signature), and
 `scripts/create-signing-cert.sh` creates it by hand.
+
+## Versioning & releases
+
+Git is the single source of truth: nobody edits version numbers or the changelog by hand.
+
+- **Version** = the latest annotated tag `v*` (`v1.5.0` → `1.5.0`); **build** = `git rev-list --count HEAD`.
+  A build on the tag shows `1.5.0 (412)`, later commits `1.5.0-dev.3+abc1234` (`.dirty` with uncommitted
+  changes). `scripts/version.sh` computes it (`--json` too); the app embeds it at build time, shows it on the
+  Welcome screen and in About (click / Copy Version Details copies it for bug reports), and the `.app`
+  bundle's Info.plist gets it. Without git, `APP_VERSION` / `APP_BUILD` / `GIT_SHA` are used.
+- **Commits** follow [Conventional Commits](https://www.conventionalcommits.org): `feat(git): add …`,
+  `fix: …`, `perf:`, `refactor:`, `docs:`, `test:`, `chore:`, `ci:`, `build:`; `!` or `BREAKING CHANGE:`
+  for breaking changes. A commit-msg hook (`bin/setup`) checks them; merge and revert commits pass.
+- **`bin/changelog`** regenerates `CHANGELOG.md` ([Keep a Changelog](https://keepachangelog.com), via
+  [git-cliff](https://git-cliff.org), config in `cliff.toml`) and prints `[Unreleased]`: what goes into the
+  next version. Install git-cliff with `brew install git-cliff`.
+- **`bin/release [major|minor|patch|auto]`** (default `auto`: breaking → major, minor on 0.x; feat → minor;
+  else patch) refuses a dirty tree or a branch other than `main`, shows the plan and asks, then writes the
+  changelog section and `release-notes/vX.Y.Z.md`, commits `chore(release): vX.Y.Z` and creates the annotated
+  tag. It never pushes; it prints `git push --follow-tags` (the release workflow then publishes the build).
 
 ## Language servers and debuggers
 
