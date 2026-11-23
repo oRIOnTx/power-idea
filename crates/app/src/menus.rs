@@ -32,10 +32,11 @@ fn show_about(cx: &mut App) {
                 .title("Power IDEA")
                 .child(format!("Version {}", crate::APP_VERSION))
                 .child(
-                    component::button::Button::new("copy-version")
+                    crate::style::dialog_button("copy-version")
                         .label("Copy Version Details")
                         .on_click(|_, window, cx| crate::copy_version(window, cx)),
                 )
+                .footer(crate::style::ok_button())
         });
     });
 }

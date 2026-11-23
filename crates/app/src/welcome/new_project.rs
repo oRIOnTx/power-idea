@@ -4,11 +4,11 @@
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::ButtonVariants as _;
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
-use gpui_kit::component::{ActiveTheme as _, Sizable as _, WindowExt as _, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 
 use super::paths::{default_location, expand_tilde, new_project_dir, tilde};
@@ -67,7 +67,7 @@ pub fn open_new_project_dialog(window: &mut Window, cx: &mut App) {
                             h_flex()
                                 .gap_2()
                                 .child(div().flex_1().child(Input::new(&location)))
-                                .child(Button::new("browse").small().label("Browse…").on_click(
+                                .child(crate::style::dialog_button("browse").label("Browse…").on_click(
                                     move |_, window, cx| choose_location(browse_location.clone(), window, cx),
                                 )),
                         ),

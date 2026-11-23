@@ -124,13 +124,27 @@ pub fn dialog_button(id: impl Into<ElementId>) -> Button {
 /// (32 → 40 px high). They dispatch the dialog's own Confirm / Cancel actions, so the
 /// dialog's `on_ok` / `on_cancel`, Enter and Esc work as with the built-in ones.
 pub fn confirm_buttons(ok_text: &'static str, ok_variant: ButtonVariant) -> ConfirmButtons {
-    ConfirmButtons { ok_text, ok_variant }
+    ConfirmButtons {
+        ok_text,
+        ok_variant,
+        cancel: true,
+    }
+}
+
+/// A single OK for an informational alert dialog's `.footer(..)` (32 → 40 px high).
+pub fn ok_button() -> ConfirmButtons {
+    ConfirmButtons {
+        ok_text: "OK",
+        ok_variant: ButtonVariant::Primary,
+        cancel: false,
+    }
 }
 
 #[derive(IntoElement)]
 pub struct ConfirmButtons {
     ok_text: &'static str,
     ok_variant: ButtonVariant,
+    cancel: bool,
 }
 
 impl RenderOnce for ConfirmButtons {
@@ -154,7 +168,9 @@ impl RenderOnce for ConfirmButtons {
                 .child(div().absolute().size_0().track_focus(&anchor))
                 .on_click(move |_, window, cx| anchor.dispatch_action(&*action, window, cx))
         };
-        let cancel = button("confirm-cancel", "Cancel", Box::new(Cancel), window, cx);
+        let cancel = self
+            .cancel
+            .then(|| button("confirm-cancel", "Cancel", Box::new(Cancel), window, cx));
         let ok = button(
             "confirm-ok",
             self.ok_text,
@@ -163,7 +179,7 @@ impl RenderOnce for ConfirmButtons {
             cx,
         )
         .with_variant(self.ok_variant);
-        DialogFooter::new().child(cancel).child(ok)
+        DialogFooter::new().children(cancel).child(ok)
     }
 }
 

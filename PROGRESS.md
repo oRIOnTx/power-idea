@@ -234,7 +234,8 @@ is in the working tree only.
       Folder. Python example in `examples/extensions/hello-world`, run end to end by `cargo test -p extensions`
 - [x] Dialog buttons 1.25× larger: confirmations (`style::confirm_buttons`, 32 → 40 px, same Confirm/Cancel
       actions so Enter/Esc/`on_ok` keep working) and hand-built dialog footers (`style::dialog_button`, 24 → 30 px);
-      the Push dialog keeps its size (gpui-kit's split button has a fixed-height caret)
+      also the Push dialog (split button sized in pixels so both halves stretch), About (`style::ok_button`) and
+      form buttons inside dialogs (database kind / Choose…, New Project Browse…)
 - [x] Git Log commit details (changed files + message) scroll: rows used to shrink to fit instead of overflowing
 - [x] **Versioning from git** (spec `docs/backlog/versioning-and-changelogs.md`): `scripts/version.sh` (annotated
       `v*` tag → version, commit count → build, `X.Y.Z (N)` on a tag / `X.Y.Z-dev.N+sha[.dirty]` after it,

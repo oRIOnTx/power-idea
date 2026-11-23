@@ -505,18 +505,22 @@ impl Render for PushDialog {
                     )
                     .child(div().flex_1())
                     .child(
-                        Button::new("push-cancel")
+                        style::dialog_button("push-cancel")
                             .ghost()
-                            .small()
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
                     )
                     .child(
+                        // A pixel size (not .small()) leaves both halves free of gpui-kit's fixed
+                        // heights, so they stretch to the 1.25x dialog button height.
                         DropdownButton::new("push-confirm")
                             .primary()
-                            .small()
+                            .with_size(px(30.))
+                            .h(px(30.))
+                            .items_stretch()
                             .button(
                                 Button::new("push-confirm-button")
+                                    .px(px(10.))
                                     .label("Push")
                                     .disabled(!can_push)
                                     .on_click(

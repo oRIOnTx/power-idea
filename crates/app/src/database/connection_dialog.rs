@@ -1,10 +1,10 @@
 //! "Data Source" dialog: create or edit a connection, test it, save it.
 
 use db::{ConnectionConfig, DbKind};
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::ButtonVariants as _;
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputEvent, InputState};
-use gpui_kit::component::{ActiveTheme as _, Disableable as _, Sizable as _, WindowExt as _, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, Disableable as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 
 use crate::workspace::Workspace;
@@ -241,9 +241,8 @@ impl Render for ConnectionForm {
         }
         let theme = cx.theme();
         let kinds = h_flex().gap_1().children(DbKind::ALL.map(|kind| {
-            let button = Button::new(SharedString::from(format!("kind-{kind:?}")))
-                .small()
-                .label(kind.label());
+            let button =
+                crate::style::dialog_button(SharedString::from(format!("kind-{kind:?}"))).label(kind.label());
             let button = if kind == self.kind {
                 button.primary()
             } else {
@@ -259,8 +258,7 @@ impl Render for ConnectionForm {
                     .gap_2()
                     .child(div().flex_1().child(Input::new(&self.file)))
                     .child(
-                        Button::new("choose-file")
-                            .small()
+                        crate::style::dialog_button("choose-file")
                             .label("Choose…")
                             .on_click(cx.listener(|this, _, window, cx| this.choose_file(window, cx))),
                     ),
