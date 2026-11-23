@@ -1,0 +1,52 @@
+# Publishes a release when bin/release's tag is pushed (git push --follow-tags): builds the
+# disk image, adds a SHA-256 checksum, an SBOM and a build provenance attestation, and creates
+# the GitHub Release from release-notes/<tag>.md.
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write # create the release
+      id-token: write # sign the attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # scripts/version.sh needs the tags and the full history
+      - run: rustup toolchain install # from rust-toolchain.toml
+      - uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
+        with:
+          tool: cargo-cyclonedx
+      - name: Build the disk image
+        env:
+          POWER_IDEA_ADHOC: "1" # no local signing certificate on the runner
+        run: |
+          scripts/dmg.sh
+          cd dist
+          shasum -a 256 ./*.dmg > SHA256SUMS
+          cat SHA256SUMS
+      - name: SBOM
+        run: |
+          cargo cyclonedx --manifest-path crates/app/Cargo.toml --format json --override-filename sbom
+          mv crates/app/sbom.json dist/power-idea.cdx.json
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*.dmg
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          notes="release-notes/$TAG.md"
+          [ -f "$notes" ] || { echo "missing $notes (bin/release writes it)"; exit 1; }
+          gh release create "$TAG" --verify-tag --title "Power IDEA ${TAG#v}" --notes-file "$notes" \
+            dist/*.dmg dist/SHA256SUMS dist/power-idea.cdx.json

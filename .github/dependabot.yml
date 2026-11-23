@@ -1,0 +1,27 @@
+# Weekly dependency updates; minor and patch bumps are grouped into one PR per ecosystem.
+# Dependency PRs run the same CI (ci-ok). A 7-day cooldown skips releases that get yanked or
+# turn out malicious in their first days.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      cargo-minor-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build(deps)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: ci(deps)

@@ -244,13 +244,19 @@ is in the working tree only.
       git-cliff (`cliff.toml`, Keep a Changelog; pre-convention "Add/Fix/Remove …" commits sorted by verb, doc-only
       ones skipped) via `bin/changelog`; `bin/release` (dirty/branch guard, auto bump, plan + confirm, changelog
       section, `release-notes/vX.md`, `chore(release)` commit, annotated tag, no push). No tag exists yet
+- [x] **Quality / security / CI pipeline** (spec `docs/backlog/quality-pipeline.md`): `rust-toolchain.toml` (1.100.0),
+      MSRV 1.98.1 (`cargo msrv`); strict `[workspace.lints]` (clippy pedantic + unwrap/expect/panic/indexing/
+      print_stdout, noisy pedantic allowed with reasons; tests exempt via `clippy.toml`) — all findings fixed;
+      taplo, typos, editorconfig, cargo-deny (gpui-only unmaintained crates ignored with reasons), `.cargo/audit.toml`;
+      lefthook hooks (pre-commit fmt/taplo/typos/gitleaks, commit-msg `cog verify`, pre-push clippy/nextest/deny);
+      `justfile` (`just check` = CI); GitHub Actions: `ci.yml` (fmt, lint, typos, machete, test, msrv, deny, coverage
+      ≥ 34 % lines, gitleaks, actionlint + zizmor, `ci-ok`), `audit.yml` (daily, opens an issue), `codeql.yml`,
+      `scorecard.yml`, `release.yml` (tag → dmg + SHA256SUMS + CycloneDX SBOM + provenance attestation + GitHub
+      Release from `release-notes/`), dependabot (weekly, grouped, 7-day cooldown); actions pinned to SHAs,
+      `permissions: contents: read`, `persist-credentials: false`. CODEOWNERS, PR/issue templates, CONTRIBUTING,
+      SECURITY. Not run on GitHub yet (nothing pushed); cargo-machete only in CI (local install was not allowed)
 
 ## Backlog
-- [ ] **Strict quality / security / CI-CD pipeline** (spec: `docs/backlog/quality-pipeline.md`): pinned toolchain
-      + MSRV, stricter workspace lints, taplo / typos / machete, cargo-deny / audit / gitleaks, nextest + coverage,
-      lefthook hooks, justfile, GitHub Actions (ci-ok, audit, CodeQL, Scorecard), dependabot, release-plz or
-      cargo-dist. New tools need approval; overlaps with versioning (do together)
-
 Other candidates: Database gaps below.
 
 ## Known gaps

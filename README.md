@@ -115,6 +115,29 @@ keychain (macOS asks for your password once); later builds and updates reuse it,
 permissions survive. `POWER_IDEA_ADHOC=1` skips it (ad-hoc signature), and
 `scripts/create-signing-cert.sh` creates it by hand.
 
+## Development
+
+```sh
+bin/setup          # checks the tools (prints the brew command for missing ones) and installs git hooks
+just check         # everything CI runs
+```
+
+| `just …` | What |
+|---|---|
+| `setup` | `bin/setup`: tools + lefthook git hooks (pre-commit: rustfmt, taplo, typos, gitleaks; commit-msg: Conventional Commits; pre-push: clippy, tests, cargo-deny) |
+| `fmt` / `fmt-check` | rustfmt + taplo |
+| `lint` | clippy with warnings as errors (strict workspace lints in `Cargo.toml`), typos, cargo-machete |
+| `test` | cargo-nextest + doctests |
+| `cov` | coverage (cargo-llvm-cov); fails under the threshold in the `justfile` |
+| `msrv` | build with the `rust-version` from `Cargo.toml` |
+| `audit` / `deny` | RustSec advisories / cargo-deny (advisories, licenses, bans, sources) |
+| `check` | all of the above plus secret scanning and the workflow linters |
+| `changelog` / `release` | see Versioning & releases |
+
+CI (GitHub Actions) runs the same checks; `ci-ok` is the required status check. Daily `cargo audit`,
+CodeQL and OpenSSF Scorecard run separately; Dependabot updates crates and actions weekly. See
+[CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+
 ## Versioning & releases
 
 Git is the single source of truth: nobody edits version numbers or the changelog by hand.

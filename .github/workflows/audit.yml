@@ -1,0 +1,48 @@
+# Daily RustSec audit: catches new advisories for unchanged code. On failure it opens (or
+# comments on) one "Security audit failed" issue.
+name: Security audit
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
+        with:
+          tool: cargo-audit
+      - id: audit
+        shell: bash # -o pipefail: the step fails when cargo audit does
+        run: cargo audit --deny warnings 2>&1 | tee audit.txt
+      - name: Report the failure in an issue
+        if: failure() && steps.audit.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Security audit failed"
+          {
+            echo "cargo audit failed: $RUN_URL"
+            echo
+            echo '```'
+            tail -c 60000 audit.txt
+            echo '```'
+          } > body.md
+          number="$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file body.md
+          else
+            gh issue create --title "$title" --body-file body.md
+          fi

@@ -1,0 +1,33 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Welcome screen → click the version (or About → Copy Version Details) and paste it here.
+      placeholder: Power IDEA 0.2.0 (120) · build 120 · abc1234
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a Rails project
+        2. Press ⌥F7 on a method name
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: ~/Library/Logs/Power IDEA/panic.log after a crash; extension logs live next to it.
+      render: text

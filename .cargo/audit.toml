@@ -1,0 +1,16 @@
+# cargo audit (daily workflow, `just audit`). It reads the whole Cargo.lock, so it also sees
+# crates that are never built for macOS; cargo-deny (deny.toml) checks only macOS targets.
+[advisories]
+ignore = [
+  # Unmaintained crates pulled in by gpui-kit (the same exceptions as deny.toml).
+  "RUSTSEC-2024-0384", # instant: via gpui-base
+  "RUSTSEC-2024-0436", # paste: proc-macro via gpui-component
+  "RUSTSEC-2026-0192", # ttf-parser: via usvg in gpui
+  "RUSTSEC-2026-0206", # rustybuzz: via usvg in gpui
+  "RUSTSEC-2026-0543", # chrono: via gpui-base
+  # Unmaintained, only on targets the app does not ship for (cargo tree --target aarch64-apple-darwin).
+  "RUSTSEC-2025-0134", # rustls-pemfile: gpui's reqwest on Linux/Windows
+  "RUSTSEC-2026-0370", # zvariant: zbus (Linux accessibility)
+  "RUSTSEC-2026-0371", # zbus_names: zbus (Linux accessibility)
+  "RUSTSEC-2026-0372", # zvariant_derive: zbus (Linux accessibility)
+]

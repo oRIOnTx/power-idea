@@ -55,6 +55,7 @@ All notable changes to Power IDEA. Generated from the git history by
 - Add run configuration macros and a Python current-file configuration ([0cf9152](https://github.com/oRIOnTx/power-idea/commit/0cf915285dafe217c17de135d7088bb96c405b04))
 - Add a context menu to the project tree root row ([b2b174f](https://github.com/oRIOnTx/power-idea/commit/b2b174f7fc778a5e9a2b32740ab717119e543a99))
 - Add an extension API: out-of-process extensions over JSON-RPC ([d1e600d](https://github.com/oRIOnTx/power-idea/commit/d1e600dfc61f9f9634ecd3ef76bed4ada70c4e24))
+- Version the app from git tags and generate the changelog ([1b3f3ba](https://github.com/oRIOnTx/power-idea/commit/1b3f3ba86a9c73eb02f10c42743f600a36f2ae0e))
 
 ### Changed
 - Sign the macOS bundle and add a local signing certificate script ([f61946f](https://github.com/oRIOnTx/power-idea/commit/f61946fdd0300bb67b9ce9ba2244d96bfd222383))
@@ -97,6 +98,8 @@ All notable changes to Power IDEA. Generated from the git history by
 - Move project opening and confirmations to a System settings page ([c0f2d74](https://github.com/oRIOnTx/power-idea/commit/c0f2d7431978c97ccb8ec9ffa3901e9f0632d94c))
 - Accept the highlighted completion item with Tab ([e2170b0](https://github.com/oRIOnTx/power-idea/commit/e2170b0e58b145d71f62412942a72c1fb763861f))
 - Make dialog buttons 1.25x larger ([a26f4fe](https://github.com/oRIOnTx/power-idea/commit/a26f4fee19eb1ee0a5610b849ecc1255633f2eb9))
+- Apply machine-fixable clippy pedantic suggestions ([ce1588e](https://github.com/oRIOnTx/power-idea/commit/ce1588e25ccc1ea34b94a28719cea3fb64ab3b6f))
+- Fix the remaining strict lint findings ([468b280](https://github.com/oRIOnTx/power-idea/commit/468b280c99d339b73ddda2ee99ba56d85e025f7c))
 
 ### Fixed
 - Fix invisible window on launch: open the startup project immediately ([66246da](https://github.com/oRIOnTx/power-idea/commit/66246dac1b5d17fe5c52a811b3a1acf6d0563a21))

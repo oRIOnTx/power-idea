@@ -2,3 +2,6 @@ target/
 .idea/
 .DS_Store
 dist/
+# Coverage output (just cov, CI)
+lcov.info
+*.profraw
