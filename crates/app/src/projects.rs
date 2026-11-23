@@ -4,9 +4,9 @@
 
 use std::path::PathBuf;
 
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::ButtonVariants as _;
 use gpui_kit::component::checkbox::Checkbox;
-use gpui_kit::component::{ActiveTheme as _, Sizable as _, TitleBar, WindowExt as _, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, TitleBar, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 use serde::{Deserialize, Serialize};
 
@@ -220,9 +220,8 @@ fn ask_placement(path: PathBuf, current: AnyWindowHandle, cx: &mut App) {
                 )
                 .footer(
                     h_flex().w_full().justify_end().child(
-                        Button::new("cancel")
+                        crate::style::dialog_button("cancel")
                             .ghost()
-                            .small()
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
                     ),

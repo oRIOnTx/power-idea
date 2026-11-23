@@ -232,6 +232,9 @@ is in the working tree only.
       changed, active editor changed. Lazy start (eager with events), crash → notification + restart on next
       command, stderr → `~/Library/Logs/Power IDEA/extensions/<id>.log`; Reload Extensions / Open Extensions
       Folder. Python example in `examples/extensions/hello-world`, run end to end by `cargo test -p extensions`
+- [x] Dialog buttons 1.25× larger: confirmations (`style::confirm_buttons`, 32 → 40 px, same Confirm/Cancel
+      actions so Enter/Esc/`on_ok` keep working) and hand-built dialog footers (`style::dialog_button`, 24 → 30 px);
+      the Push dialog keeps its size (gpui-kit's split button has a fixed-height caret)
 
 ## Backlog
 - [ ] **Automatic versioning and changelogs** (spec: `docs/backlog/versioning-and-changelogs.md`): version from

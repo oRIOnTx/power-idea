@@ -106,9 +106,65 @@ pub fn danger_confirm(dialog: AlertDialog, icon: &str, ok_text: &'static str, cx
         .confirm()
         .width(px(440.))
         .icon(lucide(icon).text_color(cx.theme().danger))
-        .ok_text(ok_text)
-        .ok_variant(ButtonVariant::Danger)
-        .cancel_text("Cancel")
+        .footer(confirm_buttons(ok_text, ButtonVariant::Danger))
+}
+
+/// Dialog buttons are 1.25× gpui-kit's sizes: bigger targets in confirmations.
+const DIALOG_BUTTON_SCALE: f32 = 1.25;
+
+/// A button for a hand-built dialog footer, in place of `.small()` (24 → 30 px high).
+pub fn dialog_button(id: impl Into<ElementId>) -> Button {
+    Button::new(id)
+        .small()
+        .h(px(24. * DIALOG_BUTTON_SCALE))
+        .px(px(8. * DIALOG_BUTTON_SCALE))
+}
+
+/// Cancel + `ok_text` for an alert dialog's `.footer(..)`, replacing its built-in buttons
+/// (32 → 40 px high). They dispatch the dialog's own Confirm / Cancel actions, so the
+/// dialog's `on_ok` / `on_cancel`, Enter and Esc work as with the built-in ones.
+pub fn confirm_buttons(ok_text: &'static str, ok_variant: ButtonVariant) -> ConfirmButtons {
+    ConfirmButtons { ok_text, ok_variant }
+}
+
+#[derive(IntoElement)]
+pub struct ConfirmButtons {
+    ok_text: &'static str,
+    ok_variant: ButtonVariant,
+}
+
+impl RenderOnce for ConfirmButtons {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        use gpui_kit::component::dialog::{Cancel, Confirm, DialogFooter};
+        let button = |id: &'static str,
+                      label: &'static str,
+                      action: Box<dyn Action>,
+                      window: &mut Window,
+                      cx: &mut App| {
+            // Dispatched from a focus node inside the button, so the action reaches the dialog
+            // the button sits in whatever holds focus (as gpui-kit's own dialog buttons do).
+            let anchor = window
+                .use_keyed_state(id, cx, |_, cx| cx.focus_handle())
+                .read(cx)
+                .clone();
+            Button::new(id)
+                .label(label)
+                .h(px(32. * DIALOG_BUTTON_SCALE))
+                .px(px(10. * DIALOG_BUTTON_SCALE))
+                .child(div().absolute().size_0().track_focus(&anchor))
+                .on_click(move |_, window, cx| anchor.dispatch_action(&*action, window, cx))
+        };
+        let cancel = button("confirm-cancel", "Cancel", Box::new(Cancel), window, cx);
+        let ok = button(
+            "confirm-ok",
+            self.ok_text,
+            Box::new(Confirm { secondary: false }),
+            window,
+            cx,
+        )
+        .with_variant(self.ok_variant);
+        DialogFooter::new().child(cancel).child(ok)
+    }
 }
 
 /// Enter in a dialog's `input` runs `submit`, like clicking the dialog's primary button.

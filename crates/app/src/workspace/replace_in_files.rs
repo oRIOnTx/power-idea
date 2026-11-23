@@ -10,7 +10,7 @@ use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::notification::Notification;
-use gpui_kit::component::{ActiveTheme as _, Disableable as _, Sizable as _, WindowExt as _, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, Disableable as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 use search::{TextMatch, TextSearchOptions, find_in_files, match_ranges, replace_all};
 
@@ -310,15 +310,13 @@ impl Render for ReplaceDialog {
                     .gap_2()
                     .justify_end()
                     .child(
-                        Button::new("replace-cancel")
+                        crate::style::dialog_button("replace-cancel")
                             .ghost()
-                            .small()
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
                     )
                     .child(
-                        Button::new("replace-all")
-                            .small()
+                        crate::style::dialog_button("replace-all")
                             .label(label)
                             .when_confirming(self.confirming)
                             .disabled(self.matches.is_empty() || self.searching)

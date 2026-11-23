@@ -2,8 +2,8 @@
 
 use std::rc::Rc;
 
-use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::{Sizable as _, WindowExt as _, h_flex};
+use gpui_kit::component::button::ButtonVariants as _;
+use gpui_kit::component::{WindowExt as _, h_flex};
 use gpui_kit::*;
 
 use super::{Workspace, Workspaces};
@@ -201,22 +201,19 @@ impl Workspace {
                         .gap_2()
                         .justify_end()
                         .child(
-                            Button::new("cancel")
+                            crate::style::dialog_button("cancel")
                                 .ghost()
-                                .small()
                                 .label("Cancel")
                                 .on_click(|_, window, cx| window.close_dialog(cx)),
                         )
                         .child(
-                            Button::new("discard")
-                                .small()
+                            crate::style::dialog_button("discard")
                                 .label("Don't Save")
                                 .on_click(choose(on_discard.clone())),
                         )
                         .child(
-                            Button::new("save")
+                            crate::style::dialog_button("save")
                                 .primary()
-                                .small()
                                 .label("Save")
                                 .on_click(choose(on_save.clone())),
                         ),

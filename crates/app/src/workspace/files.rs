@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context as _, Result, bail};
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::ButtonVariants as _;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::menu::PopupMenu;
 use gpui_kit::component::notification::Notification;
@@ -429,16 +429,14 @@ impl Workspace {
                         .gap_2()
                         .justify_end()
                         .child(
-                            Button::new("cancel")
+                            crate::style::dialog_button("cancel")
                                 .ghost()
-                                .small()
                                 .label("Cancel")
                                 .on_click(|_, window, cx| window.close_dialog(cx)),
                         )
                         .child(
-                            Button::new("ok")
+                            crate::style::dialog_button("ok")
                                 .primary()
-                                .small()
                                 .label("OK")
                                 .on_click(move |_, window, cx| submit(window, cx)),
                         ),

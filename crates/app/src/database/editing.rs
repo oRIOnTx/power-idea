@@ -172,35 +172,38 @@ impl QueryConsole {
                         .gap_2()
                         .justify_end()
                         .child(
-                            Button::new("cell-cancel")
+                            crate::style::dialog_button("cell-cancel")
                                 .ghost()
-                                .small()
                                 .label("Cancel")
                                 .on_click(|_, window, cx| window.close_dialog(cx)),
                         )
-                        .child(Button::new("cell-ok").primary().small().label("OK").on_click(
-                            move |_, window, cx| {
-                                let value = (!*is_null.read(cx)).then(|| input.read(cx).value().to_string());
-                                table.update(cx, |table, cx| {
-                                    let delegate = table.delegate_mut();
-                                    let original = delegate
-                                        .set
-                                        .rows
-                                        .get(row)
-                                        .and_then(|r| r.get(col))
-                                        .cloned()
-                                        .flatten();
-                                    // Editing back to the original value drops the pending change.
-                                    if value == original {
-                                        delegate.edits.remove(&(row, col));
-                                    } else {
-                                        delegate.edits.insert((row, col), value);
-                                    }
-                                    cx.notify();
-                                });
-                                window.close_dialog(cx);
-                            },
-                        )),
+                        .child(
+                            crate::style::dialog_button("cell-ok")
+                                .primary()
+                                .label("OK")
+                                .on_click(move |_, window, cx| {
+                                    let value =
+                                        (!*is_null.read(cx)).then(|| input.read(cx).value().to_string());
+                                    table.update(cx, |table, cx| {
+                                        let delegate = table.delegate_mut();
+                                        let original = delegate
+                                            .set
+                                            .rows
+                                            .get(row)
+                                            .and_then(|r| r.get(col))
+                                            .cloned()
+                                            .flatten();
+                                        // Editing back to the original value drops the pending change.
+                                        if value == original {
+                                            delegate.edits.remove(&(row, col));
+                                        } else {
+                                            delegate.edits.insert((row, col), value);
+                                        }
+                                        cx.notify();
+                                    });
+                                    window.close_dialog(cx);
+                                }),
+                        ),
                 )
         });
     }

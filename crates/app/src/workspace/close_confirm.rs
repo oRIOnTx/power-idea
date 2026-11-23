@@ -48,8 +48,10 @@ fn ask(
                         });
                     }),
             )
-            .ok_text(confirmation.ok_text)
-            .cancel_text("Cancel")
+            .footer(style::confirm_buttons(
+                confirmation.ok_text,
+                gpui_kit::component::button::ButtonVariant::Primary,
+            ))
             .on_ok(move |_, window, cx| {
                 if *dont_ask.read(cx) {
                     never_ask(&mut cx.global_mut::<AppConfig>().0);

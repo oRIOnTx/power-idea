@@ -315,24 +315,21 @@ impl Render for ConnectionForm {
                     .gap_2()
                     .pt_2()
                     .child(
-                        Button::new("test-connection")
-                            .small()
+                        crate::style::dialog_button("test-connection")
                             .label("Test Connection")
                             .disabled(matches!(self.test, TestState::Testing))
                             .on_click(cx.listener(|this, _, _, cx| this.test_connection(cx))),
                     )
                     .child(div().flex_1())
                     .child(
-                        Button::new("cancel")
+                        crate::style::dialog_button("cancel")
                             .ghost()
-                            .small()
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
                     )
                     .child(
-                        Button::new("save")
+                        crate::style::dialog_button("save")
                             .primary()
-                            .small()
                             .label("Save")
                             .on_click(cx.listener(|this, _, window, cx| this.save(window, cx))),
                     ),

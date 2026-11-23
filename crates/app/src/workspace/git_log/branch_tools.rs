@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::ButtonVariants as _;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Sizable as _, WindowExt as _, h_flex, v_flex};
@@ -164,16 +164,14 @@ impl Workspace {
                         .gap_2()
                         .justify_end()
                         .child(
-                            Button::new("cancel")
+                            crate::style::dialog_button("cancel")
                                 .ghost()
-                                .small()
                                 .label("Cancel")
                                 .on_click(|_, window, cx| window.close_dialog(cx)),
                         )
                         .child(
-                            Button::new("create-worktree")
+                            crate::style::dialog_button("create-worktree")
                                 .primary()
-                                .small()
                                 .label("Create")
                                 .on_click(move |_, window, cx| submit(window, cx)),
                         ),

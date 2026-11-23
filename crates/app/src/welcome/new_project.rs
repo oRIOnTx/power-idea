@@ -94,16 +94,14 @@ pub fn open_new_project_dialog(window: &mut Window, cx: &mut App) {
                     .gap_2()
                     .justify_end()
                     .child(
-                        Button::new("cancel")
+                        crate::style::dialog_button("cancel")
                             .ghost()
-                            .small()
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
                     )
                     .child(
-                        Button::new("create")
+                        crate::style::dialog_button("create")
                             .primary()
-                            .small()
                             .label("Create")
                             .on_click(move |_, window, cx| create(window, cx)),
                     ),

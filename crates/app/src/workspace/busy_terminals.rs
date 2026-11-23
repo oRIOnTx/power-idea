@@ -70,8 +70,10 @@ fn ask(
             .icon(style::lucide("square-terminal").text_color(cx.theme().primary))
             .title(title)
             .description(message.clone())
-            .ok_text("Terminate")
-            .cancel_text("Cancel")
+            .footer(crate::style::confirm_buttons(
+                "Terminate",
+                gpui_kit::component::button::ButtonVariant::Primary,
+            ))
             .on_ok(move |_, window, cx| {
                 on_ok(window, cx);
                 true
