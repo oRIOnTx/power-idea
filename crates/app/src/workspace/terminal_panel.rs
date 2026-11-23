@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use gpui_kit::component::{ActiveTheme as _, Icon, IconName, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, IconName, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
@@ -170,10 +170,8 @@ impl Workspace {
                 } else {
                     theme.muted_foreground
                 })
-                .when(terminal.read(cx).is_claude(), |el| {
-                    el.child(Icon::new(IconName::Bot).size_3().text_color(theme.primary))
-                })
-                .child(terminal_label(terminal.read(cx)))
+                .when(terminal.read(cx).is_claude(), |el| el.min_w(CLAUDE_TAB_MIN_WIDTH))
+                .child(div().flex_1().child(terminal_label(terminal.read(cx))))
                 .when(terminal.read(cx).is_claude(), |el| {
                     el.child(
                         style::icon_button_sized(
@@ -247,13 +245,13 @@ impl Workspace {
 }
 
 /// Tab label; run tabs show whether their process is running or how it ended.
+/// The Claude tab is ~1.5× its natural width (name, restart and close ≈ 120px), so it
+/// stands out among the shell tabs and is an easier click target.
+const CLAUDE_TAB_MIN_WIDTH: Pixels = px(180.);
+
 fn terminal_label(terminal: &TerminalView) -> String {
     if terminal.is_claude() {
-        return if terminal.is_running() {
-            "Claude".into()
-        } else {
-            "Claude (exited)".into()
-        };
+        return "Claude".into();
     }
     let Some(run) = terminal.run_state() else {
         return terminal.title.clone();
