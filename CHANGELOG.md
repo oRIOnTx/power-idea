@@ -5,26 +5,9 @@ All notable changes to Power IDEA. Generated from the git history by
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-23
 
 ### Added
-- Set up Cargo workspace and search crate ([ae3b987](https://github.com/oRIOnTx/power-idea/commit/ae3b9877b720edd3ceec7bca4b7b476c45069129))
-- Add vcs crate wrapping the git CLI ([167fc6b](https://github.com/oRIOnTx/power-idea/commit/167fc6b2fae43d16c726dd3dc765704b4a2c809e))
-- Add MCP server over streamable HTTP ([cbdbd63](https://github.com/oRIOnTx/power-idea/commit/cbdbd6309b59279298296f07a9772b867b95d642))
-- Add IDE app: editor, project tree, search palette, terminal, git and MCP bridge ([c665bba](https://github.com/oRIOnTx/power-idea/commit/c665bbade8dc783c6acfca247711ac5d3da49709))
-- Add app icon and macOS bundle script ([bed36ca](https://github.com/oRIOnTx/power-idea/commit/bed36ca425030930b536fb31291ab7dadf8b0883))
-- Add project settings, language server and terminal config, search excludes ([ea6bda3](https://github.com/oRIOnTx/power-idea/commit/ea6bda325aacee627ed9fec4e985c7fdf61268cd))
-- Add Settings tab with languages, MCP, keymap and project pages ([e38cb89](https://github.com/oRIOnTx/power-idea/commit/e38cb8908e9b7b240bb420c5a4b6c0f6b6103b6b))
-- Add activity bar, file context menus, unsaved-changes guard and language hints ([37f4a2f](https://github.com/oRIOnTx/power-idea/commit/37f4a2fd23bc16091141dad0322bc44d2ae31938))
-- Add project rules and workspace lints ([0990e51](https://github.com/oRIOnTx/power-idea/commit/0990e519d075c014214d0cad060f646b275dd6e0))
-- Add LSP client and database crates ([f2fb67a](https://github.com/oRIOnTx/power-idea/commit/f2fb67ada2d2d2ade79828b9f6fa7c1b28491990))
-- Add commit graph layout, history and log operations to vcs ([eb37823](https://github.com/oRIOnTx/power-idea/commit/eb37823ff7a825c717fda55e1ce9c45b60ff82ad))
-- Add LSP navigation, Database tool window, project tabs and file icons ([e0b6d25](https://github.com/oRIOnTx/power-idea/commit/e0b6d258124510fb91b4ba39bb456b46e330c5f8))
-- Add Git Log tool window with commit graph, branches and log operations ([668f763](https://github.com/oRIOnTx/power-idea/commit/668f7635a2dee144951786434d6f9c4334978abc))
-- Add Markdown and SVG previews and an image viewer ([484714c](https://github.com/oRIOnTx/power-idea/commit/484714cd735ce326275def4fd1bf663020adaf4d))
-- Add LSP navigation: usages, symbols, file structure, rename, reformat ([51568ec](https://github.com/oRIOnTx/power-idea/commit/51568ec19165e5e2428f4871f140ef151e93961a))
-- Add self-contained run, check and build scripts ([d236584](https://github.com/oRIOnTx/power-idea/commit/d2365840f0773ec1e4e89156eaf49d0712102d77))
-- Add Welcome screen with recent projects and New Project ([5d0e08f](https://github.com/oRIOnTx/power-idea/commit/5d0e08f74e0c1465bb7b31702157f0205cd86e0c))
 - Add macOS menu bar; move Close Project into File menu ([0e950e7](https://github.com/oRIOnTx/power-idea/commit/0e950e7a14613a5d0e7bc86c7cf8fcde66b4e29f))
 - Show project tabs after New Tab; redesign the open-project dialog ([e37fb32](https://github.com/oRIOnTx/power-idea/commit/e37fb329bf49ae9bba8383ed60fd82a193f22021))
 - Show Find Usages results in a tool window grouped by file ([3ed0e3e](https://github.com/oRIOnTx/power-idea/commit/3ed0e3efbe54f46dd5e62d33e9e6b479879e30cc))
@@ -58,8 +41,6 @@ All notable changes to Power IDEA. Generated from the git history by
 - Version the app from git tags and generate the changelog ([1b3f3ba](https://github.com/oRIOnTx/power-idea/commit/1b3f3ba86a9c73eb02f10c42743f600a36f2ae0e))
 
 ### Changed
-- Sign the macOS bundle and add a local signing certificate script ([f61946f](https://github.com/oRIOnTx/power-idea/commit/f61946fdd0300bb67b9ce9ba2244d96bfd222383))
-- Persist and restore workspace state per project ([5aeeeaa](https://github.com/oRIOnTx/power-idea/commit/5aeeeaa981cd58763e783909c60d7b7ba24f5da5))
 - Ask about unsaved files on quit; embed build number in the version (0.2.0) ([b199f4f](https://github.com/oRIOnTx/power-idea/commit/b199f4f56ed991d04ed9f102d59465677c9cd82d))
 - Follow file changes made outside the IDE ([91983fa](https://github.com/oRIOnTx/power-idea/commit/91983fa7baf77b4aba61d4eb7c436be1c9e903fc))
 - Ask where to open a project again; draw project tabs under the title bar ([923cc2f](https://github.com/oRIOnTx/power-idea/commit/923cc2fec7a8a8f8cff0707d39f60ef2349de581))
@@ -115,4 +96,28 @@ All notable changes to Power IDEA. Generated from the git history by
 
 ### Removed
 - Delete selected project tree files with the Delete key ([ed09f99](https://github.com/oRIOnTx/power-idea/commit/ed09f991c63e0a5c541330a6952ff30acdb240c3))
+## [0.1.0] - 2026-11-22
+
+### Added
+- Set up Cargo workspace and search crate ([ae3b987](https://github.com/oRIOnTx/power-idea/commit/ae3b9877b720edd3ceec7bca4b7b476c45069129))
+- Add vcs crate wrapping the git CLI ([167fc6b](https://github.com/oRIOnTx/power-idea/commit/167fc6b2fae43d16c726dd3dc765704b4a2c809e))
+- Add MCP server over streamable HTTP ([cbdbd63](https://github.com/oRIOnTx/power-idea/commit/cbdbd6309b59279298296f07a9772b867b95d642))
+- Add IDE app: editor, project tree, search palette, terminal, git and MCP bridge ([c665bba](https://github.com/oRIOnTx/power-idea/commit/c665bbade8dc783c6acfca247711ac5d3da49709))
+- Add app icon and macOS bundle script ([bed36ca](https://github.com/oRIOnTx/power-idea/commit/bed36ca425030930b536fb31291ab7dadf8b0883))
+- Add project settings, language server and terminal config, search excludes ([ea6bda3](https://github.com/oRIOnTx/power-idea/commit/ea6bda325aacee627ed9fec4e985c7fdf61268cd))
+- Add Settings tab with languages, MCP, keymap and project pages ([e38cb89](https://github.com/oRIOnTx/power-idea/commit/e38cb8908e9b7b240bb420c5a4b6c0f6b6103b6b))
+- Add activity bar, file context menus, unsaved-changes guard and language hints ([37f4a2f](https://github.com/oRIOnTx/power-idea/commit/37f4a2fd23bc16091141dad0322bc44d2ae31938))
+- Add project rules and workspace lints ([0990e51](https://github.com/oRIOnTx/power-idea/commit/0990e519d075c014214d0cad060f646b275dd6e0))
+- Add LSP client and database crates ([f2fb67a](https://github.com/oRIOnTx/power-idea/commit/f2fb67ada2d2d2ade79828b9f6fa7c1b28491990))
+- Add commit graph layout, history and log operations to vcs ([eb37823](https://github.com/oRIOnTx/power-idea/commit/eb37823ff7a825c717fda55e1ce9c45b60ff82ad))
+- Add LSP navigation, Database tool window, project tabs and file icons ([e0b6d25](https://github.com/oRIOnTx/power-idea/commit/e0b6d258124510fb91b4ba39bb456b46e330c5f8))
+- Add Git Log tool window with commit graph, branches and log operations ([668f763](https://github.com/oRIOnTx/power-idea/commit/668f7635a2dee144951786434d6f9c4334978abc))
+- Add Markdown and SVG previews and an image viewer ([484714c](https://github.com/oRIOnTx/power-idea/commit/484714cd735ce326275def4fd1bf663020adaf4d))
+- Add LSP navigation: usages, symbols, file structure, rename, reformat ([51568ec](https://github.com/oRIOnTx/power-idea/commit/51568ec19165e5e2428f4871f140ef151e93961a))
+- Add self-contained run, check and build scripts ([d236584](https://github.com/oRIOnTx/power-idea/commit/d2365840f0773ec1e4e89156eaf49d0712102d77))
+- Add Welcome screen with recent projects and New Project ([5d0e08f](https://github.com/oRIOnTx/power-idea/commit/5d0e08f74e0c1465bb7b31702157f0205cd86e0c))
+
+### Changed
+- Sign the macOS bundle and add a local signing certificate script ([f61946f](https://github.com/oRIOnTx/power-idea/commit/f61946fdd0300bb67b9ce9ba2244d96bfd222383))
+- Persist and restore workspace state per project ([5aeeeaa](https://github.com/oRIOnTx/power-idea/commit/5aeeeaa981cd58763e783909c60d7b7ba24f5da5))
 
