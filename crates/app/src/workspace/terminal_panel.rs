@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use gpui_kit::component::{ActiveTheme as _, IconName, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, Icon, IconName, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
@@ -64,10 +64,21 @@ impl Workspace {
     }
 
     /// Adds a terminal tab, shows the panel and focuses it.
-    // reason: `_`-prefixed fields keep a task/subscription alive; reassigning them is the intent.
-    #[allow(clippy::used_underscore_binding)]
     pub(super) fn add_terminal(
         &mut self,
+        terminal: Entity<TerminalView>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.insert_terminal(self.terminals.len(), terminal, window, cx);
+    }
+
+    /// Inserts a terminal tab at `ix` (the Claude tab goes first), shows the panel and focuses it.
+    // reason: `_`-prefixed fields keep a task/subscription alive; reassigning them is the intent.
+    #[allow(clippy::used_underscore_binding)]
+    pub(super) fn insert_terminal(
+        &mut self,
+        ix: usize,
         terminal: Entity<TerminalView>,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -90,8 +101,9 @@ impl Workspace {
             },
         );
         self._subscriptions.push(subscription);
-        self.terminals.push(terminal);
-        self.active_terminal = self.terminals.len() - 1;
+        let ix = ix.min(self.terminals.len());
+        self.terminals.insert(ix, terminal);
+        self.active_terminal = ix;
         self.show_terminal_panel();
         self.focus_terminal(window, cx);
         cx.notify();
@@ -120,6 +132,9 @@ impl Workspace {
 
     /// Alt+F12, JetBrains-style: open and focus, or hide when already focused.
     pub(super) fn toggle_terminal(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.wants_claude_tab(cx) && !self.has_claude_tab(cx) {
+            return self.start_claude_tab(window, cx);
+        }
         if self.terminals.is_empty() {
             return self.new_terminal(window, cx);
         }
@@ -155,12 +170,29 @@ impl Workspace {
                 } else {
                     theme.muted_foreground
                 })
+                .when(terminal.read(cx).is_claude(), |el| {
+                    el.child(Icon::new(IconName::Bot).size_3().text_color(theme.primary))
+                })
                 .child(terminal_label(terminal.read(cx)))
+                .when(terminal.read(cx).is_claude(), |el| {
+                    el.children(self.claude_tab_gauges(cx)).child(
+                        style::icon_button_sized(
+                            "restart-claude",
+                            style::lucide("rotate-ccw"),
+                            "Restart Claude",
+                            style::BUTTON_SMALL,
+                        )
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            cx.stop_propagation();
+                            this.restart_claude_tab(window, cx);
+                        })),
+                    )
+                })
                 .child(
                     style::icon_button(("close-terminal", ix), IconName::Close, "Close (⌘W)").on_click(
                         cx.listener(move |this, _, window, cx| {
                             cx.stop_propagation();
-                            this.close_terminal(ix, window, cx);
+                            this.close_terminal_asking(ix, window, cx);
                         }),
                     ),
                 )
@@ -216,6 +248,13 @@ impl Workspace {
 
 /// Tab label; run tabs show whether their process is running or how it ended.
 fn terminal_label(terminal: &TerminalView) -> String {
+    if terminal.is_claude() {
+        return if terminal.is_running() {
+            "Claude".into()
+        } else {
+            "Claude (exited)".into()
+        };
+    }
     let Some(run) = terminal.run_state() else {
         return terminal.title.clone();
     };

@@ -22,7 +22,7 @@ use crate::config::Config;
 use crate::inbox::Inbox;
 
 pub use page::page;
-pub use preview::open_preview;
+pub use preview::{open_preview, plan_for};
 
 /// Changes to the folder are collected this long before one reload.
 const DEBOUNCE: Duration = Duration::from_millis(300);

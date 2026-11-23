@@ -136,9 +136,9 @@ impl Workspace {
         }))
         .on_action(cx.listener(|this, _: &ToggleTerminal, w, cx| this.toggle_terminal(w, cx)))
         .on_action(cx.listener(|this, _: &NewTerminal, w, cx| this.new_terminal(w, cx)))
-        .on_action(
-            cx.listener(|this, _: &CloseTerminal, w, cx| this.close_terminal(this.active_terminal, w, cx)),
-        )
+        .on_action(cx.listener(|this, _: &CloseTerminal, w, cx| {
+            this.close_terminal_asking(this.active_terminal, w, cx);
+        }))
         .on_action(cx.listener(|this, _: &ToggleLineComment, w, cx| {
             this.edit_lines(w, cx, |text, line, lang| {
                 editor::toggle_line_comment(text, line, editor::line_comment_prefix(lang)?)

@@ -87,6 +87,8 @@ pub struct TerminalView {
     was_focused: bool,
     /// Set for tabs that run a configuration.
     run: Option<RunState>,
+    /// The pinned Claude Code tab (Settings → Claude Code → Terminal).
+    claude: bool,
     /// Project root and working folder for `file:line` links.
     link_dirs: Option<(std::path::PathBuf, std::path::PathBuf)>,
     _events_task: Task<()>,
@@ -147,6 +149,7 @@ impl TerminalView {
             last_input: Instant::now(),
             was_focused: false,
             run: None,
+            claude: false,
             link_dirs: None,
             _events_task: events_task,
             _blink_task: blink_task,

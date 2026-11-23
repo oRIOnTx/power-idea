@@ -5087,6 +5087,7 @@ version = "0.2.0"
 dependencies = [
  "alacritty_terminal",
  "anyhow",
+ "claude_integration",
  "dap",
  "db",
  "dirs 7.0.0",

@@ -33,6 +33,16 @@ impl TerminalView {
         self
     }
 
+    /// Marks this run tab as the pinned Claude Code tab.
+    pub fn claude_tab(mut self) -> Self {
+        self.claude = true;
+        self
+    }
+
+    pub fn is_claude(&self) -> bool {
+        self.claude
+    }
+
     /// Folders used to resolve `file:line` links: project root and working folder.
     pub fn with_links(mut self, root: PathBuf, cwd: PathBuf) -> Self {
         self.link_dirs = Some((root, cwd));
