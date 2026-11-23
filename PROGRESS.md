@@ -251,7 +251,7 @@ is in the working tree only.
       tab (auto or Enter to start, --continue, restart, install hint, close confirmation). Hook bridge
       `power-idea claude-hook` / `claude-statusline` over a Unix socket (exit 0, user's status line kept) →
       gauges (context ring with thresholds, tokens/cost with transcript fallback via the Insights parser,
-      activity, files changed, quality ring) in the status bar, tab header and sidebar. Code quality: clippy /
+      activity, files changed, quality ring) in the status bar and sidebar (the Claude tab header shows only its name). Code quality: clippy /
       rustfmt / eslint / prettier / rubocop / ruff / go vet, score formula in the UI, on hook / save / manual
 - [x] **Versioning from git** (spec `docs/backlog/versioning-and-changelogs.md`): `scripts/version.sh` (annotated
       `v*` tag → version, commit count → build, `X.Y.Z (N)` on a tag / `X.Y.Z-dev.N+sha[.dirty]` after it,

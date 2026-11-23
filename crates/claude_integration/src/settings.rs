@@ -136,7 +136,10 @@ pub struct GaugeSettings {
     pub files: bool,
     pub quality: bool,
     pub in_status_bar: bool,
-    pub in_tab_header: bool,
+    /// Ignored: the Claude tab header shows only the tab name now. Still read so settings
+    /// files written before stay valid under `deny_unknown_fields`; never written back.
+    #[serde(skip_serializing)]
+    in_tab_header: bool,
     pub in_sidebar: bool,
     /// Context usage turns amber at this percentage …
     pub context_amber: u8,
@@ -154,7 +157,7 @@ impl Default for GaugeSettings {
             files: true,
             quality: true,
             in_status_bar: true,
-            in_tab_header: true,
+            in_tab_header: false,
             in_sidebar: false,
             context_amber: 60,
             context_red: 85,
@@ -336,7 +339,16 @@ mod tests {
         assert!(err("[rules]\nmode = \"everywhere\"").contains("unknown variant"));
     }
 
-    /// Every settings field is described in the schema and the schema names no extra fields.
+    #[test]
+    fn accepts_the_removed_tab_header_switch() {
+        let settings = ClaudeSettings::parse("[gauges]\nin_tab_header = true\n").unwrap();
+        let written = toml::to_string(&settings).unwrap();
+        assert_eq!(written, toml::to_string(&ClaudeSettings::default()).unwrap());
+        assert!(!written.contains("in_tab_header"));
+    }
+
+    /// Every settings field is described in the schema and the schema names no extra fields
+    /// (deprecated ones aside).
     #[test]
     fn schema_matches_the_settings() {
         let schema: Value = serde_json::from_str(SETTINGS_SCHEMA).unwrap();
@@ -350,7 +362,12 @@ mod tests {
             .as_object()
             .unwrap_or_else(|| panic!("{at}: no properties"));
         let mut expected: Vec<&String> = object.keys().collect();
-        let mut described: Vec<&String> = properties.keys().collect();
+        // Deprecated keys are still accepted but never written back.
+        let mut described: Vec<&String> = properties
+            .iter()
+            .filter(|(_, p)| p["deprecated"] != Value::Bool(true))
+            .map(|(k, _)| k)
+            .collect();
         expected.sort();
         described.sort();
         assert_eq!(described, expected, "schema properties of {at}");

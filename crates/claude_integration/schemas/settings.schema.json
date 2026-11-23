@@ -77,7 +77,7 @@
         "files": { "type": "boolean", "default": true, "description": "Files changed in the session." },
         "quality": { "type": "boolean", "default": true, "description": "Code quality score ring." },
         "in_status_bar": { "type": "boolean", "default": true },
-        "in_tab_header": { "type": "boolean", "default": true },
+        "in_tab_header": { "type": "boolean", "deprecated": true, "description": "Ignored: the Claude tab header shows only the tab name." },
         "in_sidebar": { "type": "boolean", "default": false },
         "context_amber": { "type": "integer", "minimum": 0, "maximum": 100, "default": 60 },
         "context_red": { "type": "integer", "minimum": 0, "maximum": 100, "default": 85 }

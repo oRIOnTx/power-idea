@@ -144,14 +144,6 @@ impl Workspace {
                 })
         });
     }
-
-    /// Gauges shown in the Claude tab header.
-    pub(super) fn claude_tab_gauges(&self, window: &mut Window, cx: &mut App) -> Option<AnyElement> {
-        if self.light {
-            return None;
-        }
-        claude::render_gauges(&self.root, claude::Place::TabHeader, window, cx)
-    }
 }
 
 /// The shell command that starts `claude` with the plan's arguments.

@@ -524,7 +524,7 @@ impl Render for Workspace {
         let bottom = match self.bottom_panel {
             _ if !self.show_bottom => None,
             BottomPanel::Terminal if !self.terminals.is_empty() => {
-                Some(self.render_terminal_panel(window, cx).into_any_element())
+                Some(self.render_terminal_panel(cx).into_any_element())
             }
             BottomPanel::GitLog => self.render_git_log(cx),
             BottomPanel::Usages => self.render_usages(cx),

@@ -356,11 +356,6 @@ fn gauges_group() -> SettingGroup {
             |s| s.gauges.in_status_bar,
             |s, v| s.gauges.in_status_bar = v,
         ))
-        .item(switch_item(
-            "In the Claude tab header",
-            |s| s.gauges.in_tab_header,
-            |s, v| s.gauges.in_tab_header = v,
-        ))
         .item(number(
             "Context amber at %",
             1.,

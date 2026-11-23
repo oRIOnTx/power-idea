@@ -116,7 +116,7 @@ Fed by Claude Code itself while a session started by the IDE runs: hook events (
 quality runs), the status line JSON (context window %, tokens, cost) and, when no status line arrives, the
 session transcript (parsed by the same code as Insights). Gauges: context window ring (green → amber → red at
 the thresholds you set), tokens and cost, current activity, files changed, code quality ring. Each can be
-switched off, and each place (status bar, Claude tab header, sidebar). Values are always shown as text too.
+switched off, and each place (status bar, sidebar); the Claude tab header shows only the tab name. Values are always shown as text too.
 
 The hooks run `power-idea claude-hook`, which forwards the JSON to the IDE over a local Unix socket and exits
 0 immediately (nothing printed, nothing blocked — if the IDE is closed it is a no-op). The status line runs
@@ -145,6 +145,6 @@ The IDE reads only local files — its own folder, your Claude settings and the 
 4. Click **Preview effective context**: the command line contains `--append-system-prompt-file` and the
    `rules.md` section shows your rule under "Power IDEA rules".
 5. Make sure **Terminal → Claude tab** and **Live status** are on, then press ⌥F12: the **Claude** tab starts
-   first. Ask Claude something that edits a file: the status bar and the tab header show the context ring,
+   first. Ask Claude something that edits a file: the status bar shows the context ring,
    tokens / cost, the activity ("Editing src/…") and the files-changed count; with **Code quality** on, the
    quality ring appears after the first edit.

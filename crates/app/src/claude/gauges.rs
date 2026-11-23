@@ -1,6 +1,6 @@
 //! Live gauges: the bridge socket server (hook and status-line messages from `claude` sessions
-//! the IDE started), per-project gauge state, and the ring widgets in the status bar, the
-//! Claude tab header and the sidebar. When no status line arrives, tokens and cost come from
+//! the IDE started), per-project gauge state, and the ring widgets in the status bar and the
+//! sidebar (the Claude tab header shows only the tab name). When no status line arrives, tokens and cost come from
 //! the session transcript, parsed by the Insights parser.
 
 use std::collections::HashMap;
@@ -126,7 +126,6 @@ fn fill_from_transcript(tag: String, path: PathBuf, cx: &mut App) {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Place {
     StatusBar,
-    TabHeader,
     Sidebar,
 }
 
@@ -136,7 +135,6 @@ pub fn render(project_root: &Path, place: Place, window: &mut Window, cx: &mut A
     let gauges = &settings.gauges;
     let wanted = match place {
         Place::StatusBar => gauges.in_status_bar,
-        Place::TabHeader => gauges.in_tab_header,
         Place::Sidebar => gauges.in_sidebar,
     };
     if !settings.enabled || !gauges.enabled || !wanted {
@@ -164,8 +162,7 @@ pub fn render(project_root: &Path, place: Place, window: &mut Window, cx: &mut A
             "Context window used",
         ));
     }
-    if gauges.cost && place != Place::TabHeader && (session.total_tokens() > 0 || session.cost_usd.is_some())
-    {
+    if gauges.cost && (session.total_tokens() > 0 || session.cost_usd.is_some()) {
         let cost = session.cost_usd.map_or_default(|c| format!(" · ${c:.2}"));
         items.push(text(
             format!("{}{cost}", tokens(session.total_tokens())),
@@ -216,7 +213,7 @@ pub fn render(project_root: &Path, place: Place, window: &mut Window, cx: &mut A
             )
             .child(row.flex_wrap())
             .into_any_element(),
-        _ => row.into_any_element(),
+        Place::StatusBar => row.into_any_element(),
     })
 }
 
