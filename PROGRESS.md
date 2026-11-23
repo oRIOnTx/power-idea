@@ -235,6 +235,7 @@ is in the working tree only.
 - [x] Dialog buttons 1.25× larger: confirmations (`style::confirm_buttons`, 32 → 40 px, same Confirm/Cancel
       actions so Enter/Esc/`on_ok` keep working) and hand-built dialog footers (`style::dialog_button`, 24 → 30 px);
       the Push dialog keeps its size (gpui-kit's split button has a fixed-height caret)
+- [x] Git Log commit details (changed files + message) scroll: rows used to shrink to fit instead of overflowing
 
 ## Backlog
 - [ ] **Automatic versioning and changelogs** (spec: `docs/backlog/versioning-and-changelogs.md`): version from

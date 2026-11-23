@@ -58,7 +58,12 @@ impl Workspace {
         } else {
             format!("{} <{}>", details.author, details.email)
         };
-        container
+        // One non-shrinking column inside the scroll container: direct children of a flex
+        // column shrink to fit instead of overflowing, so the panel never scrolled.
+        let content = v_flex()
+            .flex_none()
+            .w_full()
+            .pb_2()
             .child(
                 div()
                     .px_3()
@@ -111,7 +116,8 @@ impl Workspace {
                             }),
                     )
                     .child(div().text_xs().text_color(theme.muted_foreground).child(author)),
-            )
+            );
+        container.child(content)
     }
 
     fn render_commit_file(
