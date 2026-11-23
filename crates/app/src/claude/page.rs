@@ -107,7 +107,7 @@ pub fn page(workspace: WeakEntity<Workspace>) -> SettingPage {
         .group(general_group())
         .group(rules_view::group(workspace.clone()))
         .group(skills_group(workspace.clone()))
-        .group(quality_group())
+        .group(quality_group(workspace.clone()))
         .group(gauges_group())
         .group(terminal_group())
         .group(privacy_group())
@@ -259,7 +259,7 @@ fn skills_group(workspace: WeakEntity<Workspace>) -> SettingGroup {
         }))
 }
 
-fn quality_group() -> SettingGroup {
+fn quality_group(workspace: WeakEntity<Workspace>) -> SettingGroup {
     SettingGroup::new()
         .title("Code quality")
         .description(
@@ -308,6 +308,10 @@ fn quality_group() -> SettingGroup {
             |s| s.quality.warning_weight,
             |s, v| s.quality.warning_weight = v,
         ))
+        .item(SettingItem::render(move |_, _, cx| {
+            let root = workspace.upgrade().map(|ws| ws.read(cx).root().clone());
+            super::quality::details(root, cx)
+        }))
 }
 
 fn gauges_group() -> SettingGroup {

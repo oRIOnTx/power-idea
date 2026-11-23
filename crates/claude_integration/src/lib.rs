@@ -8,6 +8,7 @@ pub mod gauges;
 pub mod installer;
 pub mod launcher;
 pub mod project;
+pub mod quality;
 pub mod resolver;
 pub mod rules;
 pub mod settings;

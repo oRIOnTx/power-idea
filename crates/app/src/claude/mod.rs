@@ -26,6 +26,7 @@ use crate::inbox::Inbox;
 pub use gauges::{Place, render as render_gauges};
 pub use page::page;
 pub use preview::{open_preview, plan_for};
+pub use quality::on_file_saved;
 pub use skills_view::remember_active as remember_active_skills;
 
 /// Changes to the folder are collected this long before one reload.
