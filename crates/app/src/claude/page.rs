@@ -106,7 +106,7 @@ pub fn page(workspace: WeakEntity<Workspace>) -> SettingPage {
         )
         .group(general_group())
         .group(rules_view::group(workspace.clone()))
-        .group(skills_group())
+        .group(skills_group(workspace.clone()))
         .group(quality_group())
         .group(gauges_group())
         .group(terminal_group())
@@ -241,7 +241,7 @@ fn open_folder(window: &mut Window, cx: &mut App) {
     }
 }
 
-fn skills_group() -> SettingGroup {
+fn skills_group(workspace: WeakEntity<Workspace>) -> SettingGroup {
     SettingGroup::new()
         .title("Skills library")
         .description(
@@ -254,7 +254,9 @@ fn skills_group() -> SettingGroup {
             |s, v| s.skills.enabled = v,
         ))
         .item(mode_item(|s| s.skills.mode, |s, m| s.skills.mode = m))
-        .item(SettingItem::render(|_, _, cx| skills_view::skills_list(cx)))
+        .item(SettingItem::render(move |_, _, cx| {
+            skills_view::skills_list(&workspace, cx)
+        }))
 }
 
 fn quality_group() -> SettingGroup {

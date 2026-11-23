@@ -52,6 +52,7 @@ impl Workspace {
             Binary::Detecting => missing_message("claude is still being detected — use Restart in a moment"),
         };
         let env: BTreeMap<String, String> = plan.env.iter().cloned().collect();
+        claude::remember_active_skills(&self.root, plan.skill_names.clone(), cx);
         cx.spawn_in(window, async move |this, cx| {
             let written = cx
                 .background_spawn({

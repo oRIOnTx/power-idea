@@ -162,6 +162,79 @@ pub fn write_plugin(plugin_dir: &Path, skill_dirs: &[PathBuf]) -> Result<PathBuf
     Ok(plugin_dir.to_path_buf())
 }
 
+/// Skill folders (holding a SKILL.md) under `root`, at most `depth` levels down, skipping `.git`.
+/// A SKILL.md directly in `root` makes `root` itself the only skill.
+pub fn find_skill_dirs(root: &Path, depth: usize) -> Vec<PathBuf> {
+    if root.join(SKILL_FILE).is_file() {
+        return vec![root.to_path_buf()];
+    }
+    let mut found = Vec::new();
+    collect_skill_dirs(root, depth, &mut found);
+    found.sort();
+    found
+}
+
+fn collect_skill_dirs(dir: &Path, depth: usize, found: &mut Vec<PathBuf>) {
+    if depth == 0 {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() || entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
+        if path.join(SKILL_FILE).is_file() {
+            found.push(path);
+        } else {
+            collect_skill_dirs(&path, depth - 1, found);
+        }
+    }
+}
+
+/// What importing skills did.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImportReport {
+    pub added: Vec<String>,
+    /// Name and reason for each skill left out.
+    pub skipped: Vec<(String, String)>,
+}
+
+/// Copies `skill_dirs` into the library; existing names and invalid skills are skipped.
+pub fn import(skill_dirs: &[PathBuf], library: &Path) -> Result<ImportReport> {
+    let mut report = ImportReport::default();
+    fs::create_dir_all(library)?;
+    for dir in skill_dirs {
+        let name = dir
+            .file_name()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        if let Err(err) = read_skill(dir) {
+            report.skipped.push((name, format!("{err:#}")));
+            continue;
+        }
+        let target = library.join(&name);
+        if target.exists() {
+            report
+                .skipped
+                .push((name, "a skill with this name already exists".into()));
+            continue;
+        }
+        copy_dir(dir, &target)?;
+        report.added.push(name);
+    }
+    Ok(report)
+}
+
+/// Accepts `https://…` and `git@…` URLs only: no local paths, `file://` or option-like input.
+pub fn validate_git_url(url: &str) -> Result<()> {
+    let url = url.trim();
+    let allowed = url.starts_with("https://") || (url.starts_with("git@") && url.contains(':'));
+    if !allowed || url.chars().any(char::is_whitespace) {
+        bail!("use an https:// or git@host:owner/repo URL");
+    }
+    Ok(())
+}
+
 /// Copies a folder recursively (skills may carry scripts and references next to SKILL.md).
 pub fn copy_dir(from: &Path, to: &Path) -> Result<()> {
     fs::create_dir_all(to)?;
@@ -244,6 +317,43 @@ mod tests {
         write_plugin(&plugin, &[]).unwrap();
         assert!(!plugin.join("skills/mine").exists());
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn finds_and_imports_skills() {
+        let dir = temp("import");
+        let repo = dir.join("repo");
+        for skill in ["skills/alpha", "skills/nested/beta", ".git/hooks/gamma"] {
+            fs::create_dir_all(repo.join(skill)).unwrap();
+            fs::write(repo.join(skill).join(SKILL_FILE), "---\ndescription: x\n---\n").unwrap();
+        }
+        fs::create_dir_all(repo.join("skills/bad<name>")).unwrap();
+        fs::write(repo.join("skills/bad<name>").join(SKILL_FILE), "").unwrap();
+        let found = find_skill_dirs(&repo, 4);
+        let names: Vec<String> = found
+            .iter()
+            .map(|d| d.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, ["alpha", "bad<name>", "beta"], "dot folders are skipped");
+
+        let library = dir.join("library");
+        fs::create_dir_all(library.join("alpha")).unwrap();
+        let report = import(&found, &library).unwrap();
+        assert_eq!(report.added, ["beta"]);
+        assert_eq!(report.skipped.len(), 2, "{report:?}");
+        assert!(library.join("beta/SKILL.md").is_file());
+        assert_eq!(find_skill_dirs(&library.join("beta"), 1), [library.join("beta")]);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn accepts_only_remote_git_urls() {
+        assert!(validate_git_url("https://github.com/acme/skills.git").is_ok());
+        assert!(validate_git_url("git@github.com:acme/skills.git").is_ok());
+        assert!(validate_git_url("file:///etc").is_err());
+        assert!(validate_git_url("--upload-pack=evil").is_err());
+        assert!(validate_git_url("/tmp/repo").is_err());
+        assert!(validate_git_url("https://x y").is_err());
     }
 
     #[test]

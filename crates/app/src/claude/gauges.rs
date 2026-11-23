@@ -21,6 +21,8 @@ use crate::inbox::Inbox;
 #[derive(Default)]
 pub struct ClaudeGauges {
     pub sessions: HashMap<String, GaugeState>,
+    /// Skills each project's session was started with.
+    pub active_skills: HashMap<String, Vec<String>>,
     /// Animated ring values (tag, gauge) → shown value, eased toward the real one.
     shown: HashMap<(String, &'static str), f64>,
 }
