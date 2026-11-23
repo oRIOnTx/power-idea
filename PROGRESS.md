@@ -93,6 +93,10 @@ is in the working tree only.
       console/tests, RSpec, cargo, npm/yarn/pnpm/bun scripts, go, pytest, Django, mix, make targets). Each runs
       in its own terminal tab through the login shell (colors, input, pry/byebug work), the tab stays with the
       exit code; title-bar widget (picker ▶ ■), Run ⌃R, Run… ⌃⌥R, Stop ⌘F2, Run menu, Edit Configurations
+- [x] Run configurations: JetBrains-style macros (`$FilePath$`, `$FileRelativePath$`, `$FileDir$`, `$FileName$`,
+      `$FileNameWithoutExtension$`, `$ProjectDir$`; shell-quoted in `command`). Detected "Python: current file"
+      for Python projects runs/debugs the open file from its folder via `.venv`/`venv` python or `python3`,
+      saving it first
 - [x] ⌘+click on `file:line[:col]` in any terminal opens it (Ruby, Rust, Go, Node, Python tracebacks…)
 - [x] Debugging for any language via the Debug Adapter Protocol (`crates/dap`): rdbg (Ruby: debugs the run
       command itself, e.g. rails server / rspec), lldb-dap (Rust, C/C++; `cargo build` first), debugpy (Python,
@@ -238,6 +242,7 @@ Database gaps below.
 - `db` test `sqlite_queries_schema_and_limits` failed once; temp DB names now use a counter instead of the clock
 - Navigation: Rename does not save changed open editors; ruby-lsp formats only with RuboCop installed;
   Go to Symbol lists library symbols after project ones
+- "Python: current file": debugpy itself runs on `python3` from PATH, not the project venv; not clicked through by hand
 - Redis TLS verified only by URL/feature tests (no TLS Redis server here)
 - LightEdit: no file watching (external changes are not reloaded), unsaved text kept on quit is restored only if that folder is opened as a project; Finder opening verified only by unit tests (URL decoding), not by hand
 - Dock → Quit cannot ask (gpui has no cancellable terminate hook); unsaved text is recovered instead

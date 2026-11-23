@@ -1,10 +1,12 @@
 //! Run configurations, independent of language: a shell command with a working
 //! folder and environment. User configurations live in
 //! `<project>/.power-idea/run.toml`; common ones are detected from the project
-//! (Rails, RSpec, Cargo, npm/yarn/pnpm/bun, Go, pytest/Django, Mix, Make).
+//! (Rails, RSpec, Cargo, npm/yarn/pnpm/bun, Go, Python, Mix, Make). Macros such as
+//! `$FilePath$` let one configuration run the file open in the editor.
 
 mod detect;
 mod locations;
+mod macros;
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -13,7 +15,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as _, Result};
 use serde::{Deserialize, Serialize};
 
-pub use detect::detect;
+pub use detect::{PYTHON_CURRENT_FILE, detect};
 pub use locations::{Location, find_locations};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -127,6 +129,8 @@ pub fn template(root: &Path) -> String {
     let mut text = String::from(
         "# Run configurations for Power IDEA (Run ⌃R, Stop ⌘F2).\n\
          # Each [[config]] runs `command` in your login shell; `cwd` is relative to the project.\n\
+         # Macros: $FilePath$, $FileRelativePath$, $FileDir$, $FileName$, $FileNameWithoutExtension$\n\
+         # (the file open in the editor) and $ProjectDir$.\n\
          # Detected configurations are listed automatically; copy one here to change it.\n\n",
     );
     let examples = detect(root);

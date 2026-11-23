@@ -170,6 +170,9 @@ impl Workspace {
     }
 
     pub fn debug_config(&mut self, config: RunConfig, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(config) = self.resolve_run_config(&config, window, cx) else {
+            return;
+        };
         let Some(spec) = config.debug.clone() else {
             let text = format!(
                 "{} has no debugger. Add a [config.debug] section with adapter = \"ruby\" | \"lldb\" | \"python\" | \"go\" (Run → Edit Configurations)",

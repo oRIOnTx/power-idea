@@ -79,6 +79,9 @@ impl Workspace {
 
     /// Runs `config` in a terminal tab, replacing an earlier tab of the same configuration.
     pub fn run_config(&mut self, config: RunConfig, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(config) = self.resolve_run_config(&config, window, cx) else {
+            return;
+        };
         self.selected_run = Some(config.name.clone());
         if let Some(ix) = self
             .terminals
@@ -102,6 +105,31 @@ impl Workspace {
                 .with_links(root, cwd)
         });
         self.add_terminal(terminal, window, cx);
+    }
+
+    /// `config` with its macros (`$FilePath$`…) filled in from the active editor,
+    /// whose file is saved first when the configuration runs it; None after notifying.
+    pub(super) fn resolve_run_config(
+        &mut self,
+        config: &RunConfig,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<RunConfig> {
+        let file = self.active().map(|tab| tab.path.clone());
+        if config.uses_current_file()
+            && let Some(ix) = self.active_tab
+            && self.tabs[ix].is_dirty(cx)
+            && !self.save_tab(ix, window, cx)
+        {
+            return None;
+        }
+        match config.expand(&self.root, file.as_deref()) {
+            Ok(config) => Some(config),
+            Err(err) => {
+                self.notify_error(format!("{err:#}"), window, cx);
+                None
+            }
+        }
     }
 
     /// Stop (⌘F2): the active run tab, or the most recent running one.

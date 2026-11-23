@@ -121,6 +121,9 @@ pub fn detect(root: &Path) -> Vec<RunConfig> {
             }),
         );
     }
+    if is_python_project(root) {
+        add(python_current_file(root));
+    }
     if has(root, "pytest.ini")
         || has(root, "conftest.py")
         || (has(root, "pyproject.toml") && has(root, "tests"))
@@ -143,6 +146,58 @@ pub fn detect(root: &Path) -> Vec<RunConfig> {
     configs
 }
 
+/// Files that mark a Python project, besides `.py` files in the root or one folder down.
+const PYTHON_MARKERS: [&str; 7] = [
+    "pyproject.toml",
+    "requirements.txt",
+    "setup.py",
+    "setup.cfg",
+    "Pipfile",
+    ".venv",
+    "venv",
+];
+
+fn is_python_project(root: &Path) -> bool {
+    let has_py = |dir: &Path| {
+        fs::read_dir(dir).into_iter().flatten().flatten().any(|e| {
+            e.path().extension().is_some_and(|x| x == "py") && e.file_type().is_ok_and(|t| t.is_file())
+        })
+    };
+    let subfolders = || {
+        fs::read_dir(root).into_iter().flatten().flatten().filter(|e| {
+            let name = e.file_name();
+            e.file_type().is_ok_and(|t| t.is_dir())
+                && !name.to_string_lossy().starts_with('.')
+                && name != "node_modules"
+                && name != "target"
+        })
+    };
+    PYTHON_MARKERS.iter().any(|m| has(root, m)) || has_py(root) || subfolders().any(|e| has_py(&e.path()))
+}
+
+/// Runs (and debugs) whichever Python file is open, from its folder, like PyCharm's
+/// "Run 'current file'". Uses the project's virtualenv when there is one.
+fn python_current_file(root: &Path) -> RunConfig {
+    let python = [".venv", "venv"]
+        .into_iter()
+        .find(|venv| has(root, &format!("{venv}/bin/python")))
+        .map_or_else(
+            || "python3".to_string(),
+            |venv| format!("$ProjectDir$/{venv}/bin/python"),
+        );
+    RunConfig {
+        cwd: Some("$FileDir$".into()),
+        ..RunConfig::new(PYTHON_CURRENT_FILE, format!("{python} $FilePath$"))
+    }
+    .with_debug(DebugSpec {
+        program: Some("$FilePath$".into()),
+        ..DebugSpec::adapter("python")
+    })
+}
+
+/// Name of the detected configuration that runs the open Python file.
+pub const PYTHON_CURRENT_FILE: &str = "Python: current file";
+
 /// Name of the binary `cargo build` writes for a single-package project.
 fn cargo_binary(root: &Path) -> Option<String> {
     let text = fs::read_to_string(root.join("Cargo.toml")).ok()?;
@@ -161,7 +216,7 @@ fn cargo_binary(root: &Path) -> Option<String> {
 mod tests {
     use std::fs;
 
-    use super::{detect, make_targets};
+    use super::{PYTHON_CURRENT_FILE, detect, make_targets};
 
     #[test]
     fn detects_common_ecosystems() {
@@ -237,6 +292,27 @@ mod tests {
                 .debug
                 .is_none()
         );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn runs_the_current_python_file() {
+        let dir = std::env::temp_dir().join(format!("power-idea-py-{}", std::process::id()));
+        fs::create_dir_all(dir.join("scripts")).unwrap();
+        let find = || detect(&dir).into_iter().find(|c| c.name == PYTHON_CURRENT_FILE);
+        assert!(find().is_none());
+        fs::write(dir.join("scripts/job.py"), "print(1)").unwrap();
+        let config = find().unwrap();
+        assert_eq!(config.command, "python3 $FilePath$");
+        assert!(config.uses_current_file());
+
+        fs::create_dir_all(dir.join(".venv/bin")).unwrap();
+        fs::write(dir.join(".venv/bin/python"), "").unwrap();
+        let file = dir.join("scripts/job.py");
+        let run = find().unwrap().expand(&dir, Some(&file)).unwrap();
+        let expected = format!("{}/.venv/bin/python {}", dir.display(), file.display());
+        assert_eq!(run.command, expected);
+        assert_eq!(run.working_dir(&dir), dir.join("scripts"));
         let _ = fs::remove_dir_all(&dir);
     }
 
