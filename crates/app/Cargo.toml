@@ -17,6 +17,7 @@ dap = { path = "../dap" }
 docker = { path = "../docker" }
 insights = { path = "../insights" }
 extensions = { path = "../extensions" }
+claude_integration = { path = "../claude_integration" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 notify.workspace = true

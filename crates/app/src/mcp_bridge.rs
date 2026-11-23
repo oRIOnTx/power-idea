@@ -89,7 +89,7 @@ fn token_path() -> Option<PathBuf> {
 }
 
 /// Loads the bearer token, creating a random one (mode 0600) on first run.
-fn load_or_create_token() -> Result<String> {
+pub(crate) fn load_or_create_token() -> Result<String> {
     let path = token_path().context("no config directory")?;
     if let Ok(token) = fs::read_to_string(&path)
         && token.trim().len() >= 32

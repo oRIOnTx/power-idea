@@ -294,6 +294,19 @@ fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
+/// A stable folder name for a project's generated files (FNV-1a of the root path).
+pub fn cache_key(project_root: &Path) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in project_root.to_string_lossy().bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x0100_0000_01b3);
+    }
+    let name = project_root
+        .file_name()
+        .map_or_else(String::new, |n| crate::rules::slug(&n.to_string_lossy()));
+    format!("{name}-{hash:016x}")
+}
+
 /// POSIX shell quoting for display and hook commands.
 pub fn shell_quote(text: &str) -> String {
     let safe = !text.is_empty()
@@ -524,6 +537,14 @@ mod tests {
         .unwrap();
         assert_eq!(user_statusline(&project, &home).as_deref(), Some("project.sh"));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn makes_stable_cache_keys() {
+        let a = cache_key(Path::new("/work/My App"));
+        assert_eq!(a, cache_key(Path::new("/work/My App")));
+        assert!(a.starts_with("my-app-"));
+        assert_ne!(a, cache_key(Path::new("/other/My App")));
     }
 
     #[test]

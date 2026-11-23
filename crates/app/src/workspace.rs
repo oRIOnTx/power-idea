@@ -25,6 +25,7 @@ mod branches;
 mod breadcrumbs;
 mod busy_terminals;
 mod chrome;
+mod claude;
 mod close_confirm;
 mod code_nav;
 mod conflicts;

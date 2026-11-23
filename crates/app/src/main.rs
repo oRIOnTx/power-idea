@@ -1,6 +1,7 @@
 mod actions;
 mod assets;
 mod branches_popup;
+mod claude;
 mod config;
 mod database;
 mod editor;
@@ -229,6 +230,7 @@ fn main() {
         cx.set_global(AppConfig(Config::load()));
         apply_theme(None, cx);
         extension_registry::load(cx);
+        claude::init(cx);
         actions::bind_keys(cx);
         mcp_bridge::start(cx);
         menus::install(cx);

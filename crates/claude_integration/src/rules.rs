@@ -241,6 +241,51 @@ pub fn sort(rules: &mut [Rule]) {
     });
 }
 
+/// "New from template": (title, file text) pairs, each a valid rule.
+pub const TEMPLATES: &[(&str, &str)] = &[
+    ("Coding style", include_str!("../builtin/rules/coding-style.md")),
+    (
+        "Testing policy",
+        include_str!("../builtin/rules/testing-policy.md"),
+    ),
+    ("Commit format", include_str!("../builtin/rules/commit-format.md")),
+    ("Security", include_str!("../builtin/rules/security.md")),
+    (
+        "Architecture notes",
+        include_str!("../builtin/rules/architecture-notes.md"),
+    ),
+];
+
+/// A path for a new rule named `name` in `dir` that does not exist yet (`slug.md`, `slug-2.md`, …).
+pub fn new_rule_path(dir: &Path, name: &str) -> PathBuf {
+    let base = slug(name);
+    (1..1000)
+        .map(|n| {
+            let file = if n == 1 {
+                format!("{base}.md")
+            } else {
+                format!("{base}-{n}.md")
+            };
+            dir.join(file)
+        })
+        .find(|path| !path.exists())
+        .unwrap_or_else(|| dir.join(format!("{base}-new.md")))
+}
+
+/// Renumbers priorities so `ordered` (top first) keeps that order: 10 × position from the bottom.
+/// Returns the rules whose priority changed, with the new value.
+pub fn reprioritize(ordered: &[Rule]) -> Vec<(PathBuf, i32)> {
+    let count = ordered.len() as i32;
+    ordered
+        .iter()
+        .zip((1..=count).rev())
+        .filter_map(|(rule, rank)| {
+            let priority = rank * 10;
+            (rule.meta.priority != priority).then(|| (rule.path.clone(), priority))
+        })
+        .collect()
+}
+
 /// A file-system-safe id from a rule name (`Rust style` → `rust-style`).
 pub fn slug(name: &str) -> String {
     let mut slug = String::new();
@@ -355,6 +400,31 @@ mod tests {
         assert_eq!(errors.len(), 1);
         assert!(errors[0].path.ends_with("c.md"));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn templates_are_valid_rules() {
+        for (title, text) in TEMPLATES {
+            let rule = Rule::parse(text, "t.md").unwrap_or_else(|e| panic!("{title}: {e:#}"));
+            assert_eq!(rule.meta.name, *title);
+        }
+    }
+
+    #[test]
+    fn renumbers_priorities() {
+        let rule = |name: &str, priority: i32| {
+            Rule::parse(
+                &format!("---\nname: {name}\npriority: {priority}\n---\nx"),
+                format!("{name}.md"),
+            )
+            .unwrap()
+        };
+        let ordered = [rule("a", 30), rule("b", 5), rule("c", 10)];
+        assert_eq!(
+            reprioritize(&ordered),
+            [(PathBuf::from("b.md"), 20)],
+            "only changed priorities are returned"
+        );
     }
 
     #[test]
