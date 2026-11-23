@@ -109,6 +109,8 @@ actions!(
         StepOut,
         ToggleDockerView,
         ToggleInsightsView,
+        ReloadExtensions,
+        OpenExtensionsFolder,
     ]
 );
 
@@ -221,6 +223,13 @@ impl FileAction {
     }
 }
 
+/// Runs the extension command `id` (from an `extension.toml`).
+#[derive(Clone, Debug, PartialEq, Eq, Action)]
+#[action(namespace = extensions, no_json)]
+pub struct RunExtensionCommand {
+    pub id: SharedString,
+}
+
 /// Actions listed in "Find Action" (Cmd+Shift+A), in display order.
 pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
     vec![
@@ -292,6 +301,8 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Back", Box::new(NavigateBack)),
         ("Forward", Box::new(NavigateForward)),
         ("Copy Claude MCP Command", Box::new(CopyMcpCommand)),
+        ("Reload Extensions", Box::new(ReloadExtensions)),
+        ("Open Extensions Folder", Box::new(OpenExtensionsFolder)),
         ("Cut Selected Files", Box::new(CutFiles)),
         ("Copy Selected Files", Box::new(CopyFiles)),
         ("Paste Files", Box::new(PasteFiles)),
@@ -469,8 +480,24 @@ fn user_keymap(cx: &App) -> Vec<KeyBinding> {
         .collect()
 }
 
+/// Bindings registered by gpui-kit's own components before ours, restored on rebinding.
+struct ComponentKeymap(Vec<KeyBinding>);
+
+impl Global for ComponentKeymap {}
+
+/// Installs the default keymap, then extension commands' bindings, then the user's
+/// `keymap.toml` (later bindings win). Called again when extensions reload.
 pub fn bind_keys(cx: &mut App) {
+    if !cx.has_global::<ComponentKeymap>() {
+        let components = cx.key_bindings().borrow().bindings().cloned().collect();
+        cx.set_global(ComponentKeymap(components));
+    }
+    let components = cx.global::<ComponentKeymap>().0.clone();
+    cx.clear_key_bindings();
+    cx.bind_keys(components);
     cx.bind_keys(default_keymap());
+    let extensions = crate::extension_registry::key_bindings(cx);
+    cx.bind_keys(extensions);
     let user = user_keymap(cx);
     cx.bind_keys(user);
 }

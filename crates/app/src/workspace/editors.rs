@@ -77,6 +77,7 @@ impl Workspace {
                     cx.subscribe(&state, |this, state, event: &InputEvent, cx| {
                         if let InputEvent::Change = event {
                             this.lsp_did_change(&state, cx);
+                            this.send_file_changed(&state, cx);
                         }
                         cx.notify();
                     }),
@@ -108,6 +109,7 @@ impl Workspace {
                 }));
                 let ix = self.tabs.len() - 1;
                 self.attach_language_server(ix, cx);
+                self.send_extension_event("file_opened", rel, cx);
                 let path = self.root.join(rel);
                 self.refresh_breakpoint_marks(&path, cx);
                 ix
@@ -142,6 +144,7 @@ impl Workspace {
                 tab.state.update(cx, |state, cx| state.focus(window, cx));
                 // A server installed since the file was opened starts once you come back to it.
                 self.attach_language_server(ix, cx);
+                self.send_extension_event("active_editor_changed", &rel, cx);
                 self.recent_files.retain(|r| *r != rel);
                 self.recent_files.insert(0, rel);
                 self.recent_files.truncate(MAX_RECENT_FILES);
@@ -170,6 +173,7 @@ impl Workspace {
         }
         if let CenterTab::Editor(tab) = self.tabs.remove(ix) {
             Self::lsp_did_close(&tab);
+            self.send_extension_event("file_closed", &tab.rel, cx);
         }
         self.active_tab = match self.active_tab {
             _ if self.tabs.is_empty() => None,
@@ -207,7 +211,9 @@ impl Workspace {
             Ok(()) => {
                 tab.saved_text = text;
                 Self::lsp_did_save(tab);
+                let rel = tab.rel.clone();
                 self.refresh_git(cx);
+                self.send_extension_event("file_saved", &rel, cx);
                 cx.notify();
                 true
             }

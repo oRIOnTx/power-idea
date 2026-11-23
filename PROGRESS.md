@@ -224,10 +224,16 @@ is in the working tree only.
       global Ruby, else the newest installed one that has it (`RBENV_VERSION`), with a fallback-mode notice and
       "Fix in Terminal" (`gem install ruby-lsp` / `rbenv install --skip-existing`)
 - [x] Line edits (⌘D duplicate, ⌘/ comment, delete / move line) keep the editor's scroll position
+- [x] **Extension API v1** (`crates/extensions`, `docs/extensions.md`): an extension is any program in
+      `<config>/extensions/<id>/` with an `extension.toml`, run per project window and talking JSON-RPC 2.0
+      over stdio (LSP framing). Commands go to Find Action ("Name: Title") with optional key bindings;
+      requests: workspace info, open file, active editor, text, undoable edits, selection, notifications,
+      pickers (`ui/pick` via the palette), input dialogs, terminal runs; events: file opened / closed / saved /
+      changed, active editor changed. Lazy start (eager with events), crash → notification + restart on next
+      command, stderr → `~/Library/Logs/Power IDEA/extensions/<id>.log`; Reload Extensions / Open Extensions
+      Folder. Python example in `examples/extensions/hello-world`, run end to end by `cargo test -p extensions`
 
 ## Backlog
-- [ ] **Extension API** (in progress): extensions as separate processes speaking JSON-RPC over stdio;
-      commands in Find Action + key bindings, editor read/edit, events, notifications / pick / input
 - [ ] **Automatic versioning and changelogs** (spec: `docs/backlog/versioning-and-changelogs.md`): version from
       git tags (`1.5.0-dev.3+sha[.dirty]` / `1.5.0 (412)`), one `scripts/version.sh`, Conventional Commits +
       commit-msg hook, `git-cliff` CHANGELOG, `bin/changelog`, `bin/release` (no push)
@@ -239,6 +245,10 @@ is in the working tree only.
 Other candidates: Database gaps below.
 
 ## Known gaps
+- Extensions: UI not clicked through by hand yet (protocol and the example are tested end to end); no
+  settings page listing extensions, no status bar items, panels or custom editor decorations; `keymap.toml`
+  cannot rebind extension commands; events reach only already running processes; not loaded from project
+  folders on purpose
 - Conflicts: chunks are chosen whole (no editable result pane or word-level diff like JetBrains); binary and
   delete/modify conflicts get only whole-file choices; not clicked through by hand yet
 - Project tree: drag-and-drop acts on one item; right-click does not select the row; arrow keys do not

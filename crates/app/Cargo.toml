@@ -14,6 +14,7 @@ run = { path = "../run" }
 dap = { path = "../dap" }
 docker = { path = "../docker" }
 insights = { path = "../insights" }
+extensions = { path = "../extensions" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 notify.workspace = true

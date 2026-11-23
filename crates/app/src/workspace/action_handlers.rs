@@ -119,6 +119,16 @@ impl Workspace {
         .on_action(cx.listener(|this, _: &FileStructure, w, cx| this.file_structure(w, cx)))
         .on_action(cx.listener(|this, _: &RenameSymbol, w, cx| this.rename_symbol(w, cx)))
         .on_action(cx.listener(|this, _: &ReformatCode, w, cx| this.reformat_code(w, cx)))
+        .on_action(cx.listener(|this, action: &RunExtensionCommand, w, cx| {
+            this.run_extension_command(&action.id, w, cx);
+        }))
+        // Deferred: reloading updates every workspace, this one included.
+        .on_action(cx.listener(|_, _: &ReloadExtensions, w, cx| {
+            w.defer(cx, |_, cx| crate::extension_registry::reload(cx));
+        }))
+        .on_action(cx.listener(|_, _: &OpenExtensionsFolder, w, cx| {
+            crate::extension_registry::open_folder(w, cx);
+        }))
         .on_action(cx.listener(|this, _: &CloseWindow, w, cx| {
             if this.should_close_window(w, cx) {
                 w.remove_window();

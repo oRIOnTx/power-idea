@@ -1,6 +1,6 @@
 //! Modal picker used by Search Everywhere, Go to File, Recent Files,
 //! Find in Files, Find Action, Go to Line, Recent Projects and the
-//! code navigation pickers (usages, file structure, symbols).
+//! code navigation pickers (usages, file structure, symbols) and extension pickers (`ui/pick`).
 
 mod locations;
 
@@ -36,6 +36,8 @@ pub enum PaletteMode {
     GotoSymbol,
     GotoClass,
     RunConfigs,
+    /// A list given by an extension; the choice goes to `PaletteSource::on_choice`.
+    Choice,
 }
 
 impl PaletteMode {
@@ -52,6 +54,7 @@ impl PaletteMode {
             Self::GotoSymbol => "Go to symbol",
             Self::GotoClass => "Go to class",
             Self::RunConfigs => "Run configuration",
+            Self::Choice => "Choose",
         }
     }
 }
@@ -70,19 +73,29 @@ pub struct PaletteSource {
     /// Live symbol lookup for Go to Symbol / Class.
     pub symbol_search: Option<SymbolSearch>,
     pub run_configs: Vec<run::RunConfig>,
+    /// Rows of `PaletteMode::Choice`: label and optional detail.
+    pub choices: Vec<(String, Option<String>)>,
+    /// Gets the index of the chosen row; dropped unused when the palette closes otherwise.
+    pub on_choice: Option<OnChoice>,
+    /// Replaces the mode's placeholder.
+    pub placeholder: Option<SharedString>,
 }
+
+pub type OnChoice = Box<dyn FnOnce(usize, &mut Window, &mut App)>;
 
 enum PaletteItem {
     File(String),
     Text(TextMatch),
     Action {
-        label: &'static str,
+        label: SharedString,
         action: Box<dyn Action>,
     },
     Project(PathBuf),
     Location(LocationItem),
     Run(run::RunConfig),
     EditRunConfigs,
+    /// Index into `PaletteSource::choices`.
+    Choice(usize),
 }
 
 pub struct Palette {
@@ -104,7 +117,11 @@ impl Palette {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let input = cx.new(|cx| InputState::new(window, cx).placeholder(mode.placeholder()));
+        let placeholder = source
+            .placeholder
+            .clone()
+            .unwrap_or_else(|| mode.placeholder().into());
+        let input = cx.new(|cx| InputState::new(window, cx).placeholder(placeholder));
         let subscription =
             cx.subscribe_in(
                 &input,
@@ -163,9 +180,21 @@ impl Palette {
                     .map(PaletteItem::File)
                     .collect();
             }
-            PaletteMode::FindAction => self.items = actions_matching(&query),
+            PaletteMode::FindAction => self.items = actions_matching(&query, cx),
+            PaletteMode::Choice => {
+                let rows = self
+                    .source
+                    .choices
+                    .iter()
+                    .map(|(label, _)| label.as_str())
+                    .enumerate();
+                self.items = fuzzy_filter(&query, rows.collect(), |(_, label)| *label)
+                    .into_iter()
+                    .map(|(ix, _)| PaletteItem::Choice(ix))
+                    .collect();
+            }
             PaletteMode::SearchEverywhere => {
-                let mut items = actions_matching(&query);
+                let mut items = actions_matching(&query, cx);
                 items.truncate(if query.is_empty() { 0 } else { 8 });
                 let mut files = self.files(&query);
                 files.append(&mut items);
@@ -314,6 +343,11 @@ impl Palette {
                     .update(cx, |ws, cx| ws.edit_run_configs(window, cx))
                     .ok();
             }
+            PaletteItem::Choice(ix) => {
+                if let Some(on_choice) = self.source.on_choice.take() {
+                    on_choice(*ix, window, cx);
+                }
+            }
             PaletteItem::Location(item) => {
                 let item = item.clone();
                 workspace
@@ -362,7 +396,7 @@ impl Palette {
             PaletteItem::Action { label, action } => h_flex()
                 .w_full()
                 .gap_2()
-                .child(*label)
+                .child(label.clone())
                 .child(div().flex_1())
                 .children(Kbd::binding_for_action(
                     action.as_ref(),
@@ -412,6 +446,14 @@ impl Palette {
                         .text_color(theme.muted_foreground)
                         .child(".power-idea/run.toml"),
                 ),
+            PaletteItem::Choice(ix) => {
+                let (label, detail) = &self.source.choices[*ix];
+                h_flex().w_full().gap_2().child(label.clone()).children(
+                    detail
+                        .clone()
+                        .map(|detail| div().text_xs().text_color(theme.muted_foreground).child(detail)),
+                )
+            }
             PaletteItem::Location(item) => {
                 let show_place = self.mode != PaletteMode::FileStructure;
                 locations::render_location(item, &self.source.root, show_place, cx)
@@ -481,8 +523,14 @@ impl Render for Palette {
     }
 }
 
-fn actions_matching(query: &str) -> Vec<PaletteItem> {
-    fuzzy_filter(query, actions::palette_actions(), |(label, _)| label)
+/// IDE actions, then extension commands.
+fn actions_matching(query: &str, cx: &App) -> Vec<PaletteItem> {
+    let mut entries: Vec<(SharedString, Box<dyn Action>)> = actions::palette_actions()
+        .into_iter()
+        .map(|(label, action)| (label.into(), action))
+        .collect();
+    entries.extend(crate::extension_registry::palette_entries(cx));
+    fuzzy_filter(query, entries, |(label, _)| label.as_ref())
         .into_iter()
         .map(|(label, action)| PaletteItem::Action { label, action })
         .collect()

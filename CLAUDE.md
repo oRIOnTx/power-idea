@@ -37,6 +37,7 @@ crates/
   docker/  Docker Engine API over the unix socket, events, project resolver
   insights/ Claude Code transcripts → metrics → scores → tips; SQLite store (Session Insights)
   dap/     Debug Adapter Protocol client + adapter plans (live test: cargo test -p dap -- --ignored)
+  extensions/ extension manifests, protocol and processes: JSON-RPC over stdio (docs/extensions.md)
   app/     the gpui application; the only crate that depends on gpui-kit
     workspace.rs        Workspace entity: state + layout composition only
     workspace/*.rs      one concern per module (editors, files, git, git_panel,
@@ -60,6 +61,8 @@ crates/
     settings.rs         Settings tab (Cmd+,)
     actions.rs          every action + the default JetBrains keymap
     mcp_bridge.rs       MCP server thread ⇄ UI thread
+    extension_registry.rs installed extensions, their Find Action entries and key bindings
+                        (processes per window: workspace/extensions.rs, extension_requests.rs)
     style.rs            shared visual helpers (glow, icon_button, …)
     themes/*.json       the only place for UI and syntax colors (neo.json, graphite.json)
 ```

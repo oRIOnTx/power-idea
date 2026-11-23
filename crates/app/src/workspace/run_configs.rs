@@ -2,6 +2,9 @@
 //! terminal tab, kept after the process ends), stopping and editing
 //! `.power-idea/run.toml`. Works for any language: a configuration is a command.
 
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{ActiveTheme as _, Sizable as _, WindowExt as _};
@@ -92,18 +95,27 @@ impl Workspace {
             self.close_terminal(ix, window, cx);
         }
         let cwd = config.working_dir(&self.root);
+        self.open_run_tab(config.name, &config.command, cwd, &config.env, window, cx);
+    }
+
+    /// Runs `command` through the login shell in a new run tab titled `name`.
+    pub(super) fn open_run_tab(
+        &mut self,
+        name: String,
+        command: &str,
+        cwd: PathBuf,
+        env: &BTreeMap<String, String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let shell =
             Some(cx.global::<AppConfig>().0.terminal_shell.trim().to_string()).filter(|s| !s.is_empty());
-        let session = match Session::spawn_command(cwd.clone(), shell, &config.command, &config.env) {
+        let session = match Session::spawn_command(cwd.clone(), shell, command, env) {
             Ok(session) => session,
-            Err(err) => return self.notify_error(format!("Cannot run {}: {err:#}", config.name), window, cx),
+            Err(err) => return self.notify_error(format!("Cannot run {name}: {err:#}"), window, cx),
         };
         let root = self.root.clone();
-        let terminal = cx.new(|cx| {
-            TerminalView::new(session, cx)
-                .for_run(config.name)
-                .with_links(root, cwd)
-        });
+        let terminal = cx.new(|cx| TerminalView::new(session, cx).for_run(name).with_links(root, cwd));
         self.add_terminal(terminal, window, cx);
     }
 

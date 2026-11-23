@@ -1677,6 +1677,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "extensions"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "toml 1.2.2+spec-1.1.0",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5060,6 +5070,7 @@ dependencies = [
  "db",
  "dirs 7.0.0",
  "docker",
+ "extensions",
  "gpui-kit",
  "insights",
  "lsp",

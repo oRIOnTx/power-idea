@@ -377,12 +377,13 @@ impl Workspace {
     /// Asks for a name; `apply` runs on Enter/OK and its error is shown inline.
     pub(super) fn prompt_name(
         &mut self,
-        title: &'static str,
+        title: impl Into<SharedString>,
         initial: &str,
         window: &mut Window,
         cx: &mut Context<Self>,
         apply: impl Fn(&mut Workspace, String, &mut Window, &mut Context<Workspace>) -> Result<()> + 'static,
     ) {
+        let title: SharedString = title.into();
         let input = cx.new(|cx| InputState::new(window, cx).default_value(initial.to_string()));
         let error: Entity<Option<String>> = cx.new(|_| None);
         let apply = std::rc::Rc::new(apply);
@@ -419,7 +420,7 @@ impl Workspace {
             let danger = cx.theme().danger;
             dialog
                 .w(px(420.))
-                .title(title)
+                .title(title.clone())
                 .child(Input::new(&input))
                 .children(message.map(|m| div().pt_2().text_sm().text_color(danger).child(m)))
                 .footer(

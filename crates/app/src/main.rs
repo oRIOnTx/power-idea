@@ -4,6 +4,7 @@ mod branches_popup;
 mod config;
 mod database;
 mod editor;
+mod extension_registry;
 mod file_icons;
 mod file_ops;
 mod inbox;
@@ -212,6 +213,7 @@ fn main() {
         language_rules::register(cx);
         cx.set_global(AppConfig(Config::load()));
         apply_theme(None, cx);
+        extension_registry::load(cx);
         actions::bind_keys(cx);
         mcp_bridge::start(cx);
         menus::install(cx);

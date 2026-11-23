@@ -34,6 +34,8 @@ mod debug;
 mod docker_panel;
 mod docker_view;
 mod editors;
+mod extension_requests;
+mod extensions;
 mod file_clipboard;
 mod files;
 mod fs_watch;
@@ -194,6 +196,8 @@ pub struct Workspace {
     /// Languages whose "install a language server" banner was dismissed.
     dismissed_language_hints: HashSet<String>,
     lsp: crate::language::LspStore,
+    /// Extension processes of this project.
+    extensions: extensions::ExtensionHosts,
     /// Latest diagnostics per file, as published by language servers.
     diagnostics: std::collections::HashMap<PathBuf, Vec<lsp::lsp_types::Diagnostic>>,
     nav: navigation::NavHistory,
@@ -226,6 +230,7 @@ impl Workspace {
         workspace.load_run_configs(false, window, cx);
         workspace.start_lsp_event_loop(cx);
         workspace.preload_language_servers(cx);
+        workspace.start_extensions(window, cx);
         let this = cx.entity().downgrade();
         window.defer(cx, move |window, cx| {
             this.update(cx, |ws, cx| ws.restore_session(window, cx)).ok();
@@ -280,6 +285,7 @@ impl Workspace {
             project,
             dismissed_language_hints: HashSet::new(),
             lsp,
+            extensions: Default::default(),
             diagnostics: Default::default(),
             databases,
             pending_console: None,
@@ -440,6 +446,9 @@ impl Workspace {
             locations: Vec::new(),
             symbol_search: None,
             run_configs: Vec::new(),
+            choices: Vec::new(),
+            on_choice: None,
+            placeholder: None,
         }
     }
 }

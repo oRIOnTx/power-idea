@@ -1,0 +1,35 @@
+# Copy this folder to ~/Library/Application Support/power-idea/extensions/
+# and run "Reload Extensions" (Find Action, ⌘⇧A).
+id = "hello-world"
+name = "Hello World"
+version = "0.1.0"
+description = "Example extension: every part of the Power IDEA extension API"
+command = "python3"
+args = ["main.py"]
+# Listening to events makes the extension start with the project.
+events = ["file_saved"]
+
+[[commands]]
+id = "hello-world.greet"
+title = "Greet"
+keybinding = "cmd-alt-shift-h"
+
+[[commands]]
+id = "hello-world.upper-case"
+title = "Upper-case Selection"
+
+[[commands]]
+id = "hello-world.insert-header"
+title = "Insert File Header"
+
+[[commands]]
+id = "hello-world.pick-file"
+title = "Open One of the Open Files"
+
+[[commands]]
+id = "hello-world.ask-name"
+title = "Ask My Name"
+
+[[commands]]
+id = "hello-world.git-log"
+title = "Show Git Log in a Terminal"
