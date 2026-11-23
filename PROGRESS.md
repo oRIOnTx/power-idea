@@ -226,8 +226,17 @@ is in the working tree only.
 - [x] Line edits (⌘D duplicate, ⌘/ comment, delete / move line) keep the editor's scroll position
 
 ## Backlog
-Agreed backlog is done. Candidates:
-Database gaps below.
+- [ ] **Extension API** (in progress): extensions as separate processes speaking JSON-RPC over stdio;
+      commands in Find Action + key bindings, editor read/edit, events, notifications / pick / input
+- [ ] **Automatic versioning and changelogs** (spec: `docs/backlog/versioning-and-changelogs.md`): version from
+      git tags (`1.5.0-dev.3+sha[.dirty]` / `1.5.0 (412)`), one `scripts/version.sh`, Conventional Commits +
+      commit-msg hook, `git-cliff` CHANGELOG, `bin/changelog`, `bin/release` (no push)
+- [ ] **Strict quality / security / CI-CD pipeline** (spec: `docs/backlog/quality-pipeline.md`): pinned toolchain
+      + MSRV, stricter workspace lints, taplo / typos / machete, cargo-deny / audit / gitleaks, nextest + coverage,
+      lefthook hooks, justfile, GitHub Actions (ci-ok, audit, CodeQL, Scorecard), dependabot, release-plz or
+      cargo-dist. New tools need approval; overlaps with versioning (do together)
+
+Other candidates: Database gaps below.
 
 ## Known gaps
 - Conflicts: chunks are chosen whole (no editable result pane or word-level diff like JetBrains); binary and
