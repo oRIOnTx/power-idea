@@ -220,4 +220,4 @@ See [`CLAUDE.md`](CLAUDE.md) for the conventions and [`PROGRESS.md`](PROGRESS.md
 
 ## License
 
-MIT
+[MIT](LICENSE)
