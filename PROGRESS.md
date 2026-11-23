@@ -237,6 +237,22 @@ is in the working tree only.
       also the Push dialog (split button sized in pixels so both halves stretch), About (`style::ok_button`) and
       form buttons inside dialogs (database kind / Choose…, New Project Browse…)
 - [x] Git Log commit details (changed files + message) scroll: rows used to shrink to fit instead of overflowing
+- [x] **Settings → Claude Code** (`crates/claude_integration`, `crates/app/src/claude/`, docs `docs/claude-code.md`,
+      verified CLI facts `docs/claude-code-integration.md`): global, off by default, every feature its own switch.
+      `claude/settings.toml` + `rules/*.md` (YAML front-matter: name, enabled, description, applies_to languages /
+      path globs / projects, priority, tags) + `skills/<name>/SKILL.md`, JSON Schemas kept in sync by tests,
+      validated with inline errors, hot-reloaded. Inject mode: `--append-system-prompt-file`, `--plugin-dir`
+      (generated plugin `power-idea`), `--settings` (hooks + status line, verified with a real session),
+      optional `--mcp-config`, model / permission mode / effort; Install mode: managed block in
+      `~/.claude/CLAUDE.md` + `~/.claude/skills/ide-*`, backups, manifest, byte-identical uninstall (tested);
+      Export to project (managed block); Preview effective context (redacted). Rules card: search, tags,
+      switches, scope chips, drag / arrows to reorder, Test match, Edit, 5 templates, folder import/export.
+      Skills: 4 built-ins seeded once, add from folder / Git URL, active-in-session marks. Pinned Claude terminal
+      tab (auto or Enter to start, --continue, restart, install hint, close confirmation). Hook bridge
+      `power-idea claude-hook` / `claude-statusline` over a Unix socket (exit 0, user's status line kept) →
+      gauges (context ring with thresholds, tokens/cost with transcript fallback via the Insights parser,
+      activity, files changed, quality ring) in the status bar, tab header and sidebar. Code quality: clippy /
+      rustfmt / eslint / prettier / rubocop / ruff / go vet, score formula in the UI, on hook / save / manual
 - [x] **Versioning from git** (spec `docs/backlog/versioning-and-changelogs.md`): `scripts/version.sh` (annotated
       `v*` tag → version, commit count → build, `X.Y.Z (N)` on a tag / `X.Y.Z-dev.N+sha[.dirty]` after it,
       `APP_VERSION`/`APP_BUILD` without git) feeds `build.rs`, the bundle's Info.plist and the Welcome / About
@@ -263,6 +279,10 @@ is in the working tree only.
 Other candidates: Database gaps below.
 
 ## Known gaps
+- Claude Code section: UI not clicked through by hand (logic is unit-tested, hooks via --settings verified once
+  with a real `claude -p`); no zip import/export of rules (folders only, as agreed); quality runs have no timeout
+  and run the whole project's linters (not just changed files); the gauge sidebar block sits under every
+  sidebar panel
 - Extensions: UI not clicked through by hand yet (protocol and the example are tested end to end); no
   settings page listing extensions, no status bar items, panels or custom editor decorations; `keymap.toml`
   cannot rebind extension commands; events reach only already running processes; not loaded from project

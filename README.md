@@ -138,6 +138,13 @@ CI (GitHub Actions) runs the same checks. Daily `cargo audit` and
 CodeQL run separately, OpenSSF Scorecard on demand (Actions → Scorecard); Dependabot updates crates and actions weekly. See
 [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
+## Claude Code
+
+Settings → **Claude Code** adds global rules and skills for Claude Code (injected when the IDE starts
+`claude`, or installed reversibly into `~/.claude`), a pinned Claude terminal tab, live gauges (context
+window, cost, activity, files changed, code quality) and quality tracking — every feature off by default.
+See [docs/claude-code.md](docs/claude-code.md).
+
 ## Versioning & releases
 
 Git is the single source of truth: nobody edits version numbers or the changelog by hand.
