@@ -1,5 +1,6 @@
 //! "Claude" terminal tabs: `claude` in the project root, with the IDE's MCP server and live
-//! gauges when Settings → Claude Code is on.
+//! gauges when Settings → Claude Code is on. The activity bar icon and ⌘Esc open or focus one;
+//! its menu starts new, continued or resumed sessions in new tabs.
 
 use std::collections::BTreeMap;
 
@@ -14,6 +15,52 @@ use crate::claude::{self, Binary};
 use crate::terminal::{Session, TerminalView};
 
 impl Workspace {
+    /// ⌘Esc and the activity bar icon: back to the editor when the Claude tab has focus, else
+    /// show and focus the project's Claude tab, starting one when there is none.
+    pub(super) fn toggle_claude(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.light {
+            return;
+        }
+        let Some(ix) = self.current_claude_tab(cx) else {
+            return self.start_claude_tab(None, Start::New, window, cx);
+        };
+        if ix == self.active_terminal && self.terminal_visible() && self.terminal_focused(window, cx) {
+            self.focus_editor(window, cx);
+        } else {
+            self.active_terminal = ix;
+            self.show_terminal_panel();
+            self.focus_terminal(window, cx);
+        }
+        cx.notify();
+    }
+
+    /// The Claude tab the icon and its menu act on (see `pick_claude_tab`).
+    fn current_claude_tab(&self, cx: &App) -> Option<usize> {
+        let claude: Vec<bool> = self.terminals.iter().map(|t| t.read(cx).is_claude()).collect();
+        pick_claude_tab(self.active_terminal, &claude)
+    }
+
+    /// Whether a Claude tab of this window has a live process (the dot on the icon).
+    pub(super) fn claude_running(&self, cx: &App) -> bool {
+        self.terminals.iter().any(|t| {
+            let tab = t.read(cx);
+            tab.is_claude() && tab.is_running()
+        })
+    }
+
+    pub(super) fn restart_current_claude(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match self.current_claude_tab(cx) {
+            Some(ix) => self.restart_claude_tab(ix, window, cx),
+            None => self.start_claude_tab(None, Start::New, window, cx),
+        }
+    }
+
+    pub(super) fn close_current_claude(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(ix) = self.current_claude_tab(cx) {
+            self.close_terminal_asking(ix, window, cx);
+        }
+    }
+
     /// Opens a Claude tab at `ix` (the end when `None`), writing its generated files first.
     pub(super) fn start_claude_tab(
         &mut self,
@@ -128,6 +175,15 @@ impl Workspace {
     }
 }
 
+/// The active tab when it is a Claude tab, else the last Claude tab; `claude[i]` tells whether
+/// tab `i` is one.
+fn pick_claude_tab(active: usize, claude: &[bool]) -> Option<usize> {
+    if claude.get(active).copied().unwrap_or(false) {
+        return Some(active);
+    }
+    claude.iter().rposition(|&is_claude| is_claude)
+}
+
 /// The shell command that starts `claude` with the plan's arguments.
 fn command_line(plan: &LaunchPlan) -> String {
     std::iter::once(plan.program.to_string_lossy().into_owned())
@@ -153,7 +209,16 @@ mod tests {
 
     use claude_integration::launcher::LaunchPlan;
 
-    use super::{command_line, missing_message};
+    use super::{command_line, missing_message, pick_claude_tab};
+
+    #[test]
+    fn picks_the_active_claude_tab_else_the_last() {
+        assert_eq!(pick_claude_tab(0, &[]), None);
+        assert_eq!(pick_claude_tab(0, &[false, false]), None);
+        assert_eq!(pick_claude_tab(1, &[true, true, false]), Some(1));
+        assert_eq!(pick_claude_tab(2, &[true, false, false, true]), Some(3));
+        assert_eq!(pick_claude_tab(7, &[true, false]), Some(0), "stale index");
+    }
 
     #[test]
     fn quotes_the_command_line() {

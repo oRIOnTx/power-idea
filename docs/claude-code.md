@@ -65,9 +65,18 @@ your Claude settings) — or a short `Model · ctx 42% · $0.37` when you have n
 
 ## The Claude tab
 
-A Claude tab runs `claude` in the project root, with the IDE's additions when the integration is on. Restart it
-from the tab header; a missing `claude` shows how to install it; closing a running session asks first. The Run
-widget's Stop and ⌘F2 never stop it. ⌘T and **+** in the terminal panel always open a plain shell.
+The **Claude** icon in the activity bar (and **⌘Esc**, as in Claude Code's JetBrains plugin; remap it in
+`keymap.toml` as `ide::ToggleClaude`) shows and focuses the project's Claude tab, or opens a new one running
+`claude` in the project root right away. Pressed again while that tab has focus, it returns to the editor. The
+icon is always there: with the integration off, `claude` starts exactly as a terminal would; with it on, it
+gets the IDE's additions above. A green dot on the icon means a Claude tab's process is running (from the
+terminal's process state only).
+
+Right-click the icon for **New Session**, **Continue Last Session** (`--continue`), **Resume Session…**
+(`--resume`, Claude Code's own picker) — each opens a new Claude tab — and **Restart** / **Close** for the
+current Claude tab (the active one, else the last). All of them are in Find Action too. Closing a running session
+asks first; a missing `claude` shows how to install it. The Run widget's Stop and ⌘F2 never stop a Claude tab,
+and ⌘T / **+** in the terminal panel always open a plain shell.
 
 ## Privacy
 

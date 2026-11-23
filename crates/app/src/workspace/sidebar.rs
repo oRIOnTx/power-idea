@@ -10,7 +10,10 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use super::{LeftPanel, Workspace, git};
-use crate::actions::{OpenSettings, PROJECT_TREE_CONTEXT, ShowErrors};
+use crate::actions::{
+    ClaudeCloseSession, ClaudeContinueSession, ClaudeNewSession, ClaudeRestartSession, ClaudeResumeSession,
+    OpenSettings, PROJECT_TREE_CONTEXT, ShowErrors,
+};
 use crate::file_ops::ClipMode;
 use crate::{file_icons, style};
 
@@ -53,6 +56,8 @@ impl Workspace {
         let (errors_unseen, errors_total) = cx
             .try_global::<crate::errors::ErrorBadge>()
             .map_or((0, 0), |badge| (badge.unseen, badge.total));
+        let claude_running = self.claude_running(cx);
+        let claude_focus = self.focus_handle.clone();
         let focus = self.focus_handle.clone();
 
         let slot = |id: &'static str,
@@ -159,6 +164,36 @@ impl Workspace {
                     Box::new(cx.listener(|this, _, window, cx| this.toggle_insights(window, cx))),
                 ))
             })
+            .child(
+                slot(
+                    "bar-claude",
+                    Icon::new(IconName::Bot),
+                    "Claude Code (⌘Esc)",
+                    false,
+                    0,
+                    Box::new(cx.listener(|this, _, window, cx| this.toggle_claude(window, cx))),
+                )
+                .id("bar-claude-slot")
+                .context_menu(move |menu, _, _| {
+                    menu.action_context(claude_focus.clone())
+                        .menu("New Session", Box::new(ClaudeNewSession))
+                        .menu("Continue Last Session", Box::new(ClaudeContinueSession))
+                        .menu("Resume Session…", Box::new(ClaudeResumeSession))
+                        .separator()
+                        .menu("Restart", Box::new(ClaudeRestartSession))
+                        .menu("Close", Box::new(ClaudeCloseSession))
+                })
+                .when(claude_running, |el| {
+                    // Running dot: only the terminal process state, never session data.
+                    el.child(
+                        div()
+                            .absolute()
+                            .top(px(6.))
+                            .right(px(10.))
+                            .child(style::signal_dot(theme.green)),
+                    )
+                }),
+            )
             .child(div().flex_1())
             .child(slot(
                 "bar-git-log",

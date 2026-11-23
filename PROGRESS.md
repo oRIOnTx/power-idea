@@ -259,6 +259,10 @@ is in the working tree only.
       Privacy / Clear caches. Old `settings.toml` files load: `REMOVED_KEYS` are ignored and named on the page.
       `claude_integration::legacy::cleanup` removes, once, what Install mode put into `~/.claude` (manifest-driven,
       marker-checked, tested); `rules/` and `skills/` in the IDE folder are kept.
+- [x] **Claude icon in the activity bar** + ⌘Esc (`ide::ToggleClaude`, remappable): focus the project's Claude
+      tab or start one; again from that tab → back to the editor. Green dot while a Claude tab's process runs.
+      Right-click: New Session, Continue (`--continue`), Resume… (`--resume`), Restart, Close (asks when running);
+      all in Find Action. `launcher::Start` picks the flag.
 - [x] **Versioning from git** (spec `docs/backlog/versioning-and-changelogs.md`): `scripts/version.sh` (annotated
       `v*` tag → version, commit count → build, `X.Y.Z (N)` on a tag / `X.Y.Z-dev.N+sha[.dirty]` after it,
       `APP_VERSION`/`APP_BUILD` without git) feeds `build.rs`, the bundle's Info.plist and the Welcome / About

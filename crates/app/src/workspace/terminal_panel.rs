@@ -24,7 +24,7 @@ impl Workspace {
         self.show_bottom && self.bottom_panel == BottomPanel::Terminal
     }
 
-    fn show_terminal_panel(&mut self) {
+    pub(super) fn show_terminal_panel(&mut self) {
         self.show_bottom = true;
         self.bottom_panel = BottomPanel::Terminal;
     }

@@ -2,6 +2,8 @@
 
 use gpui_kit::*;
 
+use claude_integration::launcher::Start;
+
 use super::{LeftPanel, Workspace};
 use crate::actions::*;
 use crate::editor;
@@ -90,6 +92,18 @@ impl Workspace {
         )
         .on_action(cx.listener(|this, _: &ToggleDockerView, w, cx| this.toggle_docker(w, cx)))
         .on_action(cx.listener(|this, _: &ToggleInsightsView, w, cx| this.toggle_insights(w, cx)))
+        .on_action(cx.listener(|this, _: &ToggleClaude, w, cx| this.toggle_claude(w, cx)))
+        .on_action(cx.listener(|this, _: &ClaudeNewSession, w, cx| {
+            this.start_claude_tab(None, Start::New, w, cx);
+        }))
+        .on_action(cx.listener(|this, _: &ClaudeContinueSession, w, cx| {
+            this.start_claude_tab(None, Start::Continue, w, cx);
+        }))
+        .on_action(cx.listener(|this, _: &ClaudeResumeSession, w, cx| {
+            this.start_claude_tab(None, Start::Resume, w, cx);
+        }))
+        .on_action(cx.listener(|this, _: &ClaudeRestartSession, w, cx| this.restart_current_claude(w, cx)))
+        .on_action(cx.listener(|this, _: &ClaudeCloseSession, w, cx| this.close_current_claude(w, cx)))
         .on_action(cx.listener(|this, _: &ToggleDatabaseView, _, cx| {
             this.toggle_left_panel(LeftPanel::Database, cx);
         }))
