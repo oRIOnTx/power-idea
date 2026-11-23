@@ -153,6 +153,11 @@ impl Workspace {
                 self.focus_handle.focus(window, cx);
             }
             CenterTab::Console { console, .. } => console.update(cx, |console, cx| console.focus(window, cx)),
+            CenterTab::Errors(_) => {
+                self.focus_handle.focus(window, cx);
+                // Looking at the list is what "seen" means: the badge goes away.
+                error_journal::mark_all_seen();
+            }
         }
         cx.notify();
     }

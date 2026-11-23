@@ -23,6 +23,7 @@ pub fn update_config(cx: &mut App, update: impl FnOnce(&mut Config)) {
     update(&mut cx.global_mut::<AppConfig>().0);
     if let Err(err) = cx.global::<AppConfig>().0.save() {
         eprintln!("failed to save config: {err:#}");
+        error_journal::report(&err, "saving settings");
     }
     crate::apply_theme(None, cx);
     cx.refresh_windows();
@@ -164,9 +165,33 @@ fn appearance_page() -> SettingPage {
         )
 }
 
+/// "Keep errors for": how long the journal behind the gear's "!" badge keeps errors.
+fn error_journal_group() -> SettingGroup {
+    use error_journal::Retention;
+    SettingGroup::new().title("Errors").item(
+        SettingItem::new(
+            "Keep errors for",
+            SettingField::dropdown(
+                Retention::ALL
+                    .iter()
+                    .map(|r| (r.as_setting().into(), r.label().into()))
+                    .collect(),
+                |cx| config(cx).error_journal.retention().as_setting().into(),
+                |value, cx| crate::errors::set_retention(Retention::from_setting(&value), cx),
+            )
+            .default_value(Retention::default().as_setting()),
+        )
+        .description(
+            "Measured from the last occurrence. Errors are always cleared when the app version \
+             changes. Help → Show Errors.",
+        ),
+    )
+}
+
 fn system_page() -> SettingPage {
     SettingPage::new("System")
         .icon(IconName::Settings)
+        .group(error_journal_group())
         .group(
             SettingGroup::new().title("Projects").item(
                 SettingItem::new(

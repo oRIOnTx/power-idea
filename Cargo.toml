@@ -38,6 +38,8 @@ dirs = "7"
 # Claude Code integration: YAML front-matter of rules and SKILL.md, path globs in rule scopes.
 yaml-rust2 = { version = "=0.13.2", default-features = false }
 globset = "=0.4.21"
+# Error journal: the logger facade gpui reports its errors through (already in Cargo.lock).
+log = "=0.4.35"
 
 [workspace.lints.rust]
 # `deny`, not `forbid`: main.rs has one documented exception (`set_var` at startup).

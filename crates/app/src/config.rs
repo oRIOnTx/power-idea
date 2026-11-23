@@ -60,6 +60,29 @@ pub struct Config {
     pub confirm_close_project: bool,
     /// Show the `.power-idea` folder (project settings and IDE state) in the Project tree.
     pub show_power_idea_dir: bool,
+    /// `[error_journal]`: the recent-errors journal behind the badge on the settings gear.
+    pub error_journal: ErrorJournalSettings,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ErrorJournalSettings {
+    /// "restart" | "1d" | "7d" | "30d"; anything else means "7d".
+    pub retention: String,
+}
+
+impl Default for ErrorJournalSettings {
+    fn default() -> Self {
+        Self {
+            retention: error_journal::Retention::default().as_setting().into(),
+        }
+    }
+}
+
+impl ErrorJournalSettings {
+    pub fn retention(&self) -> error_journal::Retention {
+        error_journal::Retention::from_setting(&self.retention)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -256,6 +279,7 @@ impl Default for Config {
             confirm_exit: true,
             confirm_close_project: true,
             show_power_idea_dir: false,
+            error_journal: ErrorJournalSettings::default(),
         }
     }
 }

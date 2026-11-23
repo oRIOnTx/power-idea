@@ -111,6 +111,10 @@ actions!(
         ToggleInsightsView,
         ReloadExtensions,
         OpenExtensionsFolder,
+        ShowErrors,
+        TriggerTestError,
+        TriggerTestPanic,
+        TriggerTestCrash,
     ]
 );
 
@@ -232,7 +236,7 @@ pub struct RunExtensionCommand {
 
 /// Actions listed in "Find Action" (Cmd+Shift+A), in display order.
 pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
-    vec![
+    let mut actions: Vec<(&'static str, Box<dyn Action>)> = vec![
         ("Search Everywhere", Box::new(SearchEverywhere)),
         ("Go to File…", Box::new(GotoFile)),
         ("Recent Files", Box::new(RecentFiles)),
@@ -307,8 +311,27 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Copy Selected Files", Box::new(CopyFiles)),
         ("Paste Files", Box::new(PasteFiles)),
         ("Delete Selected Files…", Box::new(DeleteFiles)),
+        ("Show Errors", Box::new(ShowErrors)),
         ("Quit", Box::new(Quit)),
-    ]
+    ];
+    // Hidden helpers for checking the error badge by hand; never in release builds.
+    if cfg!(debug_assertions) {
+        actions.extend([
+            (
+                "Debug: Trigger Test Error",
+                Box::new(TriggerTestError) as Box<dyn Action>,
+            ),
+            (
+                "Debug: Trigger Test Panic (background thread)",
+                Box::new(TriggerTestPanic),
+            ),
+            (
+                "Debug: Trigger Test Crash (UI thread, aborts)",
+                Box::new(TriggerTestCrash),
+            ),
+        ]);
+    }
+    actions
 }
 
 fn default_keymap() -> Vec<KeyBinding> {

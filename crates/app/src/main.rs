@@ -5,6 +5,7 @@ mod claude;
 mod config;
 mod database;
 mod editor;
+mod errors;
 mod extension_registry;
 mod file_icons;
 mod file_ops;
@@ -135,6 +136,7 @@ pub(crate) fn apply_theme(window: Option<&mut Window>, cx: &mut App) {
 pub(crate) fn save_config(cx: &App) {
     if let Err(err) = cx.global::<AppConfig>().0.save() {
         eprintln!("failed to save config: {err:#}");
+        error_journal::report(&err, "saving settings");
     }
 }
 
@@ -208,6 +210,26 @@ fn install_panic_log() {
     }));
 }
 
+/// Starts the error journal (`errors.json` next to `config.toml`) and chains its panic hook
+/// before the panic log's, so a crash is recorded first.
+fn start_error_journal(config: &Config) {
+    let Some(dir) = Config::dir() else { return };
+    let options = error_journal::Options {
+        dir,
+        app_version: APP_VERSION.into(),
+        build: env!("POWER_IDEA_BUILD").into(),
+        retention: config.error_journal.retention(),
+        clock: std::sync::Arc::new(error_journal::SystemClock),
+        limits: error_journal::Limits::default(),
+    };
+    if let Err(err) = error_journal::init(options) {
+        eprintln!("error journal: {err:#}");
+        return;
+    }
+    error_journal::install_panic_hook();
+    error_journal::install_logger();
+}
+
 fn main() {
     // Claude Code hook / status-line helpers: forward stdin to the running IDE and exit at once,
     // before anything slow (the login shell PATH lookup, the GUI).
@@ -220,6 +242,8 @@ fn main() {
         _ => {}
     }
     install_panic_log();
+    let config = Config::load();
+    start_error_journal(&config);
     inherit_login_shell_path();
     // `power-idea <folder or files…>`; Finder may add its own `-psn_…` argument.
     let arg_paths: Vec<PathBuf> = std::env::args()
@@ -237,7 +261,8 @@ fn main() {
     app.run(move |cx| {
         init(cx);
         language_rules::register(cx);
-        cx.set_global(AppConfig(Config::load()));
+        cx.set_global(AppConfig(config));
+        errors::init(cx);
         apply_theme(None, cx);
         extension_registry::load(cx);
         claude::init(cx);
@@ -249,6 +274,7 @@ fn main() {
         cx.on_app_quit(|cx| {
             projects::remember_open_projects(cx);
             workspace::store_recovery(cx);
+            error_journal::shutdown();
             async {}
         })
         .detach();

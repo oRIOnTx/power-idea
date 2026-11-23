@@ -48,6 +48,7 @@ crates/
   extensions/ extension manifests, protocol and processes: JSON-RPC over stdio (docs/extensions.md)
   claude_integration/ Claude Code settings: rules, skills, resolver, launcher, installer, hook bridge
                       (docs/claude-code-integration.md)
+  error_journal/ recent errors (panics, log::error!, report()) → errors.json; badge on the settings gear
   app/     the gpui application; the only crate that depends on gpui-kit
     workspace.rs        Workspace entity: state + layout composition only
     workspace/*.rs      one concern per module (editors, files, git, git_panel,

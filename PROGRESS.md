@@ -274,11 +274,24 @@ is in the working tree only.
       SECURITY. CodeQL is skipped while the repository is private; Scorecard is optional (manual run, `SCORECARD_TOKEN`
       secret for a private repo);
       cargo-machete only in CI (local install was not allowed)
+- [x] **Error journal** (`crates/error_journal`, `app/src/errors/`): panics on any thread (synchronous write
+      before a possible abort, `try_lock` + `panic-<ts>.json` fallback merged on the next start), `log::error!`
+      (gpui's errors) and `error_journal::report(&anyhow, context)`; fingerprint dedup (×count), trimmed
+      backtraces (own frames ± 2, ≤ 60 lines / 8 KB), home → `~`, tokens redacted; `errors.json` in the config
+      dir, ≤ 50 records / 256 KB, atomic writes from a debounced worker, hourly pruning; reset on a new
+      version/build; crash detection via `clean_shutdown`. Retention ("Until restart" keeps an unseen crash) in
+      Settings → System and the Errors tab. Red "!" on the settings gear (tooltip + accessible label "N new
+      errors"), click → Errors tab (newest first, expand → context/location/version/backtrace, Copy as Markdown,
+      Open file location, Copy all, Clear all); gear right-click menu, Help → Show Errors, Find Action. Debug
+      builds: "Debug: Trigger Test Error / Panic / Crash" in Find Action
 
 ## Backlog
 Other candidates: Database gaps below.
 
 ## Known gaps
+- Error journal: UI not clicked through by hand; native crashes (SIGSEGV, aborts in foreign code) are not
+  captured (TODO in the crate docs); release builds are stripped, so their backtraces have no symbols and the
+  fingerprint falls back to the message
 - Claude Code section: UI not clicked through by hand (logic is unit-tested, hooks via --settings verified once
   with a real `claude -p`); no zip import/export of rules (folders only, as agreed); quality runs have no timeout
   and run the whole project's linters (not just changed files); the gauge sidebar block sits under every

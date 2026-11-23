@@ -77,7 +77,8 @@ impl Workspace {
                 CenterTab::Diff(_)
                 | CenterTab::Settings
                 | CenterTab::Conflicts
-                | CenterTab::Console { .. } => continue,
+                | CenterTab::Console { .. }
+                | CenterTab::Errors(_) => continue,
             };
             if self.active_tab == Some(ix) {
                 active = Some(tabs.len());

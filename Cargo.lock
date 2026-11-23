@@ -1624,6 +1624,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "error_journal"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "etagere"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5092,6 +5103,7 @@ dependencies = [
  "db",
  "dirs 7.0.0",
  "docker",
+ "error_journal",
  "extensions",
  "gpui-kit",
  "insights",

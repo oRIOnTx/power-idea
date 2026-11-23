@@ -78,6 +78,7 @@ impl Workspace {
         .on_action(cx.listener(|this, _: &CheckoutRevision, w, cx| this.prompt_checkout_revision(w, cx)))
         .on_action(cx.listener(|_, _: &CopyMcpCommand, w, cx| crate::mcp_bridge::copy_claude_command(w, cx)))
         .on_action(cx.listener(|this, _: &OpenSettings, w, cx| this.open_settings(w, cx)))
+        .on_action(cx.listener(|this, _: &ShowErrors, w, cx| this.open_errors(w, cx)))
         .on_action(cx.listener(|this, action: &FileAction, w, cx| this.handle_file_action(action, w, cx)))
         .on_action(cx.listener(|this, _: &CutFiles, w, cx| this.clip_selection(ClipMode::Cut, w, cx)))
         .on_action(cx.listener(|this, _: &CopyFiles, w, cx| this.clip_selection(ClipMode::Copy, w, cx)))

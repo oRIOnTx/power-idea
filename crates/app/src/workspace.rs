@@ -36,6 +36,7 @@ mod debug;
 mod docker_panel;
 mod docker_view;
 mod editors;
+mod errors_tab;
 mod extension_requests;
 mod extensions;
 mod file_clipboard;
@@ -491,6 +492,7 @@ impl Render for Workspace {
                     .into_any_element(),
             ),
             Some(CenterTab::Console { console, .. }) => Some(console.clone().into_any_element()),
+            Some(CenterTab::Errors(view)) => Some(view.clone().into_any_element()),
             Some(CenterTab::Conflicts) => Some(self.render_conflicts_tab(cx)),
             Some(CenterTab::Settings) => Some(
                 div()

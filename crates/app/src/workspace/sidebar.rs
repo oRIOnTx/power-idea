@@ -3,13 +3,14 @@
 use gpui_kit::component::input;
 use gpui_kit::component::list::ListItem;
 use gpui_kit::component::menu::ContextMenuExt as _;
+use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::tree::tree;
 use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Selectable as _, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use super::{LeftPanel, Workspace, git};
-use crate::actions::PROJECT_TREE_CONTEXT;
+use crate::actions::{OpenSettings, PROJECT_TREE_CONTEXT, ShowErrors};
 use crate::file_ops::ClipMode;
 use crate::{file_icons, style};
 
@@ -49,6 +50,10 @@ impl Workspace {
         let insights_enabled = Self::insights_enabled(cx);
         let terminal_open = self.terminal_visible();
         let log_open = self.git_log_visible();
+        let (errors_unseen, errors_total) = cx
+            .try_global::<crate::errors::ErrorBadge>()
+            .map_or((0, 0), |badge| (badge.unseen, badge.total));
+        let focus = self.focus_handle.clone();
 
         let slot = |id: &'static str,
                     icon: Icon,
@@ -171,14 +176,55 @@ impl Workspace {
                 0,
                 Box::new(cx.listener(|this, _, window, cx| this.toggle_terminal(window, cx))),
             ))
-            .child(slot(
-                "bar-settings",
-                Icon::new(IconName::Settings),
-                "Settings (⌘,)",
-                false,
-                0,
-                Box::new(cx.listener(|this, _, window, cx| this.open_settings(window, cx))),
-            ))
+            .child(
+                slot(
+                    "bar-settings",
+                    Icon::new(IconName::Settings),
+                    "Settings (⌘,)",
+                    false,
+                    0,
+                    Box::new(cx.listener(|this, _, window, cx| this.open_settings(window, cx))),
+                )
+                .id("bar-settings-slot")
+                .context_menu(move |menu, _, _| {
+                    menu.action_context(focus.clone())
+                        .menu("Settings…", Box::new(OpenSettings))
+                        .menu(format!("Errors ({errors_total})"), Box::new(ShowErrors))
+                })
+                .when(errors_unseen > 0, |el| {
+                    el.child(self.render_error_badge(errors_unseen, cx))
+                }),
+            )
+    }
+
+    /// A red "!" on the gear while there are errors the user has not looked at.
+    fn render_error_badge(&self, unseen: usize, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = cx.theme();
+        let label = SharedString::from(crate::errors::badge_label(unseen));
+        div()
+            .id("bar-errors-badge")
+            .absolute()
+            .top(px(3.))
+            .right(px(6.))
+            .size(px(14.))
+            .rounded_full()
+            .border_1()
+            .border_color(theme.title_bar)
+            .bg(theme.danger)
+            .text_color(theme.danger_foreground)
+            .text_size(px(10.))
+            .font_weight(FontWeight::BOLD)
+            .flex()
+            .items_center()
+            .justify_center()
+            .cursor_pointer()
+            .aria_label(label.clone())
+            .tooltip(move |window, cx| Tooltip::new(label.clone()).build(window, cx))
+            .on_click(cx.listener(|this, _, window, cx| {
+                cx.stop_propagation();
+                this.open_errors(window, cx);
+            }))
+            .child("!")
     }
 
     pub(super) fn render_sidebar(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {

@@ -160,6 +160,8 @@ fn menus() -> Vec<Menu> {
         Menu::new("Help").items([
             MenuItem::action("Find Action…", FindAction),
             MenuItem::action("Copy Claude MCP Command", CopyMcpCommand),
+            MenuItem::separator(),
+            MenuItem::action("Show Errors", ShowErrors),
         ]),
     ]
 }

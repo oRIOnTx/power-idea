@@ -69,13 +69,20 @@ pub enum CenterTab {
         title: String,
         console: Entity<crate::database::QueryConsole>,
     },
+    /// The error journal (one per window).
+    Errors(Entity<crate::errors::ErrorsView>),
 }
 
 impl CenterTab {
     pub fn editor(&self) -> Option<&EditorTab> {
         match self {
             Self::Editor(tab) => Some(tab),
-            Self::Image(_) | Self::Diff(_) | Self::Settings | Self::Conflicts | Self::Console { .. } => None,
+            Self::Image(_)
+            | Self::Diff(_)
+            | Self::Settings
+            | Self::Conflicts
+            | Self::Console { .. }
+            | Self::Errors(_) => None,
         }
     }
 
@@ -84,7 +91,7 @@ impl CenterTab {
         match self {
             Self::Editor(tab) => Some(&tab.rel),
             Self::Image(tab) => Some(&tab.rel),
-            Self::Diff(_) | Self::Settings | Self::Conflicts | Self::Console { .. } => None,
+            Self::Diff(_) | Self::Settings | Self::Conflicts | Self::Console { .. } | Self::Errors(_) => None,
         }
     }
 
@@ -96,6 +103,7 @@ impl CenterTab {
             Self::Settings => "Settings".into(),
             Self::Conflicts => "Conflicts".into(),
             Self::Console { title, .. } => title.clone(),
+            Self::Errors(_) => "Errors".into(),
         }
     }
 
