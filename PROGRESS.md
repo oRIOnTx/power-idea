@@ -151,6 +151,7 @@ is in the working tree only.
       New Directory, Paste, Copy Path, Reveal in Finder, Open in Terminal)
 - [x] Enter submits every text dialog (New File / Directory, Rename, New Worktree, New Project, Data Source)
       via `style::submit_on_enter`; fixes the abort on Enter in the name prompt (it re-entered the Workspace)
+- [x] Editor: Tab accepts the highlighted completion item (JetBrains), otherwise indents (`SmartTab`)
 - [x] Project tree: ⌦ / ⌫ / ⌘⌫ ask and move the selected files to the Trash (multi-selection; also from the context menu);
       the confirmation lists the items (icon, name, folder) with Cancel and a red "Move to Trash"
 - [x] Project tree keeps keyboard focus: a single click previews a file without moving focus to the editor

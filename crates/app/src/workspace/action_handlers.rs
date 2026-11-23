@@ -73,6 +73,7 @@ impl Workspace {
         }))
         .on_action(cx.listener(|this, _: &SmartEnter, w, cx| this.smart_enter(w, cx)))
         .on_action(cx.listener(|this, _: &SmartBackspace, w, cx| this.smart_backspace(w, cx)))
+        .on_action(cx.listener(|this, _: &SmartTab, w, cx| this.smart_tab(w, cx)))
         .on_action(cx.listener(|this, _: &NewWorktree, w, cx| this.prompt_new_worktree(None, w, cx)))
         .on_action(cx.listener(|this, _: &CheckoutRevision, w, cx| this.prompt_checkout_revision(w, cx)))
         .on_action(cx.listener(|_, _: &CopyMcpCommand, w, cx| crate::mcp_bridge::copy_claude_command(w, cx)))

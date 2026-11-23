@@ -71,6 +71,7 @@ actions!(
         CopyMcpCommand,
         SmartEnter,
         SmartBackspace,
+        SmartTab,
         CutFiles,
         CopyFiles,
         PasteFiles,
@@ -333,6 +334,8 @@ fn default_keymap() -> Vec<KeyBinding> {
         // Through the workspace first: closing blocks, a level back in indentation.
         KeyBinding::new("enter", SmartEnter, ed),
         KeyBinding::new("backspace", SmartBackspace, ed),
+        // JetBrains: Tab accepts the highlighted completion item.
+        KeyBinding::new("tab", SmartTab, ed),
         // JetBrains Basic Completion.
         KeyBinding::new("ctrl-space", gpui_kit::component::input::ShowCompletions, ed),
         KeyBinding::new("cmd-shift-a", FindAction, ws),

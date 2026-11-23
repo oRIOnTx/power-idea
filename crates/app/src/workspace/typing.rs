@@ -1,7 +1,7 @@
-//! Enter and Backspace in the editor go through the workspace first, so they can act
+//! Enter, Tab and Backspace in the editor go through the workspace first, so they can act
 //! as in JetBrains IDEs (see `language_rules`); anything else is the editor's own.
 
-use gpui_kit::component::input::{Backspace, Delete, EditorState, Enter};
+use gpui_kit::component::input::{Backspace, Delete, EditorState, Enter, IndentInline};
 use gpui_kit::*;
 
 use super::Workspace;
@@ -35,6 +35,24 @@ impl Workspace {
                 cx,
             );
         }
+    }
+
+    /// Tab accepts the open completion item (as Enter does); otherwise it indents.
+    pub(super) fn smart_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let menu_open = self.typing_editor(window, cx).is_some_and(|(state, ..)| {
+            let state = state.read(cx);
+            state.completion_menu_state().open
+        });
+        // Dispatched, not called: the editor handles them after this workspace update ends.
+        let action: Box<dyn Action> = if menu_open {
+            Box::new(Enter {
+                secondary: false,
+                shift: false,
+            })
+        } else {
+            Box::new(IndentInline)
+        };
+        window.dispatch_action(action, cx);
     }
 
     pub(super) fn smart_backspace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
