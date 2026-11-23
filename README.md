@@ -134,8 +134,8 @@ just check         # everything CI runs
 | `check` | all of the above plus secret scanning and the workflow linters |
 | `changelog` / `release` | see Versioning & releases |
 
-CI (GitHub Actions) runs the same checks. Daily `cargo audit`,
-CodeQL and OpenSSF Scorecard run separately; Dependabot updates crates and actions weekly. See
+CI (GitHub Actions) runs the same checks. Daily `cargo audit` and
+CodeQL run separately, OpenSSF Scorecard on demand (Actions → Scorecard); Dependabot updates crates and actions weekly. See
 [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ## Versioning & releases

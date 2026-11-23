@@ -255,7 +255,8 @@ is in the working tree only.
       `scorecard.yml`, `release.yml` (tag → dmg + SHA256SUMS + CycloneDX SBOM + provenance attestation + GitHub
       Release from `release-notes/`), dependabot (weekly, grouped, 7-day cooldown); actions pinned to SHAs,
       `permissions: contents: read`, `persist-credentials: false`. CODEOWNERS, PR/issue templates, CONTRIBUTING,
-      SECURITY. CodeQL and Scorecard are skipped while the repository is private (they need public code scanning / a PAT);
+      SECURITY. CodeQL is skipped while the repository is private; Scorecard is optional (manual run, `SCORECARD_TOKEN`
+      secret for a private repo);
       cargo-machete only in CI (local install was not allowed)
 
 ## Backlog
