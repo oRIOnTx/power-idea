@@ -16,6 +16,8 @@ is in the working tree only.
       directory relative to the root; debounced atomic writes) and reopen once, in their last directory, the
       first time the panel opens. Directory comes from the shell process (`lsof`, `/proc` on Linux) every 3 s;
       OSC 7 is not used (alacritty_terminal 0.26 does not surface it)
+- [x] Terminal shells start directly as login shells (no `login(1)` "Last login" banner) with
+      `TERM_PROGRAM=power-idea`, so Terminal.app's inherited session restore no longer runs in IDE tabs
 - [x] Bottom tool windows span the full window width under the Project tree (Settings → Terminal → Full window width; on by default)
 - [x] `.power-idea` folder hidden in the Project tree; Settings → Appearance → Project tree → Show .power-idea folder
 - [x] Settings → System page: "Open projects in" and Confirmations (exit / close project) moved out of Appearance

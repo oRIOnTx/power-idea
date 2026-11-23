@@ -72,10 +72,11 @@ pub struct Session {
 }
 
 impl Session {
-    /// Starts `shell` (or the user's default shell when `None`) in `cwd`.
+    /// Starts `shell` (or the user's default shell when `None`) in `cwd` as a login shell.
+    /// Run directly rather than through `login(1)`, which prints "Last login: …".
     pub fn spawn(cwd: PathBuf, shell: Option<String>) -> anyhow::Result<Self> {
-        let shell = shell.map(|program| tty::Shell::new(program, vec!["-l".into()]));
-        Self::spawn_with(cwd, shell, &BTreeMap::new())
+        let shell = tty::Shell::new(shell_program(shell), vec!["-l".into()]);
+        Self::spawn_with(cwd, Some(shell), &BTreeMap::new())
     }
 
     /// Runs `command` through a login shell (so rbenv, nvm, asdf… are set up),
@@ -86,10 +87,10 @@ impl Session {
         command: &str,
         env: &BTreeMap<String, String>,
     ) -> anyhow::Result<Self> {
-        let program = shell
-            .or_else(|| std::env::var("SHELL").ok())
-            .unwrap_or_else(|| "/bin/zsh".into());
-        let shell = tty::Shell::new(program, vec!["-l".into(), "-c".into(), command.into()]);
+        let shell = tty::Shell::new(
+            shell_program(shell),
+            vec!["-l".into(), "-c".into(), command.into()],
+        );
         Self::spawn_with(cwd, Some(shell), env)
     }
 
@@ -108,6 +109,11 @@ impl Session {
         let mut vars: std::collections::HashMap<String, String> =
             env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         vars.insert("TERM".into(), "xterm-256color".into());
+        // Launched from Terminal.app, the IDE inherits its variables; with them zsh runs
+        // Terminal's session restore ("Restored session: …") and every tab shares one session.
+        vars.insert("TERM_PROGRAM".into(), "power-idea".into());
+        vars.insert("TERM_PROGRAM_VERSION".into(), env!("CARGO_PKG_VERSION").into());
+        vars.insert("TERM_SESSION_ID".into(), String::new());
         let options = tty::Options {
             working_directory: Some(cwd),
             shell,
@@ -135,6 +141,13 @@ impl Session {
     }
 }
 
+/// The configured shell, else `$SHELL`, else zsh.
+fn shell_program(shell: Option<String>) -> String {
+    shell
+        .or_else(|| std::env::var("SHELL").ok())
+        .unwrap_or_else(|| "/bin/zsh".into())
+}
+
 #[cfg(test)]
 mod tests {
     use alacritty_terminal::grid::Dimensions as _;
@@ -145,8 +158,13 @@ mod tests {
     #[test]
     fn runs_a_command_with_env_and_exits() {
         let env = [("POWER_VALUE".to_string(), "42".to_string())].into();
-        let session = Session::spawn_command(std::env::temp_dir(), None, "echo value=$POWER_VALUE", &env)
-            .expect("spawn command");
+        let session = Session::spawn_command(
+            std::env::temp_dir(),
+            None,
+            "echo value=$POWER_VALUE \"prog=$TERM_PROGRAM sid=[$TERM_SESSION_ID]\"",
+            &env,
+        )
+        .expect("spawn command");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
         let mut exited = false;
         while !exited {
@@ -166,6 +184,7 @@ mod tests {
             .map(|(line, col)| term.grid()[Line(line)][Column(col)].c)
             .collect();
         assert!(screen.contains("value=42"), "{screen}");
+        assert!(screen.contains("prog=power-idea sid=[]"), "{screen}");
     }
 
     #[test]
