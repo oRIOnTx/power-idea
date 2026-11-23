@@ -209,6 +209,16 @@ fn install_panic_log() {
 }
 
 fn main() {
+    // Claude Code hook / status-line helpers: forward stdin to the running IDE and exit at once,
+    // before anything slow (the login shell PATH lookup, the GUI).
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match args.first().map(String::as_str) {
+        Some("claude-hook") => std::process::exit(claude_integration::bridge::run_hook()),
+        Some("claude-statusline") => std::process::exit(claude_integration::bridge::run_statusline(
+            args.get(1..).unwrap_or_default(),
+        )),
+        _ => {}
+    }
     install_panic_log();
     inherit_login_shell_path();
     // `power-idea <folder or files…>`; Finder may add its own `-psn_…` argument.

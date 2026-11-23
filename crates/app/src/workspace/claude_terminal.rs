@@ -144,9 +144,12 @@ impl Workspace {
         });
     }
 
-    /// Gauges shown in the Claude tab header (filled in by the live status feature).
-    pub(super) fn claude_tab_gauges(&self, _cx: &App) -> Option<AnyElement> {
-        None
+    /// Gauges shown in the Claude tab header.
+    pub(super) fn claude_tab_gauges(&self, window: &mut Window, cx: &mut App) -> Option<AnyElement> {
+        if self.light {
+            return None;
+        }
+        claude::render_gauges(&self.root, claude::Place::TabHeader, window, cx)
     }
 }
 

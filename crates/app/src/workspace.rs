@@ -516,13 +516,13 @@ impl Render for Workspace {
                     .size(px(260.))
                     .size_range(px(160.)..px(600.))
                     .fixed()
-                    .child(self.render_sidebar(cx)),
+                    .child(self.render_sidebar(window, cx)),
             );
         }
         let bottom = match self.bottom_panel {
             _ if !self.show_bottom => None,
             BottomPanel::Terminal if !self.terminals.is_empty() => {
-                Some(self.render_terminal_panel(cx).into_any_element())
+                Some(self.render_terminal_panel(window, cx).into_any_element())
             }
             BottomPanel::GitLog => self.render_git_log(cx),
             BottomPanel::Usages => self.render_usages(cx),
@@ -566,7 +566,7 @@ impl Render for Workspace {
                     .child(self.render_activity_bar(cx))
                     .child(div().flex_1().h_full().overflow_hidden().child(body)),
             )
-            .child(self.render_status_bar(cx));
+            .child(self.render_status_bar(window, cx));
         self.register_actions(root, cx)
     }
 }

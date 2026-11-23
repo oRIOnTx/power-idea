@@ -2,8 +2,10 @@
 //! skills, the `claude` binary), loaded in the background and reloaded when files change, so
 //! editing by hand or by an agent is as good as editing in the UI.
 
+mod gauges;
 mod page;
 mod preview;
+mod quality;
 mod rule_actions;
 mod rules_view;
 mod skills_view;
@@ -21,6 +23,7 @@ use notify::Watcher as _;
 use crate::config::Config;
 use crate::inbox::Inbox;
 
+pub use gauges::{Place, render as render_gauges};
 pub use page::page;
 pub use preview::{open_preview, plan_for};
 
@@ -132,6 +135,7 @@ pub fn init(cx: &mut App) {
             apply(snapshot, cx);
             watch(dir, cx);
             detect_binary(cx);
+            gauges::start(cx);
         });
     })
     .detach();

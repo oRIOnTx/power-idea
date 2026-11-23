@@ -181,7 +181,10 @@ impl Workspace {
             ))
     }
 
-    pub(super) fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_sidebar(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let gauges = (!self.light)
+            .then(|| crate::claude::render_gauges(&self.root, crate::claude::Place::Sidebar, window, cx))
+            .flatten();
         let theme = cx.theme();
         let title = match self.left_panel {
             LeftPanel::Project => self.project_name(),
@@ -211,6 +214,7 @@ impl Workspace {
             .bg(cx.theme().sidebar)
             .child(header)
             .child(div().flex_1().overflow_hidden().child(body))
+            .children(gauges)
     }
 
     pub(super) fn render_project_view(&self, cx: &mut Context<Self>) -> impl IntoElement {

@@ -2,7 +2,9 @@
 //! folder, resolving them for a project, launching `claude`, installing globally, and the
 //! hook/status-line bridge. Verified CLI facts: docs/claude-code-integration.md.
 
+pub mod bridge;
 pub mod frontmatter;
+pub mod gauges;
 pub mod installer;
 pub mod launcher;
 pub mod project;

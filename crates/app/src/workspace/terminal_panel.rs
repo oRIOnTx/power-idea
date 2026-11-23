@@ -148,7 +148,12 @@ impl Workspace {
         cx.notify();
     }
 
-    pub(super) fn render_terminal_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_terminal_panel(
+        &self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let mut claude_gauges = self.claude_tab_gauges(window, cx);
         let theme = cx.theme();
         let tabs = self.terminals.iter().enumerate().map(|(ix, terminal)| {
             let active = ix == self.active_terminal;
@@ -175,7 +180,7 @@ impl Workspace {
                 })
                 .child(terminal_label(terminal.read(cx)))
                 .when(terminal.read(cx).is_claude(), |el| {
-                    el.children(self.claude_tab_gauges(cx)).child(
+                    el.children(claude_gauges.take()).child(
                         style::icon_button_sized(
                             "restart-claude",
                             style::lucide("rotate-ccw"),
