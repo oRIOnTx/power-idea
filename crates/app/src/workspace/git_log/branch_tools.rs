@@ -100,7 +100,39 @@ impl Workspace {
         let location = input(location.to_string_lossy().into_owned(), window, cx);
         let branch = input(branch, window, cx);
         let error: Entity<Option<String>> = cx.new(|_| None);
-        let workspace = cx.entity().downgrade();
+        let submit = {
+            let workspace = cx.entity().downgrade();
+            let (location, branch, error, start) =
+                (location.clone(), branch.clone(), error.clone(), start.clone());
+            std::rc::Rc::new(move |window: &mut Window, cx: &mut App| {
+                let new_branch = branch.read(cx).value().trim().to_string();
+                let checked = check_location(&location.read(cx).value()).and_then(|path| {
+                    let name = (!new_branch.is_empty())
+                        .then(|| check_ref_name(&new_branch))
+                        .transpose()?;
+                    Ok((path, name))
+                });
+                let (path, name) = match checked {
+                    Ok(ok) => ok,
+                    Err(err) => {
+                        error.update(cx, |e, cx| {
+                            *e = Some(format!("{err:#}"));
+                            cx.notify();
+                        });
+                        return;
+                    }
+                };
+                window.close_dialog(cx);
+                let start = start.clone();
+                workspace
+                    .update(cx, |ws, cx| ws.add_worktree(path, start, name, window, cx))
+                    .ok();
+            })
+        };
+        for input in [&location, &branch] {
+            let submit = submit.clone();
+            style::submit_on_enter(input, window, cx, move |window, cx| submit(window, cx));
+        }
         let focused = std::cell::Cell::new(false);
         window.open_dialog(cx, move |dialog, window, cx| {
             if !focused.replace(true) {
@@ -108,39 +140,7 @@ impl Workspace {
             }
             let theme = cx.theme();
             let label = |text: &'static str| div().text_sm().text_color(theme.muted_foreground).child(text);
-            let submit = {
-                let (location, branch, error, workspace, start) = (
-                    location.clone(),
-                    branch.clone(),
-                    error.clone(),
-                    workspace.clone(),
-                    start.clone(),
-                );
-                move |_: &ClickEvent, window: &mut Window, cx: &mut App| {
-                    let new_branch = branch.read(cx).value().trim().to_string();
-                    let checked = check_location(&location.read(cx).value()).and_then(|path| {
-                        let name = (!new_branch.is_empty())
-                            .then(|| check_ref_name(&new_branch))
-                            .transpose()?;
-                        Ok((path, name))
-                    });
-                    let (path, name) = match checked {
-                        Ok(ok) => ok,
-                        Err(err) => {
-                            error.update(cx, |e, cx| {
-                                *e = Some(format!("{err:#}"));
-                                cx.notify();
-                            });
-                            return;
-                        }
-                    };
-                    window.close_dialog(cx);
-                    let start = start.clone();
-                    workspace
-                        .update(cx, |ws, cx| ws.add_worktree(path, start, name, window, cx))
-                        .ok();
-                }
-            };
+            let submit = submit.clone();
             dialog
                 .w(px(560.))
                 .title(format!("New Worktree from '{start}'"))
@@ -175,7 +175,7 @@ impl Workspace {
                                 .primary()
                                 .small()
                                 .label("Create")
-                                .on_click(submit),
+                                .on_click(move |_, window, cx| submit(window, cx)),
                         ),
                 )
         });

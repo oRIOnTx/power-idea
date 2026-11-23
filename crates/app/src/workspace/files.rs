@@ -6,7 +6,7 @@ use std::process::Command;
 
 use anyhow::{Context as _, Result, bail};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::input::{Input, InputEvent, InputState};
+use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::menu::PopupMenu;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Sizable as _, WindowExt as _, h_flex, v_flex};
@@ -404,13 +404,10 @@ impl Workspace {
                 }
             })
         };
+        // Not `cx.subscribe_in`: its callback runs inside a Workspace update, and `submit`
+        // updates the workspace again (gpui panics → the app aborts).
         let on_enter = submit.clone();
-        cx.subscribe_in(&input, window, move |_, _, event: &InputEvent, window, cx| {
-            if let InputEvent::PressEnter { .. } = event {
-                on_enter(window, cx);
-            }
-        })
-        .detach();
+        style::submit_on_enter(&input, window, cx, move |window, cx| on_enter(window, cx));
 
         let focused = std::cell::Cell::new(false);
         window.open_dialog(cx, move |dialog, window, cx| {

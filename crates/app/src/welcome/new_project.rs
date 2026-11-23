@@ -41,6 +41,11 @@ pub fn open_new_project_dialog(window: &mut Window, cx: &mut App) {
         })
     };
 
+    for input in [&name, &location] {
+        let create = create.clone();
+        crate::style::submit_on_enter(input, window, cx, move |window, cx| create(window, cx));
+    }
+
     let focused = std::cell::Cell::new(false);
     window.open_dialog(cx, move |dialog, window, cx| {
         if !focused.replace(true) {

@@ -3,7 +3,7 @@
 use db::{ConnectionConfig, DbKind};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::checkbox::Checkbox;
-use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, Sizable as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 
@@ -83,6 +83,15 @@ impl ConnectionForm {
                 .masked(true)
                 .placeholder(password_placeholder)
         });
+        // Enter in any field saves, like the dialog's primary button.
+        for input in [&name, &host, &port, &user, &password, &database, &file] {
+            cx.subscribe_in(input, window, |this, _, event: &InputEvent, window, cx| {
+                if let InputEvent::PressEnter { secondary: false, .. } = event {
+                    this.save(window, cx);
+                }
+            })
+            .detach();
+        }
         Self {
             id: config.id,
             kind: config.kind,

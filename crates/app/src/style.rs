@@ -110,3 +110,24 @@ pub fn danger_confirm(dialog: AlertDialog, icon: &str, ok_text: &'static str, cx
         .ok_variant(ButtonVariant::Danger)
         .cancel_text("Cancel")
 }
+
+/// Enter in a dialog's `input` runs `submit`, like clicking the dialog's primary button.
+///
+/// Subscribes through the window, not an entity's `Context`, so `submit` may update the
+/// workspace (or any other entity) without re-entering it; the dialog's input owns the
+/// subscription's lifetime, so it is detached.
+pub fn submit_on_enter(
+    input: &Entity<gpui_kit::component::input::InputState>,
+    window: &mut Window,
+    cx: &mut App,
+    submit: impl Fn(&mut Window, &mut App) + 'static,
+) {
+    use gpui_kit::component::input::InputEvent;
+    window
+        .subscribe(input, cx, move |_, event: &InputEvent, window, cx| {
+            if let InputEvent::PressEnter { secondary: false, .. } = event {
+                submit(window, cx);
+            }
+        })
+        .detach();
+}
