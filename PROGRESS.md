@@ -251,7 +251,7 @@ is in the working tree only.
       taplo, typos, editorconfig, cargo-deny (gpui-only unmaintained crates ignored with reasons), `.cargo/audit.toml`;
       lefthook hooks (pre-commit fmt/taplo/typos/gitleaks, commit-msg `cog verify`, pre-push clippy/nextest/deny);
       `justfile` (`just check` = CI); GitHub Actions: `ci.yml` (fmt, lint, typos, machete, test, msrv, deny, coverage
-      ≥ 34 % lines, gitleaks, actionlint + zizmor, `ci-ok`), `audit.yml` (daily, opens an issue), `codeql.yml`,
+      ≥ 34 % lines, gitleaks, actionlint + zizmor), `audit.yml` (daily, opens an issue), `codeql.yml`,
       `scorecard.yml`, `release.yml` (tag → dmg + SHA256SUMS + CycloneDX SBOM + provenance attestation + GitHub
       Release from `release-notes/`), dependabot (weekly, grouped, 7-day cooldown); actions pinned to SHAs,
       `permissions: contents: read`, `persist-credentials: false`. CODEOWNERS, PR/issue templates, CONTRIBUTING,

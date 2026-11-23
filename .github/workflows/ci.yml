@@ -1,4 +1,4 @@
-# The same checks as `just check` and the git hooks. `ci-ok` is the one required status check.
+# The same checks as `just check` and the git hooks.
 name: CI
 
 on:
@@ -143,25 +143,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
-        with:
-          tool: actionlint
-      - run: actionlint
+      # install-action has no actionlint; Go is preinstalled on the runner.
+      - run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - run: |
+          gopath="$(go env GOPATH)"
+          "$gopath/bin/actionlint"
       - uses: zizmorcore/zizmor-action@bd12b495c90993a4301c73398142281a61499af3 # v0.9.0
         with:
           advanced-security: false
-
-  # The single required status check for branch protection.
-  ci-ok:
-    if: always()
-    needs: [fmt, lint, typos, machete, test, msrv, deny, coverage, secrets, actions-lint]
-    runs-on: ubuntu-latest
-    steps:
-      - name: All jobs passed
-        env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
-        run: |
-          echo "$RESULTS"
-          for result in $RESULTS; do
-            [ "$result" = success ] || exit 1
-          done

@@ -13,7 +13,7 @@ bin/setup                            # checks the tools (prints a brew command f
   typos, unused dependencies, tests (nextest + doctests), the MSRV build, cargo-deny, coverage,
   secret scanning and the workflow linters. `just --list` shows the single steps.
 - Git hooks (lefthook) run the fast checks on commit and clippy, tests and cargo-deny on push. Skip them
-  only deliberately (`--no-verify`); CI runs everything again and `ci-ok` must be green to merge.
+  only deliberately (`--no-verify`); CI runs everything again and must be green to merge.
 - Project conventions — architecture, UI rules, security — are in [`CLAUDE.md`](CLAUDE.md).
 
 ## Commit messages
