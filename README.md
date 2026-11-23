@@ -140,9 +140,8 @@ CodeQL run separately, OpenSSF Scorecard on demand (Actions → Scorecard); Depe
 
 ## Claude Code
 
-Settings → **Claude Code** adds global rules and skills for Claude Code (injected when the IDE starts
-`claude`, or installed reversibly into `~/.claude`), a pinned Claude terminal tab, live gauges (context
-window, cost, activity, files changed, code quality) and quality tracking — every feature off by default.
+Settings → **Claude Code** sets how the IDE starts `claude` (its path, the IDE's MCP server for Claude) and
+opens Claude Code's own files; the Claude terminal tab opens from the activity bar or ⌘Esc. Off by default.
 See [docs/claude-code.md](docs/claude-code.md).
 
 ## Versioning & releases

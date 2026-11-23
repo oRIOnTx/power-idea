@@ -17,15 +17,8 @@ pub fn plan_for(root: &Path, start: Start, cx: &App) -> Option<LaunchPlan> {
         _ => PathBuf::from("claude"),
     };
     let cache = cache_root()?.join(launcher::cache_key(root));
-    let home = dirs::home_dir().unwrap_or_default();
     let mcp = settings.general.ide_mcp.then(|| mcp_endpoint(cx)).flatten();
-    let options = LaunchOptions {
-        ide_exe: std::env::current_exe().ok(),
-        socket: Some(super::bridge_socket()),
-        tag: root.to_string_lossy().into_owned(),
-        mcp,
-        user_statusline: launcher::user_statusline(root, &home),
-    };
+    let options = LaunchOptions { mcp };
     Some(launcher::plan(settings, &program, root, &cache, start, &options))
 }
 

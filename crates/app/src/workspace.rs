@@ -521,7 +521,7 @@ impl Render for Workspace {
                     .size(px(260.))
                     .size_range(px(160.)..px(600.))
                     .fixed()
-                    .child(self.render_sidebar(window, cx)),
+                    .child(self.render_sidebar(cx)),
             );
         }
         let bottom = match self.bottom_panel {
@@ -571,7 +571,7 @@ impl Render for Workspace {
                     .child(self.render_activity_bar(cx))
                     .child(div().flex_1().h_full().overflow_hidden().child(body)),
             )
-            .child(self.render_status_bar(window, cx));
+            .child(self.render_status_bar(cx));
         self.register_actions(root, cx)
     }
 }

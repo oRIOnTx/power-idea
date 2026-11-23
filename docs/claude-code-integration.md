@@ -81,6 +81,5 @@ Docs index: https://code.claude.com/docs/llms.txt
 
 | Feature | Mechanism |
 |---|---|
-| Hooks / gauges | `--settings <cache>/<project>/settings.json` with `hooks` (→ `power-idea claude-hook`) and `statusLine` (→ `power-idea claude-statusline`, which forwards the JSON and prints the user's own status line) |
 | IDE context | `--mcp-config` with the IDE's MCP server (optional) |
 | Cleanup of the removed Install mode | once, from `install-manifest.json`: the managed block in `~/.claude/CLAUDE.md` and the marked `~/.claude/skills/ide-*` copies |

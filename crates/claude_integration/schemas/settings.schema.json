@@ -14,21 +14,6 @@
         "claude_path": { "type": "string", "default": "", "description": "Path to the claude binary; empty = found on PATH." },
         "ide_mcp": { "type": "boolean", "default": false, "description": "Pass the IDE's MCP server with --mcp-config." }
       }
-    },
-    "gauges": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "enabled": { "type": "boolean", "default": true },
-        "context": { "type": "boolean", "default": true, "description": "Context window usage ring." },
-        "cost": { "type": "boolean", "default": true, "description": "Tokens and cost of the session." },
-        "activity": { "type": "boolean", "default": true, "description": "What Claude is doing now." },
-        "files": { "type": "boolean", "default": true, "description": "Files changed in the session." },
-        "in_status_bar": { "type": "boolean", "default": true },
-        "in_sidebar": { "type": "boolean", "default": false },
-        "context_amber": { "type": "integer", "minimum": 0, "maximum": 100, "default": 60 },
-        "context_red": { "type": "integer", "minimum": 0, "maximum": 100, "default": 85 }
-      }
     }
   }
 }

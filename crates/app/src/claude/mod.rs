@@ -2,7 +2,6 @@
 //! background and reloaded when the file changes, so editing by hand is as good as in the UI.
 
 mod folder;
-mod gauges;
 mod launch;
 mod page;
 
@@ -19,7 +18,6 @@ use notify::Watcher as _;
 use crate::config::Config;
 use crate::inbox::Inbox;
 
-pub use gauges::{Place, render as render_gauges};
 pub use launch::plan_for;
 pub use page::page;
 
@@ -69,12 +67,6 @@ pub fn claude_home() -> Option<PathBuf> {
         .or_else(|| dirs::home_dir().map(|home| home.join(".claude")))
 }
 
-/// The Unix socket the hook / status-line helpers write to (in the per-user temp folder:
-/// socket paths are limited to ~100 bytes).
-pub fn bridge_socket() -> PathBuf {
-    std::env::temp_dir().join("power-idea-claude.sock")
-}
-
 /// Generated files for a project (session settings, MCP config):
 /// `<cache>/power-idea/claude/<project key>`.
 pub fn cache_root() -> Option<PathBuf> {
@@ -117,7 +109,6 @@ pub fn init(cx: &mut App) {
             apply(snapshot, cx);
             watch(dir, cx);
             detect_binary(cx);
-            gauges::start(cx);
             announce_cleanup(cleaned_up, cx);
         });
     })

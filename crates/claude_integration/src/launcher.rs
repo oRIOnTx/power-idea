@@ -1,8 +1,6 @@
-//! Starting `claude` for a project: the command line and its generated files (session settings
-//! with hooks and status line, MCP config). `plan` is pure; `write` puts the files in the cache
-//! folder.
+//! Starting `claude` for a project: the command line and its generated files (MCP config).
+//! `plan` is pure; `write` puts the files in the cache folder.
 
-use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -10,22 +8,6 @@ use anyhow::{Context as _, Result};
 use serde_json::{Value, json};
 
 use crate::settings::ClaudeSettings;
-
-/// Environment variables the hook / status-line helpers read to reach the IDE.
-pub const SOCKET_ENV: &str = "POWER_IDEA_CLAUDE_SOCKET";
-pub const TAG_ENV: &str = "POWER_IDEA_CLAUDE_TAG";
-
-/// Hook events forwarded to the IDE (all documented, see docs/claude-code-integration.md).
-pub const HOOK_EVENTS: &[&str] = &[
-    "SessionStart",
-    "UserPromptSubmit",
-    "PreToolUse",
-    "PostToolUse",
-    "Notification",
-    "Stop",
-    "SessionEnd",
-];
-const TOOL_EVENTS: &[&str] = &["PreToolUse", "PostToolUse"];
 
 /// The IDE's MCP server, for `--mcp-config`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,15 +19,7 @@ pub struct McpEndpoint {
 /// What the caller knows beyond the settings.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LaunchOptions {
-    /// The IDE executable, which also serves `claude-hook` / `claude-statusline`.
-    pub ide_exe: Option<PathBuf>,
-    /// The bridge socket the helpers write to.
-    pub socket: Option<PathBuf>,
-    /// Routes bridge messages to the window that started the session.
-    pub tag: String,
     pub mcp: Option<McpEndpoint>,
-    /// The status line command the user configured, run by ours so theirs keeps showing.
-    pub user_statusline: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -103,41 +77,14 @@ pub fn plan(
         files: Vec::new(),
     };
     if settings.enabled {
-        add_integration(&mut plan, settings, cache_dir, options);
+        add_mcp(&mut plan, settings, cache_dir, options);
     }
     plan.args.extend(start.flag().map(String::from));
     plan
 }
 
-/// The IDE's additions: hooks and status line for the live gauges, and its MCP server.
-fn add_integration(
-    plan: &mut LaunchPlan,
-    settings: &ClaudeSettings,
-    cache_dir: &Path,
-    options: &LaunchOptions,
-) {
-    if let Some(session) = session_settings(settings, cache_dir, options) {
-        let path = cache_dir.join("settings.json");
-        plan.args.extend(["--settings".into(), path_arg(&path)]);
-        plan.files.push(GeneratedFile {
-            path,
-            contents: pretty(&session),
-            private: false,
-        });
-        if let Some(user) = &options.user_statusline {
-            plan.files.push(GeneratedFile {
-                path: cache_dir.join("user-statusline"),
-                contents: user.clone(),
-                private: false,
-            });
-        }
-        if let Some(socket) = &options.socket {
-            plan.env
-                .push((SOCKET_ENV.into(), socket.to_string_lossy().into_owned()));
-        }
-        plan.env.push((TAG_ENV.into(), options.tag.clone()));
-    }
-
+/// The IDE's MCP server, when enabled and running.
+fn add_mcp(plan: &mut LaunchPlan, settings: &ClaudeSettings, cache_dir: &Path, options: &LaunchOptions) {
     if settings.general.ide_mcp
         && let Some(mcp) = &options.mcp
     {
@@ -154,53 +101,6 @@ fn add_integration(
             private: true,
         });
     }
-}
-
-/// Hooks and status line for the session, when the live gauges need its events.
-fn session_settings(settings: &ClaudeSettings, cache_dir: &Path, options: &LaunchOptions) -> Option<Value> {
-    let exe = options.ide_exe.as_ref().filter(|_| settings.gauges.enabled)?;
-    let hook = format!("{} claude-hook", shell_quote(&exe.to_string_lossy()));
-    let mut hooks = serde_json::Map::new();
-    for event in HOOK_EVENTS {
-        // The bridge exits within a second; the timeout only guards against the unexpected.
-        let handler = json!({ "type": "command", "command": hook, "timeout": 5 });
-        let group = if TOOL_EVENTS.contains(event) {
-            json!({ "matcher": "*", "hooks": [handler] })
-        } else {
-            json!({ "hooks": [handler] })
-        };
-        hooks.insert((*event).to_string(), json!([group]));
-    }
-    let mut statusline = format!("{} claude-statusline", shell_quote(&exe.to_string_lossy()));
-    if options.user_statusline.is_some() {
-        let file = cache_dir.join("user-statusline");
-        let _ = write!(
-            statusline,
-            " --user-command-file {}",
-            shell_quote(&file.to_string_lossy())
-        );
-    }
-    Some(json!({
-        "hooks": hooks,
-        "statusLine": { "type": "command", "command": statusline },
-    }))
-}
-
-/// The status line command the user set, by Claude Code's precedence (local > project > user).
-pub fn user_statusline(project_root: &Path, home: &Path) -> Option<String> {
-    let files = [
-        project_root.join(".claude/settings.local.json"),
-        project_root.join(".claude/settings.json"),
-        home.join(".claude/settings.json"),
-    ];
-    files.iter().find_map(|path| {
-        let value: Value = serde_json::from_str(&fs::read_to_string(path).ok()?).ok()?;
-        let status = value.get("statusLine")?;
-        (status.get("type").and_then(Value::as_str) == Some("command"))
-            .then(|| status.get("command").and_then(Value::as_str).map(str::to_string))
-            .flatten()
-            .filter(|c| !c.contains("claude-statusline"))
-    })
 }
 
 /// Writes the generated files.
@@ -257,7 +157,7 @@ fn slug(name: &str) -> String {
     }
 }
 
-/// POSIX shell quoting for display and hook commands.
+/// POSIX shell quoting for displayed command lines.
 pub fn shell_quote(text: &str) -> String {
     let safe = !text.is_empty()
         && text
@@ -298,12 +198,10 @@ mod tests {
     use super::*;
 
     fn on() -> ClaudeSettings {
-        let mut settings = ClaudeSettings {
+        ClaudeSettings {
             enabled: true,
             ..ClaudeSettings::default()
-        };
-        settings.gauges.enabled = false;
-        settings
+        }
     }
 
     fn plan_for(settings: &ClaudeSettings, options: &LaunchOptions, start: Start) -> LaunchPlan {
@@ -320,8 +218,10 @@ mod tests {
     #[test]
     fn disabled_section_launches_plain_claude() {
         let options = LaunchOptions {
-            ide_exe: Some(PathBuf::from("/ide")),
-            ..LaunchOptions::default()
+            mcp: Some(McpEndpoint {
+                port: 7777,
+                token: "t".into(),
+            }),
         };
         let plan = plan_for(&ClaudeSettings::default(), &options, Start::Continue);
         assert_eq!(plan.args, ["--continue"]);
@@ -331,56 +231,10 @@ mod tests {
     #[test]
     fn start_modes_add_their_flag_last() {
         let plain = plan_for(&on(), &LaunchOptions::default(), Start::New);
-        assert!(plain.args.is_empty(), "nothing injected without gauges or MCP");
+        assert!(plain.args.is_empty(), "nothing injected without MCP");
         assert!(plain.env.is_empty());
         let resume = plan_for(&on(), &LaunchOptions::default(), Start::Resume);
         assert_eq!(resume.args, ["--resume"]);
-    }
-
-    #[test]
-    fn adds_hooks_and_status_line_for_live_gauges() {
-        let mut settings = on();
-        settings.gauges.enabled = true;
-        let options = LaunchOptions {
-            ide_exe: Some(PathBuf::from(
-                "/Applications/Power IDEA.app/Contents/MacOS/power-idea",
-            )),
-            socket: Some(PathBuf::from("/tmp/ide.sock")),
-            tag: "w1".into(),
-            user_statusline: Some("~/bin/status.sh".into()),
-            ..LaunchOptions::default()
-        };
-        let plan = plan_for(&settings, &options, Start::New);
-        let settings_file = plan
-            .files
-            .iter()
-            .find(|f| f.path.ends_with("settings.json"))
-            .unwrap();
-        let session: Value = serde_json::from_str(&settings_file.contents).unwrap();
-        let hook = &session["hooks"]["PostToolUse"][0];
-        assert_eq!(hook["matcher"], "*");
-        assert_eq!(
-            hook["hooks"][0]["command"],
-            "'/Applications/Power IDEA.app/Contents/MacOS/power-idea' claude-hook"
-        );
-        assert!(session["hooks"]["Stop"][0].get("matcher").is_none());
-        let status = session["statusLine"]["command"].as_str().unwrap();
-        assert!(
-            status.ends_with("claude-statusline --user-command-file /cache/p1/user-statusline"),
-            "{status}"
-        );
-        assert!(
-            plan.files
-                .iter()
-                .any(|f| f.path.ends_with("user-statusline") && f.contents == "~/bin/status.sh")
-        );
-        assert_eq!(
-            plan.env,
-            [
-                (SOCKET_ENV.to_string(), "/tmp/ide.sock".to_string()),
-                (TAG_ENV.to_string(), "w1".to_string())
-            ]
-        );
     }
 
     #[test]
@@ -392,7 +246,6 @@ mod tests {
                 port: 7777,
                 token: "s3cret".into(),
             }),
-            ..LaunchOptions::default()
         };
         let plan = plan_for(&settings, &options, Start::New);
         let mcp = plan.files.iter().find(|f| f.path.ends_with("mcp.json")).unwrap();
@@ -422,28 +275,6 @@ mod tests {
             .permissions()
             .mode();
         assert_eq!(mode & 0o777, 0o600);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn reads_the_users_status_line() {
-        let dir = std::env::temp_dir().join(format!("pi-status-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        let (project, home) = (dir.join("p"), dir.join("home"));
-        fs::create_dir_all(project.join(".claude")).unwrap();
-        fs::create_dir_all(home.join(".claude")).unwrap();
-        fs::write(
-            home.join(".claude/settings.json"),
-            r#"{"statusLine":{"type":"command","command":"user.sh"}}"#,
-        )
-        .unwrap();
-        assert_eq!(user_statusline(&project, &home).as_deref(), Some("user.sh"));
-        fs::write(
-            project.join(".claude/settings.json"),
-            r#"{"statusLine":{"type":"command","command":"project.sh"}}"#,
-        )
-        .unwrap();
-        assert_eq!(user_statusline(&project, &home).as_deref(), Some("project.sh"));
         let _ = fs::remove_dir_all(&dir);
     }
 

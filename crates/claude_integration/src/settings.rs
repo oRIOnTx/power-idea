@@ -1,11 +1,11 @@
 //! `claude/settings.toml`: the switches of the Claude Code section, off by default (see
-//! `schemas/settings.schema.json`). Features Claude Code handles itself (rules, skills, model,
-//! permissions) were removed; `REMOVED_KEYS` keeps files written before loadable.
+//! `schemas/settings.schema.json`). Removed features (rules, skills, model, permissions, live
+//! gauges) are listed in `REMOVED_KEYS`, which keeps files written before loadable.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Context as _, Result};
 use serde::{Deserialize, Serialize};
 
 /// Keys of removed features. Old files still load: these are dropped before parsing and reported
@@ -18,8 +18,7 @@ pub const REMOVED_KEYS: &[&str] = &[
     "general.model",
     "general.permission_mode",
     "general.effort",
-    "gauges.quality",
-    "gauges.in_tab_header",
+    "gauges",
 ];
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,7 +27,6 @@ pub struct ClaudeSettings {
     /// The whole Claude Code section; off means the IDE starts `claude` as a terminal would.
     pub enabled: bool,
     pub general: General,
-    pub gauges: GaugeSettings,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,39 +36,6 @@ pub struct General {
     pub claude_path: String,
     /// Give Claude the IDE's MCP server (`--mcp-config`) so it sees open files and diagnostics.
     pub ide_mcp: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-#[allow(clippy::struct_excessive_bools)] // one switch per gauge and place, as in the UI
-pub struct GaugeSettings {
-    pub enabled: bool,
-    pub context: bool,
-    pub cost: bool,
-    pub activity: bool,
-    pub files: bool,
-    pub in_status_bar: bool,
-    pub in_sidebar: bool,
-    /// Context usage turns amber at this percentage …
-    pub context_amber: u8,
-    /// … and red at this one.
-    pub context_red: u8,
-}
-
-impl Default for GaugeSettings {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            context: true,
-            cost: true,
-            activity: true,
-            files: true,
-            in_status_bar: true,
-            in_sidebar: false,
-            context_amber: 60,
-            context_red: 85,
-        }
-    }
 }
 
 /// Settings read from a file, plus the removed keys the file still has.
@@ -95,20 +60,10 @@ impl ClaudeSettings {
         } else {
             toml::Value::Table(table).try_into()?
         };
-        settings.validate()?;
         Ok(Loaded {
             settings,
             removed_keys,
         })
-    }
-
-    /// Checks what serde cannot: consistent thresholds.
-    pub fn validate(&self) -> Result<()> {
-        let gauges = &self.gauges;
-        if gauges.context_amber >= gauges.context_red || gauges.context_red > 100 {
-            bail!("gauges: context_amber must be below context_red, and context_red at most 100");
-        }
-        Ok(())
     }
 
     /// The file text, with a `#:schema` line so editors (and agents) can validate it.
@@ -176,7 +131,6 @@ impl ClaudeDir {
     }
 
     pub fn save_settings(&self, settings: &ClaudeSettings) -> Result<()> {
-        settings.validate()?;
         fs::create_dir_all(&self.root)?;
         write_if_changed(&self.settings(), &settings.render()?)
     }
@@ -204,11 +158,13 @@ mod tests {
 
     #[test]
     fn parses_and_round_trips() {
-        let text = "enabled = true\n[general]\nide_mcp = true\n[gauges]\ncontext_amber = 50\n";
+        let text = "enabled = true\n[general]\nide_mcp = true\n";
         let settings = ClaudeSettings::parse(text).unwrap();
         assert!(settings.enabled && settings.general.ide_mcp);
-        assert_eq!(settings.gauges.context_amber, 50);
-        assert!(settings.gauges.cost, "unset keys keep their defaults");
+        assert!(
+            settings.general.claude_path.is_empty(),
+            "unset keys keep their defaults"
+        );
         let rendered = settings.render().unwrap();
         assert!(rendered.starts_with("#:schema ./settings.schema.json\n"));
         assert_eq!(ClaudeSettings::parse(&rendered).unwrap(), settings);
@@ -217,12 +173,11 @@ mod tests {
     #[test]
     fn reports_errors_with_location() {
         let err = |text: &str| format!("{:#}", ClaudeSettings::parse(text).unwrap_err());
-        let unknown = err("enabled = true\n[gauges]\nno_such_gauge = true\n");
+        let unknown = err("enabled = true\n[general]\nno_such_key = true\n");
         assert!(
-            unknown.contains("unknown field `no_such_gauge`") && unknown.contains("line 3"),
+            unknown.contains("unknown field `no_such_key`") && unknown.contains("line 3"),
             "{unknown}"
         );
-        assert!(err("[gauges]\ncontext_amber = 90\ncontext_red = 80").contains("context_amber"));
     }
 
     #[test]
@@ -235,7 +190,6 @@ mod tests {
         assert_eq!(loaded.removed_keys, REMOVED_KEYS);
         assert!(loaded.settings.enabled);
         assert_eq!(loaded.settings.general.claude_path, "/bin/claude");
-        assert_eq!(loaded.settings.gauges.context_red, 90);
         let rendered = loaded.settings.render().unwrap();
         assert!(ClaudeSettings::load(&rendered).unwrap().removed_keys.is_empty());
     }
@@ -243,8 +197,8 @@ mod tests {
     #[test]
     fn unknown_keys_stay_errors_next_to_removed_ones() {
         let err =
-            ClaudeSettings::load("[rules]\nenabled = true\n[gauges]\nno_such_gauge = true\n").unwrap_err();
-        assert!(format!("{err:#}").contains("no_such_gauge"), "{err:#}");
+            ClaudeSettings::load("[rules]\nenabled = true\n[general]\nno_such_key = true\n").unwrap_err();
+        assert!(format!("{err:#}").contains("no_such_key"), "{err:#}");
         assert!(ClaudeSettings::load("[general]\nmodel_name = \"x\"\n").is_err());
     }
 

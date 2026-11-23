@@ -1,5 +1,5 @@
-//! "Claude" terminal tabs: `claude` in the project root, with the IDE's MCP server and live
-//! gauges when Settings → Claude Code is on. The activity bar icon and ⌘Esc open or focus one;
+//! "Claude" terminal tabs: `claude` in the project root, with the IDE's MCP server when
+//! Settings → Claude Code is on. The activity bar icon and ⌘Esc open or focus one;
 //! its menu starts new, continued or resumed sessions in new tabs.
 
 use std::collections::BTreeMap;

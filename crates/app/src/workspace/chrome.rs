@@ -172,10 +172,7 @@ impl Workspace {
         )
     }
 
-    pub(super) fn render_status_bar(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let claude = (!self.light)
-            .then(|| crate::claude::render_gauges(&self.root, crate::claude::Place::StatusBar, window, cx))
-            .flatten();
+    pub(super) fn render_status_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let mcp_port = cx
             .try_global::<crate::mcp_bridge::McpStatus>()
             .and_then(|s| s.port);
@@ -215,13 +212,7 @@ impl Workspace {
             .text_xs()
             .text_color(cx.theme().muted_foreground)
             .left(left)
-            .right(
-                right
-                    .unwrap_or_else(h_flex)
-                    .children(claude)
-                    .child(servers)
-                    .child(mcp),
-            )
+            .right(right.unwrap_or_else(h_flex).child(servers).child(mcp))
     }
 
     /// Status bar chip for one language server: starting / indexing / ready / failed.

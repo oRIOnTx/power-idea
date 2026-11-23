@@ -1,11 +1,8 @@
-//! The Settings → Claude Code page: how the IDE starts `claude` and what it shows while a
-//! session runs. Rules, skills, model and permissions stay in Claude Code's own files.
+//! The Settings → Claude Code page: how the IDE starts `claude`. Rules, skills, model and permissions stay in Claude Code's own files.
 
 use claude_integration::ClaudeSettings;
 use gpui_kit::component::notification::Notification;
-use gpui_kit::component::setting::{
-    NumberFieldOptions, SettingField, SettingGroup, SettingItem, SettingPage,
-};
+use gpui_kit::component::setting::{SettingField, SettingGroup, SettingItem, SettingPage};
 use gpui_kit::component::{ActiveTheme as _, IconName, WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 
@@ -32,34 +29,16 @@ fn switch_item(
     )
 }
 
-fn number(
-    title: &'static str,
-    min: f64,
-    max: f64,
-    get: fn(&ClaudeSettings) -> f64,
-    set: fn(&mut ClaudeSettings, f64),
-) -> SettingItem {
-    SettingItem::new(
-        title,
-        SettingField::number_input(
-            NumberFieldOptions { min, max, step: 1.0 },
-            move |cx| get(settings(cx)),
-            move |value, cx| update_settings(cx, |s| set(s, value)),
-        ),
-    )
-}
-
 pub fn page(workspace: WeakEntity<Workspace>) -> SettingPage {
     SettingPage::new("Claude Code")
         .icon(IconName::Bot)
         .description(
-            "How the IDE starts claude and what it shows while a session runs. Rules, skills, model and \
+            "How the IDE starts claude. Rules, skills, model and \
              permissions live in Claude Code's own files (CLAUDE.md, ~/.claude). These switches are saved \
              in ~/Library/Application Support/power-idea/claude/settings.toml.",
         )
         .group(general_group())
         .group(folder::group(workspace))
-        .group(gauges_group())
 }
 
 fn general_group() -> SettingGroup {
@@ -173,63 +152,6 @@ fn open_folder(window: &mut Window, cx: &mut App) {
             cx,
         );
     }
-}
-
-fn gauges_group() -> SettingGroup {
-    SettingGroup::new()
-        .title("Live status")
-        .description(
-            "Gauges fed by Claude Code hooks and its status line while a session started by the IDE runs. \
-             Values are always shown as text as well as color.",
-        )
-        .item(switch_item(
-            "Show live gauges",
-            |s| s.gauges.enabled,
-            |s, v| s.gauges.enabled = v,
-        ))
-        .item(switch_item(
-            "Context window usage",
-            |s| s.gauges.context,
-            |s, v| s.gauges.context = v,
-        ))
-        .item(switch_item(
-            "Tokens and cost",
-            |s| s.gauges.cost,
-            |s, v| s.gauges.cost = v,
-        ))
-        .item(switch_item(
-            "Current activity",
-            |s| s.gauges.activity,
-            |s, v| s.gauges.activity = v,
-        ))
-        .item(switch_item(
-            "Files changed",
-            |s| s.gauges.files,
-            |s, v| s.gauges.files = v,
-        ))
-        .item(switch_item(
-            "In the status bar",
-            |s| s.gauges.in_status_bar,
-            |s, v| s.gauges.in_status_bar = v,
-        ))
-        .item(number(
-            "Context amber at %",
-            1.,
-            99.,
-            |s| f64::from(s.gauges.context_amber),
-            |s, v| {
-                s.gauges.context_amber = v as u8;
-            },
-        ))
-        .item(number(
-            "Context red at %",
-            2.,
-            100.,
-            |s| f64::from(s.gauges.context_red),
-            |s, v| {
-                s.gauges.context_red = v as u8;
-            },
-        ))
 }
 
 #[cfg(test)]

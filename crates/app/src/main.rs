@@ -232,15 +232,13 @@ fn start_error_journal(config: &Config) {
 }
 
 fn main() {
-    // Claude Code hook / status-line helpers: forward stdin to the running IDE and exit at once,
-    // before anything slow (the login shell PATH lookup, the GUI).
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    match args.first().map(String::as_str) {
-        Some("claude-hook") => std::process::exit(claude_integration::bridge::run_hook()),
-        Some("claude-statusline") => std::process::exit(claude_integration::bridge::run_statusline(
-            args.get(1..).unwrap_or_default(),
-        )),
-        _ => {}
+    // Claude sessions started by older versions still call these helpers of the removed live
+    // gauges; exit quietly instead of opening a window.
+    if matches!(
+        std::env::args().nth(1).as_deref(),
+        Some("claude-hook" | "claude-statusline")
+    ) {
+        return;
     }
     install_panic_log();
     let config = Config::load();

@@ -263,6 +263,9 @@ is in the working tree only.
       tab or start one; again from that tab → back to the editor. Green dot while a Claude tab's process runs.
       Right-click: New Session, Continue (`--continue`), Resume… (`--resume`), Restart, Close (asks when running);
       all in Find Action. `launcher::Start` picks the flag.
+- [x] **Live status gauges removed** (2026-11-23): no more hooks / status line injected via `--settings`, the
+      `claude-hook` / `claude-statusline` bridge, the Unix socket and the gauges in the status bar and sidebar.
+      `gauges` joined `REMOVED_KEYS`; the two helper subcommands still exit quietly for sessions started earlier.
 - [x] **Claude folder** section in Settings → Claude Code: Edit Claude settings (`~/.claude/settings.json`),
       Edit global rules (`~/.claude/CLAUDE.md`, Markdown preview), Open ~/.claude; a missing file is created only
       on click (`{}` / empty, `claude_integration::home::ensure_file`, never overwrites).

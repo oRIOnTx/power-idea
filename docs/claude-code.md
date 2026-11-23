@@ -1,12 +1,11 @@
 # Claude Code in Power IDEA
 
 Settings → Claude Code controls how the IDE starts [Claude Code](https://docs.claude.com/en/docs/claude-code)
-and what it shows while a session runs: the IDE's **MCP server** for Claude, **live gauges** of the running
-session and the **Claude terminal tab**. Rules, skills, model, permissions and hooks stay where Claude Code
+for a project: the IDE's **MCP server** for Claude and the **Claude terminal tab**. Rules, skills, model, permissions and hooks stay where Claude Code
 keeps them (`CLAUDE.md`, `~/.claude/settings.json`, `~/.claude/skills`); the IDE does not duplicate them.
 With **Enable Claude Code integration** off, the IDE starts `claude` exactly as a terminal would.
 
-The facts this relies on (CLI flags, hook payloads, status-line JSON) are listed with their sources in
+The facts this relies on (CLI flags, settings layers) are listed with their sources in
 [`claude-code-integration.md`](claude-code-integration.md).
 
 ## Where things live
@@ -14,7 +13,7 @@ The facts this relies on (CLI flags, hook payloads, status-line JSON) are listed
 ```
 ~/Library/Application Support/power-idea/claude/
   settings.toml            # the switches on this page   (schema: settings.schema.json, next to it)
-~/Library/Caches/power-idea/claude/<project>-<hash>/   # generated per project: settings.json, mcp.json (0600)
+~/Library/Caches/power-idea/claude/<project>-<hash>/   # generated per project: mcp.json (0600)
 ```
 
 The IDE watches `settings.toml`: editing it by hand is the same as editing in the UI. An invalid file is
@@ -26,7 +25,6 @@ When the IDE starts `claude` for a project and the integration is on, it adds on
 
 | What | Flag |
 |---|---|
-| Hooks and status line for the live gauges | `--settings <cache>/settings.json` |
 | The IDE's MCP server (optional) | `--mcp-config <cache>/mcp.json` (mode 0600) |
 
 Nothing outside the IDE's folders changes, and sessions started outside the IDE are unaffected.
@@ -34,10 +32,11 @@ Nothing outside the IDE's folders changes, and sessions started outside the IDE 
 ## Moving from the earlier Claude Code section
 
 Earlier versions also had rules, a skills library, code quality, model / permission mode / effort and terminal
-options. Claude Code does all of that natively, so they were removed:
+options, and live gauges fed by hooks and the status line. Claude Code does most of that natively, so they
+were removed:
 
 - An old `settings.toml` still loads. The keys of removed features (`rules`, `skills`, `quality`, `terminal`,
-  `general.model`, `general.permission_mode`, `general.effort`, `gauges.quality`, `gauges.in_tab_header`) are
+  `general.model`, `general.permission_mode`, `general.effort`, `gauges`) are
   ignored and named in a note on the page; they disappear from the file the next time a setting changes there.
   Any other unknown key is still an error. Set the model, permission mode and effort in Claude Code itself
   (`/model`, `~/.claude/settings.json`).
@@ -49,19 +48,6 @@ options. Claude Code does all of that natively, so they were removed:
   longer need them.
 - A rules block written into a project's `CLAUDE.md` with **Export to project** is not removed automatically;
   delete the lines between the two `ide:managed` markers by hand.
-
-## Live gauges
-
-Fed by Claude Code itself while a session started by the IDE runs: hook events (activity, files changed),
-the status line JSON (context window %, tokens, cost) and, when no status line arrives, the
-session transcript (parsed by the same code as Insights). Gauges: context window ring (green → amber → red at
-the thresholds you set), tokens and cost, current activity, files changed. Each can be
-switched off, and each place (status bar, sidebar); the Claude tab header shows only the tab name. Values are always shown as text too.
-
-The hooks run `power-idea claude-hook`, which forwards the JSON to the IDE over a local Unix socket and exits
-0 immediately (nothing printed, nothing blocked — if the IDE is closed it is a no-op). The status line runs
-`power-idea claude-statusline`, which forwards its JSON and prints **your own** status line command (from
-your Claude settings) — or a short `Model · ctx 42% · $0.37` when you have none.
 
 ## Claude folder
 
