@@ -1,0 +1,5 @@
+# The toolchain for local builds, hooks and CI. MSRV (rust-version in Cargo.toml) is checked in CI.
+[toolchain]
+channel = "1.100.0"
+components = ["rustfmt", "clippy", "llvm-tools-preview"]
+profile = "minimal"

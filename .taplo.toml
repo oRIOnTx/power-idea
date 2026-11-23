@@ -1,0 +1,8 @@
+# taplo: formatting for every TOML file in the repository.
+exclude = ["target/**", ".power-idea/**", "dist/**"]
+
+[formatting]
+column_width = 110
+indent_string = "  "
+reorder_keys = false
+array_auto_collapse = true

@@ -1,0 +1,58 @@
+# cargo-deny: advisories, licenses, duplicate/wildcard bans and allowed sources.
+# Run: cargo deny check   (also `just deny`, the pre-push hook and CI)
+
+[graph]
+# The app ships for macOS only; other targets' dependencies are not in the product.
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
+all-features = false
+
+[advisories]
+# RustSec database: vulnerabilities, unmaintained and yanked crates fail the check.
+unmaintained = "all"
+yanked = "deny"
+# All come through gpui-kit (the UI toolkit), which we cannot change; re-check on each gpui-kit update.
+ignore = [
+  { id = "RUSTSEC-2024-0384", reason = "instant: via gpui-base" },
+  { id = "RUSTSEC-2024-0436", reason = "paste: proc-macro via gpui-component" },
+  { id = "RUSTSEC-2026-0192", reason = "ttf-parser: via usvg in gpui" },
+  { id = "RUSTSEC-2026-0206", reason = "rustybuzz: via usvg in gpui" },
+  { id = "RUSTSEC-2026-0543", reason = "chrono: via gpui-base" },
+]
+
+[licenses]
+# Permissive licenses found in the dependency tree (cargo metadata, 2026-11-23).
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Zlib",
+  # Weak file-level copyleft; we ship unmodified crates (cbindgen, dwrote, nucleo-matcher, option-ext).
+  "MPL-2.0",
+  "0BSD",    # enum-iterator
+  "CC0-1.0", # notify, tiny-keccak
+  "BSL-1.0", # xxhash-rust (Boost: permissive)
+]
+confidence-threshold = 0.9
+
+[[licenses.clarify]]
+# Declares no SPDX expression, only a LICENSE file; it is MIT.
+crate = "tree-sitter-graphql"
+expression = "MIT"
+license-files = []
+
+[bans]
+# gpui pulls several majors of a few crates; report them without failing.
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+highlight = "all"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

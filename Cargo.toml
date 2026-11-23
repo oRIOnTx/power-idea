@@ -4,8 +4,12 @@ members = ["crates/*"]
 
 [workspace.package]
 edition = "2024"
+# MSRV, found with `cargo msrv find` (2026-11-23); CI verifies it.
+rust-version = "1.98.1"
 version = "0.2.0"
 license = "MIT"
+# An application, not a library: nothing is published to crates.io.
+publish = false
 
 [workspace.dependencies]
 gpui-kit = { version = "=0.10.0", features = ["tree-sitter-languages"] }
@@ -16,7 +20,13 @@ nucleo-matcher = "=0.3.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 lsp-types = "=0.97.0"
-sqlx = { version = "=0.9.1", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-native-roots", "postgres", "mysql", "sqlite"] }
+sqlx = { version = "=0.9.1", default-features = false, features = [
+  "runtime-tokio",
+  "tls-rustls-ring-native-roots",
+  "postgres",
+  "mysql",
+  "sqlite",
+] }
 redis = { version = "=1.8.2", default-features = false, features = ["tls-rustls"] }
 futures-core = "=0.3.34"
 tokio = { version = "=1.54.1", features = ["rt-multi-thread"] }
@@ -27,23 +37,57 @@ regex = "=1.13.2"
 dirs = "7"
 
 [workspace.lints.rust]
+# `deny`, not `forbid`: main.rs has one documented exception (`set_var` at startup).
 unsafe_code = "deny"
 unused_must_use = "deny"
+missing_debug_implementations = "warn"
+unused_qualifications = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+# gpui code writes `Context<Self>`, not `Context<'_, Self>` (as gpui and Zed do).
+elided_lifetimes_in_paths = "allow"
 
 [workspace.lints.clippy]
-dbg_macro = "warn"
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+# Restriction lints (tests may unwrap/expect/panic/index: clippy.toml).
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
 todo = "warn"
 unimplemented = "warn"
+dbg_macro = "warn"
+print_stdout = "warn"
+indexing_slicing = "warn"
 undocumented_unsafe_blocks = "warn"
-redundant_clone = "warn"
-manual_let_else = "warn"
-semicolon_if_nothing_returned = "warn"
-cloned_instead_of_copied = "warn"
-needless_collect = "warn"
-implicit_clone = "warn"
-large_types_passed_by_value = "warn"
-inefficient_to_string = "warn"
-map_unwrap_or = "warn"
+
+# Pedantic lints that are noise for this code base:
+# an application, not a library: no API docs about errors/panics, no #[must_use] on every getter.
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+return_self_not_must_use = "allow"
+# `use gpui_kit::*` is how gpui code imports its prelude.
+wildcard_imports = "allow"
+# Prose in docs names products (JetBrains, RubyMine, PostgreSQL) without backticks.
+doc_markdown = "allow"
+# UI pixel and line math converts small numbers between f32/usize/u32 all the time.
+cast_precision_loss = "allow"
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+# Render functions build one element tree; splitting them by line count hurts readability.
+too_many_lines = "allow"
+# Workspace helpers stay methods even when they do not read `self`, for uniform call sites.
+unused_self = "allow"
+# gpui callbacks and builders take owned values by design.
+needless_pass_by_value = "allow"
+# Mirrors the crate's own names (e.g. `lsp::LspEvent`); renaming would churn every call site.
+module_name_repetitions = "allow"
+similar_names = "allow"
+struct_excessive_bools = "allow"
+# Its fix (`assert_eq!(x, [] as [T; 0])`) reads worse than `assert!(x.is_empty())`.
+assert_is_empty = "allow"
 
 [profile.release]
 lto = "thin"

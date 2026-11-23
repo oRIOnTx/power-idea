@@ -1,0 +1,10 @@
+# typos (crate-ci/typos): false positives only.
+[files]
+# A list of file extensions (styl, edn, …), not prose.
+extend-exclude = ["crates/app/text-extensions.txt", "CHANGELOG.md"]
+
+[default.extend-words]
+# Deliberate near-miss inputs in tests.
+abd = "abd"
+ba = "ba"
+SELEC = "SELEC"
