@@ -78,7 +78,8 @@ impl Workspace {
                 | CenterTab::Settings
                 | CenterTab::Conflicts
                 | CenterTab::Console { .. }
-                | CenterTab::Errors(_) => continue,
+                | CenterTab::Errors(_)
+                | CenterTab::Ci(_) => continue,
             };
             if self.active_tab == Some(ix) {
                 active = Some(tabs.len());

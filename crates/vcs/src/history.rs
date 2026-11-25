@@ -205,6 +205,24 @@ impl Repo {
         Ok(self.run(&["remote"])?.lines().map(str::to_string).collect())
     }
 
+    /// Fetch URL of `remote`, or `None` when there is no such remote.
+    pub fn remote_url(&self, remote: &str) -> Option<String> {
+        let url = self.run(&["remote", "get-url", remote]).ok()?;
+        Some(url.trim().to_string()).filter(|u| !u.is_empty())
+    }
+
+    /// Short name of the checked-out branch; `None` when HEAD is detached.
+    pub fn current_branch(&self) -> Option<String> {
+        let name = self.run(&["symbolic-ref", "--short", "-q", "HEAD"]).ok()?;
+        Some(name.trim().to_string()).filter(|n| !n.is_empty())
+    }
+
+    /// Full hash of HEAD, or `None` in a repository without commits.
+    pub fn head_sha(&self) -> Option<String> {
+        let sha = self.run(&["rev-parse", "--verify", "--quiet", "HEAD"]).ok()?;
+        Some(sha.trim().to_string()).filter(|s| !s.is_empty())
+    }
+
     /// Commits matching `query`, newest first.
     pub fn history(&self, query: &HistoryQuery) -> Result<Vec<LogEntry>> {
         if !self.has_head() {
@@ -388,6 +406,23 @@ mod tests {
             .into_iter()
             .map(|e| e.subject)
             .collect()
+    }
+
+    #[test]
+    fn head_sha_and_remote_url() {
+        let repo = TempRepo::new();
+        assert_eq!(repo.0.head_sha(), None);
+        let sha = repo.commit_file("a.txt", "one\n", "first");
+        assert_eq!(repo.0.head_sha(), Some(sha.clone()));
+        assert_eq!(repo.0.current_branch().as_deref(), Some("main"));
+        repo.git(&["checkout", "-q", "--detach", &sha]);
+        assert_eq!(repo.0.current_branch(), None);
+        assert_eq!(repo.0.remote_url("origin"), None);
+        repo.git(&["remote", "add", "origin", "git@github.com:o/r.git"]);
+        assert_eq!(
+            repo.0.remote_url("origin").as_deref(),
+            Some("git@github.com:o/r.git")
+        );
     }
 
     #[test]

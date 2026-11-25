@@ -158,7 +158,9 @@ impl Workspace {
                 // Looking at the list is what "seen" means: the badge goes away.
                 error_journal::mark_all_seen();
             }
+            CenterTab::Ci(view) => view.read(cx).focus_handle().clone().focus(window, cx),
         }
+        self.sync_ci_visibility(cx);
         cx.notify();
     }
 
@@ -189,6 +191,7 @@ impl Workspace {
             Some(active) => self.activate_tab(active, window, cx),
             None => self.focus_handle.focus(window, cx),
         }
+        self.sync_ci_visibility(cx);
         cx.notify();
     }
 

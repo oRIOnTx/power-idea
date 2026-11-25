@@ -48,6 +48,7 @@ crates/
   extensions/ extension manifests, protocol and processes: JSON-RPC over stdio (docs/extensions.md)
   claude_integration/ Claude Code settings: rules, skills, resolver, launcher, installer, hook bridge
                       (docs/claude-code-integration.md)
+  ci/      GitHub Actions: remote → repo, token (gh / Keychain), REST client (ureq, ETag), poller, log parser
   error_journal/ recent errors (panics, log::error!, report()) → errors.json; badge on the settings gear
   app/     the gpui application; the only crate that depends on gpui-kit
     workspace.rs        Workspace entity: state + layout composition only
@@ -57,6 +58,7 @@ crates/
                         session_state, action_handlers, git_log/)
     language.rs         language servers per project + editor LSP providers
     database/           Database tool window: data sources, consoles, results grid
+    github_actions/     GitHub Actions tab (⌘8): runs, jobs → steps → log, polling
     projects.rs         opening projects (windows grouped as native tabs)
     file_icons.rs       file-type icon + tint mapping
     inbox.rs            background-thread → UI event queue

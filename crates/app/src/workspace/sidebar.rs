@@ -48,6 +48,23 @@ impl Workspace {
         let docker_running = self.docker.as_ref().map_or(0, |d| d.counts(&self.root).0);
         let insights_open = self.show_project_view && self.left_panel == LeftPanel::Insights;
         let insights_enabled = Self::insights_enabled(cx);
+        let ci_open = self.ci_tab_active();
+        // HEAD's CI status as a dot on the icon: red when failing, amber while running.
+        let ci_dot = match self.ci_head_state(cx) {
+            Some(ci::State::Failure) => Some(theme.danger),
+            Some(ci::State::Running | ci::State::Queued) => Some(theme.warning),
+            _ => None,
+        }
+        .map(|color| {
+            div()
+                .absolute()
+                .top(px(7.))
+                .right(px(12.))
+                .size(px(7.))
+                .rounded_full()
+                .bg(color)
+                .shadow(style::glow(color, 0.6))
+        });
         let terminal_open = self.terminal_visible();
         let log_open = self.git_log_visible();
         let (errors_unseen, errors_total) = cx
@@ -149,6 +166,17 @@ impl Workspace {
                 docker_running,
                 Box::new(cx.listener(|this, _, window, cx| this.toggle_docker(window, cx))),
             ))
+            .child(
+                slot(
+                    "bar-ci",
+                    style::lucide("workflow"),
+                    "GitHub Actions (⌘8)",
+                    ci_open,
+                    0,
+                    Box::new(cx.listener(|this, _, window, cx| this.open_ci(window, cx))),
+                )
+                .children(ci_dot),
+            )
             .when(insights_enabled, |bar| {
                 bar.child(slot(
                     "bar-insights",

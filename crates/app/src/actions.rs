@@ -16,6 +16,7 @@ use gpui_kit::*;
 use serde::Deserialize;
 
 use crate::config::Config;
+use crate::github_actions as gha;
 
 pub const WORKSPACE_CONTEXT: &str = "Workspace";
 pub const CODE_EDITOR_CONTEXT: &str = "CodeEditor";
@@ -27,6 +28,8 @@ pub const TERMINAL_CONTEXT: &str = "Terminal";
 pub const GIT_LOG_CONTEXT: &str = "GitLog";
 /// The Find Usages results (arrows select, Enter jumps).
 pub const USAGES_CONTEXT: &str = "Usages";
+/// The GitHub Actions tab with focus outside its text fields (single-letter keys act there).
+const CI_LIST: &str = "CiView && !Input";
 /// The project tree (⌘X / ⌘C / ⌘V act on the selected files).
 pub const PROJECT_TREE_CONTEXT: &str = "ProjectTree";
 
@@ -108,6 +111,7 @@ actions!(
         StepInto,
         StepOut,
         ToggleDockerView,
+        ShowGitHubActions,
         ToggleInsightsView,
         ToggleClaude,
         ClaudeNewSession,
@@ -331,6 +335,7 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Settings…", Box::new(OpenSettings)),
         ("Database", Box::new(ToggleDatabaseView)),
         ("Docker", Box::new(ToggleDockerView)),
+        ("GitHub Actions", Box::new(ShowGitHubActions)),
         ("Claude Session Insights", Box::new(ToggleInsightsView)),
         ("Claude Code", Box::new(ToggleClaude)),
         ("Claude: New Session", Box::new(ClaudeNewSession)),
@@ -470,6 +475,7 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("cmd-t", UpdateProject, ws),
         KeyBinding::new("alt-cmd-n", NewBranch, ws),
         KeyBinding::new("cmd-9", ShowGitLog, ws),
+        KeyBinding::new("cmd-8", ShowGitHubActions, ws),
         KeyBinding::new("cmd-t", NewTerminal, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-w", CloseTerminal, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-c", crate::terminal::Copy, Some(TERMINAL_CONTEXT)),
@@ -486,6 +492,16 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("down", SelectNext, Some(USAGES_CONTEXT)),
         KeyBinding::new("enter", OpenSelectedUsage, Some(USAGES_CONTEXT)),
         KeyBinding::new("f4", OpenSelectedUsage, Some(USAGES_CONTEXT)),
+        KeyBinding::new("up", SelectPrev, Some(CI_LIST)),
+        KeyBinding::new("down", SelectNext, Some(CI_LIST)),
+        KeyBinding::new("enter", gha::OpenSelected, Some(CI_LIST)),
+        KeyBinding::new("escape", gha::Back, Some(CI_LIST)),
+        KeyBinding::new("escape", gha::Back, Some("CiSearch > Input")),
+        KeyBinding::new("o", gha::OpenOnGitHub, Some(CI_LIST)),
+        KeyBinding::new("cmd-r", gha::Refresh, Some(gha::CI_CONTEXT)),
+        KeyBinding::new("cmd-f", gha::FindInLog, Some(gha::CI_CONTEXT)),
+        KeyBinding::new("ctrl-f", gha::FindInLog, Some(gha::CI_CONTEXT)),
+        KeyBinding::new("cmd-c", gha::CopySelection, Some(CI_LIST)),
         KeyBinding::new("up", SelectPrev, Some(GIT_LOG_CONTEXT)),
         KeyBinding::new("down", SelectNext, Some(GIT_LOG_CONTEXT)),
         KeyBinding::new("up", SelectPrev, Some("Welcome > Input")),

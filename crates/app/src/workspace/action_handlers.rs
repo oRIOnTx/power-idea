@@ -91,6 +91,7 @@ impl Workspace {
             cx.listener(|this, action: &DatabaseAction, w, cx| this.handle_database_action(action, w, cx)),
         )
         .on_action(cx.listener(|this, _: &ToggleDockerView, w, cx| this.toggle_docker(w, cx)))
+        .on_action(cx.listener(|this, _: &ShowGitHubActions, w, cx| this.open_ci(w, cx)))
         .on_action(cx.listener(|this, _: &ToggleInsightsView, w, cx| this.toggle_insights(w, cx)))
         .on_action(cx.listener(|this, _: &ToggleClaude, w, cx| this.toggle_claude(w, cx)))
         .on_action(cx.listener(|this, _: &ClaudeNewSession, w, cx| {

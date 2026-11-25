@@ -98,6 +98,7 @@ fn menus() -> Vec<Menu> {
             MenuItem::action("Git Log", ShowGitLog),
             MenuItem::action("Database", ToggleDatabaseView),
             MenuItem::action("Docker", ToggleDockerView),
+            MenuItem::action("GitHub Actions", ShowGitHubActions),
             MenuItem::action("Claude Insights", ToggleInsightsView),
             MenuItem::action("Terminal", ToggleTerminal),
             MenuItem::separator(),

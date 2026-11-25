@@ -71,6 +71,8 @@ pub enum CenterTab {
     },
     /// The error journal (one per window).
     Errors(Entity<crate::errors::ErrorsView>),
+    /// GitHub Actions runs of the project (one per window).
+    Ci(Entity<crate::github_actions::CiView>),
 }
 
 impl CenterTab {
@@ -82,7 +84,8 @@ impl CenterTab {
             | Self::Settings
             | Self::Conflicts
             | Self::Console { .. }
-            | Self::Errors(_) => None,
+            | Self::Errors(_)
+            | Self::Ci(_) => None,
         }
     }
 
@@ -91,7 +94,12 @@ impl CenterTab {
         match self {
             Self::Editor(tab) => Some(&tab.rel),
             Self::Image(tab) => Some(&tab.rel),
-            Self::Diff(_) | Self::Settings | Self::Conflicts | Self::Console { .. } | Self::Errors(_) => None,
+            Self::Diff(_)
+            | Self::Settings
+            | Self::Conflicts
+            | Self::Console { .. }
+            | Self::Errors(_)
+            | Self::Ci(_) => None,
         }
     }
 
@@ -104,6 +112,7 @@ impl CenterTab {
             Self::Conflicts => "Conflicts".into(),
             Self::Console { title, .. } => title.clone(),
             Self::Errors(_) => "Errors".into(),
+            Self::Ci(_) => "GitHub Actions".into(),
         }
     }
 

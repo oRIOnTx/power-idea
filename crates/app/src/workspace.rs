@@ -25,6 +25,7 @@ mod branches;
 mod breadcrumbs;
 mod busy_terminals;
 mod chrome;
+mod ci_tab;
 mod claude_terminal;
 mod close_confirm;
 mod code_nav;
@@ -195,6 +196,9 @@ pub struct Workspace {
     docker: Option<docker_panel::DockerState>,
     /// Claude Session Insights; created the first time the panel opens.
     insights: Option<insights_panel::InsightsState>,
+    /// GitHub Actions tab; created the first time it opens, kept (and polling slowly for the
+    /// HEAD badge) after its tab closes.
+    ci: Option<ci_tab::CiHandle>,
     usages: Option<usages_panel::UsagesState>,
     project: ProjectSettings,
     /// Languages whose "install a language server" banner was dismissed.
@@ -326,6 +330,7 @@ impl Workspace {
             debug: None,
             docker: None,
             insights: None,
+            ci: None,
             usages: None,
             watcher: None,
             terminals: Vec::new(),
@@ -497,6 +502,7 @@ impl Render for Workspace {
             ),
             Some(CenterTab::Console { console, .. }) => Some(console.clone().into_any_element()),
             Some(CenterTab::Errors(view)) => Some(view.clone().into_any_element()),
+            Some(CenterTab::Ci(view)) => Some(view.clone().into_any_element()),
             Some(CenterTab::Conflicts) => Some(self.render_conflicts_tab(cx)),
             Some(CenterTab::Settings) => Some(
                 div()

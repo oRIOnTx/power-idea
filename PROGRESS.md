@@ -1,6 +1,6 @@
 # Power IDEA — progress
 
-Updated: 2026-11-23. Last commit: see `git log`. Everything below marked *uncommitted*
+Updated: 2026-11-25. Last commit: see `git log`. Everything below marked *uncommitted*
 is in the working tree only.
 
 ## Done
@@ -305,11 +305,35 @@ is in the working tree only.
       errors"), click → Errors tab (newest first, expand → context/location/version/backtrace, Copy as Markdown,
       Open file location, Copy all, Clear all); gear right-click menu, Help → Show Errors, Find Action. Debug
       builds: "Debug: Trigger Test Error / Panic / Crash" in Find Action
-
+- [x] **GitHub Actions tab, phase 1** (2026-11-25; `crates/ci`, `app/src/github_actions/`, ⌘8, activity bar,
+      View menu, Find Action): read-only runs of the project's GitHub repository (`origin`, else the first GitHub
+      remote; ssh/https/scp URLs). Token from `gh auth token`, else a personal access token saved in the Keychain
+      (`security -i` over stdin, never in argv); "Connect to GitHub" explains both (gh login typed into a terminal,
+      PAT field + link). REST via `ureq` (rustls; approved dependency): ETag/304 cache, `x-ratelimit-*` tracking,
+      friendly 401/403/404/rate-limit errors, job logs fetched through the 302 without forwarding the token.
+      Adaptive polling (`ci::poller`): 4 s while something runs and the tab is in front, 30 s idle, 60 s for the
+      HEAD badge when the tab is hidden, paused when the window is inactive; exponential backoff, waits out the
+      rate-limit reset. Layout: header (repo, branch, HEAD passing/failing/running chip, This branch / All, log
+      search, "Updated Xs ago", refresh, Open on GitHub), resizable runs list | run detail. HEAD's failed run opens
+      by itself with the failed job and step unfolded and the log scrolled to the first error. Detail is one
+      virtualized list: jobs → annotations (click opens file:line) → steps (spinner + ticking duration, copy step
+      log) → log lines (timestamps/ANSI stripped, `##[group]` depth, errors/warnings/commands colored, line
+      numbers per step; lines matched to steps by time). Keys: ↑/↓, Enter (open / fold), Esc (back, clear search),
+      O (GitHub, at the step), ⌘R, ⌘F/⌃F (Enter / ⇧Enter next/previous match), click / ⇧click + ⌘C copies lines.
+      Activity bar dot: red when HEAD fails, amber while it runs
 ## Backlog
+- GitHub Actions phase 2: run workflow (workflow_dispatch form from the YAML via tree-sitter-yaml), re-run
+  all / failed, cancel, deploy confirmation (name heuristic + `.power-idea/settings.toml`), macOS
+  notifications (osascript) for runs on HEAD / started from the IDE, R / D shortcuts, HEAD chip in Commit panel
+- GitHub Actions phase 3: "Send to Claude" (trimmed, redacted Markdown context), Copy, MCP tools
+  `ci_list_runs` / `ci_get_run` / `ci_get_failed_logs` (read-only)
+
 Other candidates: Database gaps below.
 
 ## Known gaps
+- GitHub Actions: UI not clicked through by hand; live API checked only by ignored tests
+  (`cargo test -p ci -- --ignored`); logs exist only after a job finishes (no live streaming); log search covers
+  unfolded steps only; ANSI colors are stripped, not rendered; github.com only (no Enterprise hosts)
 - Error journal: UI not clicked through by hand; native crashes (SIGSEGV, aborts in foreign code) are not
   captured (TODO in the crate docs); release builds are stripped, so their backtraces have no symbols and the
   fingerprint falls back to the message

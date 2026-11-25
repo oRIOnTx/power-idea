@@ -38,6 +38,8 @@ dirs = "7"
 # Claude Code integration: YAML front-matter of rules and SKILL.md, path globs in rule scopes.
 # Error journal: the logger facade gpui reports its errors through (already in Cargo.lock).
 log = "=0.4.35"
+# GitHub Actions panel: HTTPS to api.github.com (blocking, rustls + ring already in the tree).
+ureq = { version = "=3.5.2", default-features = false, features = ["rustls", "gzip"] }
 
 [workspace.lints.rust]
 # `deny`, not `forbid`: main.rs has one documented exception (`set_var` at startup).

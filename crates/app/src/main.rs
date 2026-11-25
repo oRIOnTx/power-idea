@@ -9,6 +9,7 @@ mod errors;
 mod extension_registry;
 mod file_icons;
 mod file_ops;
+mod github_actions;
 mod inbox;
 mod indentation;
 mod language;

@@ -1,0 +1,27 @@
+﻿2026-11-25T10:00:00.1000000Z Current runner version: '2.320.0'
+2026-11-25T10:00:00.2000000Z ##[group]Operating System
+2026-11-25T10:00:00.2100000Z Ubuntu
+2026-11-25T10:00:00.2200000Z 22.04.5
+2026-11-25T10:00:00.2300000Z ##[endgroup]
+2026-11-25T10:00:01.1000000Z Runner Image Provisioner
+2026-11-25T10:00:01.9000000Z ##[warning]Node.js 16 actions are deprecated.
+2026-11-25T10:00:02.1000000Z Download action repository 'actions/checkout@v4'
+2026-11-25T10:00:02.5000000Z ##[group]Run actions/checkout@v4
+2026-11-25T10:00:02.5100000Z with:
+2026-11-25T10:00:02.5200000Z   repository: o/r
+2026-11-25T10:00:02.5300000Z ##[endgroup]
+2026-11-25T10:00:02.8000000Z [command]/usr/bin/git version
+2026-11-25T10:00:02.8100000Z git version 2.47.0
+2026-11-25T10:00:03.1000000Z ##[group]Run bundle exec rspec
+2026-11-25T10:00:03.1100000Z bundle exec rspec
+2026-11-25T10:00:03.1200000Z shell: /usr/bin/bash -e {0}
+2026-11-25T10:00:03.1300000Z ##[endgroup]
+2026-11-25T10:00:04.0000000Z [32m.[0m[31mF[0m
+2026-11-25T10:00:04.5000000Z Failures:
+2026-11-25T10:00:05.0000000Z   1) User validates email
+2026-11-25T10:00:05.1000000Z Failure/Error: expect(user).to be_valid
+2026-11-25T10:00:06.0000000Z [31mrspec ./spec/models/user_spec.rb:42 FAILED[0m
+2026-11-25T10:00:07.0000000Z Finished in 1.2 seconds (files took 0.5 seconds to load)
+2026-11-25T10:00:08.0000000Z 2 examples, 1 failure
+2026-11-25T10:00:09.0000000Z ##[error]Process completed with exit code 1.
+2026-11-25T10:00:10.1000000Z Cleaning up orphan processes

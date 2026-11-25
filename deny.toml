@@ -32,9 +32,10 @@ allow = [
   "Zlib",
   # Weak file-level copyleft; we ship unmodified crates (cbindgen, dwrote, nucleo-matcher, option-ext).
   "MPL-2.0",
-  "0BSD",    # enum-iterator
-  "CC0-1.0", # notify, tiny-keccak
-  "BSL-1.0", # xxhash-rust (Boost: permissive)
+  "0BSD",                # enum-iterator
+  "CC0-1.0",             # notify, tiny-keccak
+  "BSL-1.0",             # xxhash-rust (Boost: permissive)
+  "CDLA-Permissive-2.0", # webpki-roots (Mozilla's CA list as data, via ureq)
 ]
 confidence-threshold = 0.9
 
