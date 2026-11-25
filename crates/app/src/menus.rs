@@ -19,10 +19,14 @@ pub fn install(cx: &mut App) {
     cx.set_menus(menus());
 }
 
-fn with_active_window(cx: &mut App, f: impl FnOnce(&mut Window, &mut App)) {
-    if let Some(window) = cx.active_window() {
-        window.update(cx, |_, window, cx| f(window, cx)).ok();
-    }
+/// App-wide action handlers run inside the active window's update (menu clicks and key bindings
+/// dispatch through it), so updating that window right away fails; run once the update is over.
+fn with_active_window(cx: &mut App, f: impl FnOnce(&mut Window, &mut App) + 'static) {
+    cx.defer(|cx| {
+        if let Some(window) = cx.active_window() {
+            window.update(cx, |_, window, cx| f(window, cx)).ok();
+        }
+    });
 }
 
 fn show_about(cx: &mut App) {
@@ -43,10 +47,19 @@ fn show_about(cx: &mut App) {
 
 /// Opens the New Project dialog in the active window (Welcome or a project).
 fn new_project(cx: &mut App) {
-    if cx.active_window().is_none() {
-        crate::welcome::show(cx);
-    }
-    with_active_window(cx, crate::welcome::open_new_project_dialog);
+    cx.defer(|cx| {
+        let target = cx.active_window().or_else(|| {
+            crate::welcome::show(cx);
+            crate::welcome::window(cx)
+        });
+        if let Some(window) = target {
+            window
+                .update(cx, |_, window, cx| {
+                    crate::welcome::open_new_project_dialog(window, cx);
+                })
+                .ok();
+        }
+    });
 }
 
 fn menus() -> Vec<Menu> {

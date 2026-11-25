@@ -56,6 +56,11 @@ pub fn show(cx: &mut App) {
     }
 }
 
+/// The Welcome window, while it is open.
+pub fn window(cx: &App) -> Option<AnyWindowHandle> {
+    cx.try_global::<WelcomeWindow>().and_then(|w| w.0)
+}
+
 /// Closes the Welcome window once a project window is open.
 pub fn close(cx: &mut App) {
     let Some(handle) = cx.try_global::<WelcomeWindow>().and_then(|w| w.0) else {
