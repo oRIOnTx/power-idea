@@ -364,6 +364,12 @@ is in the working tree only.
       name (`user copy.rb`, `user copy 2.rb`); several conflicts are asked one after another, Cancel skips the rest;
       free names still paste right away. Cut into the same folder still reports "already in this folder"
       (`file_ops::placement` / `paste_to`, `workspace/file_clipboard.rs`)
+- [x] Git: a branch without an upstream (e.g. created and committed by an agent in the terminal) shows
+      its unpushed commits (`HEAD --not --remotes`) in the branch widget, Commit window and Branches popup;
+      before, `ahead` stayed 0 and nothing looked pushable
+- [x] Copy Path From Project Root in the tab context menu; tree/tab "Copy Path" renamed Copy Absolute Path;
+      actions Copy Absolute Path (⇧⌘C) and Copy Path From Project Root (Edit menu, Find Action) for the active file
+
 ## Backlog
 - GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted
 

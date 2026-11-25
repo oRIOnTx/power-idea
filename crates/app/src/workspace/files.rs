@@ -136,8 +136,8 @@ impl Workspace {
             .menu("Rename…", action(FileOp::Rename))
             .menu("Delete…", action(FileOp::Delete))
             .separator()
-            .menu("Copy Path", action(FileOp::CopyPath))
-            .menu("Copy Relative Path", action(FileOp::CopyRelativePath))
+            .menu("Copy Absolute Path", action(FileOp::CopyPath))
+            .menu("Copy Path From Project Root", action(FileOp::CopyRelativePath))
             .separator()
             .menu("Reveal in Finder", action(FileOp::RevealInFinder))
             .menu("Open in Terminal", action(FileOp::OpenInTerminal));
@@ -158,7 +158,7 @@ impl Workspace {
             .separator()
             .menu_with_disabled("Paste", action(FileOp::Paste), !self.can_paste_files(cx))
             .separator()
-            .menu("Copy Path", action(FileOp::CopyPath))
+            .menu("Copy Absolute Path", action(FileOp::CopyPath))
             .separator()
             .menu("Reveal in Finder", action(FileOp::RevealInFinder))
             .menu("Open in Terminal", action(FileOp::OpenInTerminal))
@@ -172,8 +172,19 @@ impl Workspace {
             .menu("Close Other Tabs", action(FileOp::CloseOtherTabs))
             .menu("Close All Tabs", action(FileOp::CloseAllTabs))
             .separator()
-            .menu("Copy Path", action(FileOp::CopyPath))
+            .menu("Copy Absolute Path", action(FileOp::CopyPath))
+            .menu("Copy Path From Project Root", action(FileOp::CopyRelativePath))
             .menu("Reveal in Finder", action(FileOp::RevealInFinder))
+    }
+
+    /// ⇧⌘C / Find Action: copies the active file's path, absolute or from the project root.
+    pub(super) fn copy_active_path(&mut self, op: FileOp, window: &mut Window, cx: &mut Context<Self>) {
+        let tab = self.active_tab.and_then(|ix| self.tabs.get(ix));
+        let Some(rel) = tab.and_then(CenterTab::file_rel).map(str::to_string) else {
+            return;
+        };
+        let action = FileAction { op, path: rel.into() };
+        self.handle_file_action(&action, window, cx);
     }
 
     pub(super) fn handle_file_action(

@@ -133,6 +133,12 @@ impl Workspace {
         .on_action(cx.listener(|this, _: &GotoClass, w, cx| this.goto_symbol(true, w, cx)))
         .on_action(cx.listener(|this, _: &GotoSymbol, w, cx| this.goto_symbol(false, w, cx)))
         .on_action(cx.listener(|this, _: &FileStructure, w, cx| this.file_structure(w, cx)))
+        .on_action(cx.listener(|this, _: &CopyAbsolutePath, w, cx| {
+            this.copy_active_path(FileOp::CopyPath, w, cx);
+        }))
+        .on_action(cx.listener(|this, _: &CopyPathFromProjectRoot, w, cx| {
+            this.copy_active_path(FileOp::CopyRelativePath, w, cx);
+        }))
         .on_action(cx.listener(|this, _: &RenameSymbol, w, cx| this.rename_symbol(w, cx)))
         .on_action(cx.listener(|this, _: &ReformatCode, w, cx| this.reformat_code(w, cx)))
         .on_action(cx.listener(|this, action: &RunExtensionCommand, w, cx| {
