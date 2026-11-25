@@ -1,6 +1,6 @@
 //! "Claude" terminal tabs: `claude` in the project root, with the IDE's MCP server when
-//! Settings → Claude Code is on. The activity bar icon and ⌘Esc open or focus one;
-//! its menu starts new, continued or resumed sessions in new tabs.
+//! Settings → Claude Code is on. ⌘Esc opens or focuses one; Find Action starts new,
+//! continued or resumed sessions in new tabs.
 
 use std::collections::BTreeMap;
 
@@ -15,7 +15,7 @@ use crate::claude::{self, Binary};
 use crate::terminal::{Session, TerminalView};
 
 impl Workspace {
-    /// ⌘Esc and the activity bar icon: back to the editor when the Claude tab has focus, else
+    /// ⌘Esc: back to the editor when the Claude tab has focus, else
     /// show and focus the project's Claude tab, starting one when there is none.
     pub(super) fn toggle_claude(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.light {
@@ -34,18 +34,10 @@ impl Workspace {
         cx.notify();
     }
 
-    /// The Claude tab the icon and its menu act on (see `pick_claude_tab`).
+    /// The Claude tab ⌘Esc and the session actions act on (see `pick_claude_tab`).
     fn current_claude_tab(&self, cx: &App) -> Option<usize> {
         let claude: Vec<bool> = self.terminals.iter().map(|t| t.read(cx).is_claude()).collect();
         pick_claude_tab(self.active_terminal, &claude)
-    }
-
-    /// Whether a Claude tab of this window has a live process (the dot on the icon).
-    pub(super) fn claude_running(&self, cx: &App) -> bool {
-        self.terminals.iter().any(|t| {
-            let tab = t.read(cx);
-            tab.is_claude() && tab.is_running()
-        })
     }
 
     pub(super) fn restart_current_claude(&mut self, window: &mut Window, cx: &mut Context<Self>) {

@@ -63,16 +63,14 @@ IDE never writes its own content into these files. `CLAUDE_CONFIG_DIR` is honore
 
 ## The Claude tab
 
-The **Claude** icon in the activity bar (and **⌘Esc**, as in Claude Code's JetBrains plugin; remap it in
-`keymap.toml` as `ide::ToggleClaude`) shows and focuses the project's Claude tab, or opens a new one running
-`claude` in the project root right away. Pressed again while that tab has focus, it returns to the editor. The
-icon is always there: with the integration off, `claude` starts exactly as a terminal would; with it on, it
-gets the IDE's additions above. A green dot on the icon means a Claude tab's process is running (from the
-terminal's process state only).
+**⌘Esc** (as in Claude Code's JetBrains plugin; remap it in `keymap.toml` as `ide::ToggleClaude`) shows and
+focuses the project's Claude tab, or opens a new one running `claude` in the project root right away. Pressed
+again while that tab has focus, it returns to the editor. With the integration off, `claude` starts exactly as a
+terminal would; with it on, it gets the IDE's additions above.
 
-Right-click the icon for **New Session**, **Continue Last Session** (`--continue`), **Resume Session…**
-(`--resume`, Claude Code's own picker) — each opens a new Claude tab — and **Restart** / **Close** for the
-current Claude tab (the active one, else the last). All of them are in Find Action too. Closing a running session
+Find Action has **Claude: New Session**, **Continue Last Session** (`--continue`), **Resume Session…**
+(`--resume`, Claude Code's own picker) — each opens a new Claude tab — and **Restart** / **Close Session** for
+the current Claude tab (the active one, else the last). Closing a running session
 asks first; a missing `claude` shows how to install it. The Run widget's Stop and ⌘F2 never stop a Claude tab,
 and ⌘T / **+** in the terminal panel always open a plain shell.
 

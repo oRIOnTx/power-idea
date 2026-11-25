@@ -259,10 +259,10 @@ is in the working tree only.
       Privacy / Clear caches. Old `settings.toml` files load: `REMOVED_KEYS` are ignored and named on the page.
       `claude_integration::legacy::cleanup` removes, once, what Install mode put into `~/.claude` (manifest-driven,
       marker-checked, tested); `rules/` and `skills/` in the IDE folder are kept.
-- [x] **Claude icon in the activity bar** + ⌘Esc (`ide::ToggleClaude`, remappable): focus the project's Claude
-      tab or start one; again from that tab → back to the editor. Green dot while a Claude tab's process runs.
-      Right-click: New Session, Continue (`--continue`), Resume… (`--resume`), Restart, Close (asks when running);
-      all in Find Action. `launcher::Start` picks the flag.
+- [x] **⌘Esc → Claude tab** (`ide::ToggleClaude`, remappable): focus the project's Claude tab or start one;
+      again from that tab → back to the editor. Find Action: New Session, Continue (`--continue`), Resume…
+      (`--resume`), Restart, Close (asks when running). `launcher::Start` picks the flag. The activity bar icon
+      was removed (2026-11-25).
 - [x] **Live status gauges removed** (2026-11-23): no more hooks / status line injected via `--settings`, the
       `claude-hook` / `claude-statusline` bridge, the Unix socket and the gauges in the status bar and sidebar.
       `gauges` joined `REMOVED_KEYS`; the two helper subcommands still exit quietly for sessions started earlier.
