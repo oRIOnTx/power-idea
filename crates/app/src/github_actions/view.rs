@@ -110,8 +110,11 @@ impl CiView {
                 .selected(self.scope == scope)
                 .on_click(cx.listener(move |view, _, _, cx| view.set_scope(scope, cx)))
         };
+        // A narrow window shrinks the repo and branch names (ellipsis), never the controls.
         h_flex()
             .flex_none()
+            .w_full()
+            .overflow_hidden()
             .gap_2()
             .px_3()
             .h(px(40.))
@@ -120,10 +123,14 @@ impl CiView {
             .child(
                 style::lucide("workflow")
                     .small()
+                    .flex_none()
                     .text_color(theme.muted_foreground),
             )
             .child(
                 div()
+                    .min_w(px(60.))
+                    .flex_shrink(1.)
+                    .truncate()
                     .text_sm()
                     .font_weight(FontWeight::SEMIBOLD)
                     .child(repo.unwrap_or_else(|| "GitHub Actions".into())),
@@ -131,15 +138,18 @@ impl CiView {
             .when(self.setup == Setup::Ready, |el| {
                 el.child(
                     h_flex()
+                        .min_w(px(40.))
+                        .flex_shrink(1.)
                         .gap_1()
                         .text_xs()
                         .text_color(theme.muted_foreground)
-                        .child(style::lucide("git-branch").xsmall())
-                        .child(branch),
+                        .child(style::lucide("git-branch").xsmall().flex_none())
+                        .child(div().min_w_0().truncate().child(branch)),
                 )
-                .children(head)
+                .children(head.map(|h| h.flex_none().whitespace_nowrap()))
                 .child(
                     h_flex()
+                        .flex_none()
                         .gap_0p5()
                         .child(scope_button("ci-scope-branch", "This branch", Scope::Branch, cx))
                         .child(scope_button("ci-scope-all", "All", Scope::All, cx)),
@@ -160,11 +170,20 @@ impl CiView {
                 el.child(
                     div()
                         .w(px(220.))
+                        .min_w(px(120.))
+                        .flex_shrink(1.)
                         .key_context("CiSearch")
                         .child(Input::new(&self.search).xsmall().cleanable(true)),
                 )
             })
-            .children(updated.map(|u| div().text_xs().text_color(theme.muted_foreground).child(u)))
+            .children(updated.map(|u| {
+                div()
+                    .flex_none()
+                    .whitespace_nowrap()
+                    .text_xs()
+                    .text_color(theme.muted_foreground)
+                    .child(u)
+            }))
             .when(self.setup == Setup::Ready, |el| {
                 el.child(
                     style::icon_button_sized(
@@ -273,8 +292,11 @@ impl CiView {
         let age = run.created_millis().map_or_default(|t| format_ago(now - t));
         let duration = run.duration_millis(now).map_or_default(format_duration);
         let muted = theme.muted_foreground;
+        // Full pane width: backgrounds, borders and the right-hand column line up across rows.
         h_flex()
             .id(("ci-run", ix))
+            .w_full()
+            .overflow_hidden()
             .h(RUN_ROW_HEIGHT)
             .px_3()
             .gap_2()
@@ -308,6 +330,7 @@ impl CiView {
                     .gap_0p5()
                     .child(
                         h_flex()
+                            .w_full()
                             .gap_2()
                             .text_sm()
                             .child(
