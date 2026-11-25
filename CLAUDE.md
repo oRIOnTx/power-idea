@@ -14,6 +14,7 @@ scripts/run.sh [project-dir]     # run the IDE (debug) on a project
 scripts/check.sh [--live]        # fmt + clippy -D warnings + test; must be clean before a change is done
 scripts/build.sh [--no-open]     # release "Power IDEA.app" (scripts/bundle-macos.sh) and open it
 scripts/dmg.sh [--install]       # dist/*.dmg installer; --install also updates /Applications
+scripts/prune-dmgs.sh [n]        # keep the newest n (default 3, DMG_KEEP) dist/*.dmg; dmg.sh runs it
 scripts/install.sh [file.dmg]    # install / update /Applications from a disk image
 scripts/version.sh [--json]      # the app version, computed from git tags (never edit versions by hand)
 bin/changelog                    # regenerate CHANGELOG.md (git-cliff) and preview [Unreleased]

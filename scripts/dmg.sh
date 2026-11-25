@@ -3,7 +3,8 @@
 # Usage: scripts/dmg.sh [--skip-build] [--install]
 #   --skip-build  package the existing target/release/Power IDEA.app
 #   --install     install / update /Applications right after (scripts/install.sh)
-# Output: dist/Power-IDEA-<version>-<build>.dmg
+# Output: dist/Power-IDEA-<version>-<build>.dmg; images older than the newest 3 are deleted
+#         (DMG_KEEP=<n> keeps more; scripts/prune-dmgs.sh)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -49,6 +50,8 @@ fi
 hdiutil verify -quiet "$DMG"
 
 echo "Disk image: $DMG ($(du -h "$DMG" | cut -f1 | tr -d ' '))"
+# Only the newest images stay in dist/ (DMG_KEEP, default 3).
+scripts/prune-dmgs.sh
 
 if [[ $INSTALL == 1 ]]; then
   scripts/install.sh "$DMG"
