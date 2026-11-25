@@ -13,7 +13,7 @@ use crate::style;
 
 struct Confirmation {
     title: String,
-    message: &'static str,
+    message: String,
     icon: &'static str,
     ok_text: &'static str,
     /// Turns the setting off when "Don't ask again" is checked.
@@ -36,7 +36,7 @@ fn ask(
             .width(px(420.))
             .icon(style::lucide(confirmation.icon).text_color(cx.theme().primary))
             .title(confirmation.title.clone())
-            .description(confirmation.message)
+            .description(confirmation.message.clone())
             .child(
                 Checkbox::new("dont-ask-again")
                     .label("Don't ask again")
@@ -87,7 +87,7 @@ pub(super) fn confirm_quit(confirmed: bool, cx: &mut App) {
         window.activate_window();
         let confirmation = Confirmation {
             title: "Exit Power IDEA?".into(),
-            message,
+            message: message.into(),
             icon: "power",
             ok_text: "Exit",
             never_ask: |config| config.confirm_exit = false,
@@ -100,27 +100,52 @@ pub(super) fn confirm_quit(confirmed: bool, cx: &mut App) {
 }
 
 impl Workspace {
-    /// ⇧⌘W, the window's close button and project tabs: asks about running terminals,
-    /// unsaved files, then "Close project?". Returns true when the window can close right away.
+    /// ⇧⌘W, the window's close button and project tabs: asks about running terminals, then
+    /// "Close project?", then saves modified files behind a progress dialog (`save_on_close`).
+    /// Returns true when the window can close right away.
     pub(crate) fn should_close_window(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if self.saving_on_close {
+            return false;
+        }
         let Some(asked) = self.terminals_allow_close(window, cx) else {
             return false;
         };
-        if !self.can_close_window(window, cx) {
-            return false;
-        }
+        self.save_session_now(cx);
+        let dirty = self.dirty_count(cx);
         // "Terminate" in the running-terminals dialog already confirmed closing.
         if asked || !cx.global::<AppConfig>().0.confirm_close_project {
-            return true;
+            if dirty == 0 {
+                return true;
+            }
+            self.save_and_close(window, cx);
+            return false;
         }
+        let restored = "Open files and tool windows are restored when you open it again.";
+        let message = match dirty {
+            0 => restored.to_string(),
+            1 => format!("1 modified file will be saved. {restored}"),
+            n => format!("{n} modified files will be saved. {restored}"),
+        };
         let confirmation = Confirmation {
             title: format!("Close project “{}”?", self.project_name()),
-            message: "Open files and tool windows are restored when you open it again.",
+            message,
             icon: "log-out",
             ok_text: "Close",
             never_ask: |config| config.confirm_close_project = false,
         };
-        ask(confirmation, |window, _| window.remove_window(), window, cx);
+        let workspace = cx.entity().downgrade();
+        ask(
+            confirmation,
+            move |window, cx| {
+                let workspace = workspace.clone();
+                // The confirmation closes after this returns; open the progress dialog after it.
+                window.defer(cx, move |window, cx| {
+                    workspace.update(cx, |ws, cx| ws.save_and_close(window, cx)).ok();
+                });
+            },
+            window,
+            cx,
+        );
         false
     }
 }

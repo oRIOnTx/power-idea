@@ -353,6 +353,12 @@ is in the working tree only.
       "Exit Power IDEA?"): `quit_guard` adds `applicationShouldTerminate:` to gpui's app delegate (objc2, one
       documented `unsafe`); approved quits go through `quit_guard::quit`. `scripts/install.sh` now shows the same
       prompt and waits up to 30 s for it
+- [x] Save before close: closing a project (⇧⌘W, window close button, project tab ×) no longer asks Save / Don't
+      Save — once "Close project?" is confirmed (it now says how many modified files will be saved; skipped when
+      the confirmation is off or running terminals were terminated) the files are written off the UI thread behind
+      a non-dismissable "Saving files…" dialog with a progress bar (file name, N of M, shown ≥ 350 ms); a failed
+      write keeps the project open and reports it (`workspace/save_on_close.rs`). ⌘Q and "open project in this
+      window" still use the Save / Don't Save / Cancel dialog
 ## Backlog
 - GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted
 

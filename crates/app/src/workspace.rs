@@ -59,6 +59,7 @@ mod preview_view;
 mod push_dialog;
 mod replace_in_files;
 mod run_configs;
+mod save_on_close;
 mod session_state;
 mod sidebar;
 mod terminal_panel;
@@ -227,6 +228,8 @@ pub struct Workspace {
     terminals: Vec<Entity<TerminalView>>,
     /// Result of the running-terminals check for the close in progress (`busy_terminals`).
     terminals_checked: Option<bool>,
+    /// Modified files are being written before the window closes (`save_on_close`).
+    saving_on_close: bool,
     active_terminal: usize,
     /// Pinned and renamed terminal tabs (`pinned_tabs`).
     pins: pinned_tabs::PinState,
@@ -339,6 +342,7 @@ impl Workspace {
             watcher: None,
             terminals: Vec::new(),
             terminals_checked: None,
+            saving_on_close: false,
             active_terminal: 0,
             pins: pinned_tabs::PinState::default(),
             show_bottom: false,
