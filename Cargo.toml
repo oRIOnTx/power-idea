@@ -43,9 +43,12 @@ ureq = { version = "=3.5.2", default-features = false, features = ["rustls", "gz
 # GitHub Actions panel: `workflow_dispatch` inputs from workflow YAML (both already built for gpui-kit).
 tree-sitter = "=0.26.13"
 tree-sitter-yaml = "=0.7.2"
+# macOS: asking before a Dock/App Switcher quit (gpui's app delegate has no hook; already in Cargo.lock).
+objc2 = "=0.6.5"
 
 [workspace.lints.rust]
-# `deny`, not `forbid`: main.rs has one documented exception (`set_var` at startup).
+# `deny`, not `forbid`: two documented exceptions (`set_var` at startup in main.rs,
+# the macOS quit hook in quit_guard.rs).
 unsafe_code = "deny"
 unused_must_use = "deny"
 missing_debug_implementations = "warn"

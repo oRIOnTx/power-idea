@@ -347,6 +347,12 @@ is in the working tree only.
       "No access to owner/repo" with the fix for the token source (fine-grained PAT: resource owner + repository
       access + permissions; gh: account access / SSO) and Edit tokens on GitHub, Use another token, Log in with gh,
       Check again — instead of an error bar over an empty list
+- [x] About and New Project (menu, Find Action) open again: app-wide action handlers run inside the active window's
+      update, so their dialogs are now opened once that update ends (`menus::with_active_window`)
+- [x] Dock → Quit, App Switcher, AppleScript `quit` and logout ask like ⌘Q (running terminals, unsaved files,
+      "Exit Power IDEA?"): `quit_guard` adds `applicationShouldTerminate:` to gpui's app delegate (objc2, one
+      documented `unsafe`); approved quits go through `quit_guard::quit`. `scripts/install.sh` now shows the same
+      prompt and waits up to 30 s for it
 ## Backlog
 - GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted
 
@@ -388,6 +394,5 @@ Other candidates: Database gaps below.
 - "Python: current file": debugpy itself runs on `python3` from PATH, not the project venv; not clicked through by hand
 - Redis TLS verified only by URL/feature tests (no TLS Redis server here)
 - LightEdit: no file watching (external changes are not reloaded), unsaved text kept on quit is restored only if that folder is opened as a project; Finder opening verified only by unit tests (URL decoding), not by hand
-- Dock → Quit cannot ask (gpui has no cancellable terminate hook); unsaved text is recovered instead
 - PostgreSQL/MySQL/Redis drivers verified only by unit tests (no local servers); SQLite verified end to end
 - The user's `lms` project needs `brew install libpq` + `bundle install` for full Ruby LSP (fallback mode works meanwhile)

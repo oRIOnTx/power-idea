@@ -83,7 +83,7 @@ fn quit_checking_unsaved(confirmed: bool, cx: &mut App) {
                     Rc::new(|_, _, cx| App::defer(cx, save_all_and_quit)),
                     Rc::new(|_, _, cx| {
                         cx.set_global(DiscardOnQuit(true));
-                        cx.quit();
+                        crate::quit_guard::quit(cx);
                     }),
                     window,
                     cx,
@@ -105,7 +105,7 @@ fn save_all_and_quit(cx: &mut App) {
             return;
         }
     }
-    cx.quit();
+    crate::quit_guard::quit(cx);
 }
 
 impl Workspace {

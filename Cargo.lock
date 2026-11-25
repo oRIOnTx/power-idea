@@ -5113,6 +5113,7 @@ dependencies = [
  "lsp",
  "mcp",
  "notify",
+ "objc2 0.6.5",
  "regex",
  "run",
  "search",

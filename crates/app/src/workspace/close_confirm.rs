@@ -67,7 +67,7 @@ fn ask(
 /// `confirmed`: the user already agreed to exit (running terminals dialog).
 pub(super) fn confirm_quit(confirmed: bool, cx: &mut App) {
     if confirmed {
-        return cx.quit();
+        return crate::quit_guard::quit(cx);
     }
     let live = Workspaces::live(cx);
     let active = cx.active_window();
@@ -77,7 +77,7 @@ pub(super) fn confirm_quit(confirmed: bool, cx: &mut App) {
         .find(|handle| Some(*handle) == active)
         .or_else(|| live.first().map(|(handle, _)| *handle));
     let Some(handle) = target.filter(|_| cx.global::<AppConfig>().0.confirm_exit) else {
-        return cx.quit();
+        return crate::quit_guard::quit(cx);
     };
     let message = match live.len() {
         1 => "The project window will be closed.",
@@ -92,10 +92,10 @@ pub(super) fn confirm_quit(confirmed: bool, cx: &mut App) {
             ok_text: "Exit",
             never_ask: |config| config.confirm_exit = false,
         };
-        ask(confirmation, |_, cx| cx.quit(), window, cx);
+        ask(confirmation, |_, cx| crate::quit_guard::quit(cx), window, cx);
     });
     if shown.is_err() {
-        cx.quit();
+        crate::quit_guard::quit(cx);
     }
 }
 

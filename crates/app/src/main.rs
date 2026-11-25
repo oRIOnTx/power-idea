@@ -22,6 +22,7 @@ mod pinned_terminals;
 mod preview;
 mod project_tree;
 mod projects;
+mod quit_guard;
 mod recovery;
 mod session;
 mod settings;
@@ -254,6 +255,7 @@ fn main() {
     let open_requests = open_files::OpenRequests::default();
 
     let app = application().with_assets(assets::Assets);
+    quit_guard::install();
     app.on_open_urls({
         let open_requests = open_requests.clone();
         move |urls| open_requests.handle_urls(&urls)
@@ -271,6 +273,7 @@ fn main() {
         menus::install(cx);
 
         cx.on_action(|_: &Quit, cx| workspace::request_quit(cx));
+        quit_guard::connect(cx);
         cx.on_app_quit(|cx| {
             projects::remember_open_projects(cx);
             workspace::store_recovery(cx);
@@ -297,7 +300,7 @@ fn main() {
             cx.refresh_windows();
             if cx.windows().is_empty() {
                 if was_welcome {
-                    cx.quit();
+                    quit_guard::quit(cx);
                 } else {
                     welcome::show(cx);
                 }
