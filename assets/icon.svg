@@ -1,24 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Light tile -->
-  <rect x="104" y="104" width="816" height="816" rx="180" fill="#f2f0eb" stroke="#dedad0" stroke-width="4"/>
+  <!-- Dark tile -->
+  <rect x="104" y="104" width="816" height="816" rx="180" fill="#0f1826" stroke="#1e2a40" stroke-width="4"/>
 
-  <!-- Terminal window -->
-  <rect x="184" y="224" width="656" height="576" rx="60" fill="#131a29"/>
-  <g fill="#4b5565">
-    <circle cx="260" cy="296" r="16"/>
-    <circle cx="312" cy="296" r="16"/>
-    <circle cx="364" cy="296" r="16"/>
+  <!-- Stacked window outlines; filled with the tile color to hide the one behind; dimmed colors are
+       pre-blended because sips ignores stroke-opacity -->
+  <g fill="#0f1826" stroke="#5eead4" stroke-width="16">
+    <rect x="300" y="192" width="464" height="464" rx="70" stroke="#2b5c5c"/>
+    <rect x="260" y="252" width="464" height="464" rx="70" stroke="#40998f"/>
+    <rect x="220" y="312" width="464" height="464" rx="70"/>
   </g>
 
-  <!-- Prompt chevron -->
-  <path d="M267 476L333 532L267 588" fill="none" stroke="#6b7180" stroke-width="30"
+  <!-- "P" -->
+  <path d="M336 702V412H472A80 80 0 0 1 472 572H336" fill="none" stroke="#5eead4" stroke-width="60"
         stroke-linecap="round" stroke-linejoin="round"/>
 
-  <!-- "P" -->
-  <path fill="#5eead4" fill-rule="evenodd"
-        d="M412 408H541A125.5 125.5 0 0 1 541 659H472V704A12 12 0 0 1 460 716H412A12 12 0 0 1 400 704V420A12 12 0 0 1 412 408Z
-           M472 480V587H540.5A53.5 53.5 0 0 0 540.5 480Z"/>
-
   <!-- Cursor -->
-  <rect x="636" y="672" width="116" height="44" rx="12" fill="#a78bfa"/>
+  <rect x="500" y="660" width="104" height="36" rx="10" fill="#a78bfa"/>
 </svg>
