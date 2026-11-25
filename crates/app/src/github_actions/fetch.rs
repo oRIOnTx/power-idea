@@ -20,6 +20,12 @@ pub enum Setup {
         gh_installed: bool,
         error: Option<String>,
     },
+    /// The token works but GitHub answers 404 for the repository: a private repository the
+    /// token cannot see (a fine-grained token without it in "Repository access").
+    NoAccess {
+        repo: String,
+        source: TokenSource,
+    },
     Ready,
 }
 
@@ -147,7 +153,7 @@ pub fn connect(root: &Path) -> Result<GitHub, String> {
             Setup::NotConnected { .. } => {
                 "not connected to GitHub: run `gh auth login` or save a token in the IDE's GitHub Actions tab (⌘8)".into()
             }
-            Setup::Checking | Setup::Ready => "GitHub is not available".into(),
+            Setup::Checking | Setup::Ready | Setup::NoAccess { .. } => "GitHub is not available".into(),
         }),
     }
 }

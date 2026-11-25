@@ -8,6 +8,8 @@ use gpui_kit::component::{ActiveTheme as _, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
+use ci::TokenSource;
+
 use super::CiView;
 use super::fetch::Setup;
 use crate::style;
@@ -82,11 +84,60 @@ impl CiView {
                     cx,
                 )
                 .into_any_element(),
+            Setup::NoAccess { repo, source } => self.render_no_access(repo, *source, cx).into_any_element(),
             Setup::NotConnected { gh_installed, error } => {
                 self.render_connect(*gh_installed, error.clone(), cx).into_any_element()
             }
             Setup::Ready => div().into_any_element(),
         }
+    }
+
+    /// 404 for the repository: what the token is missing and the ways to fix it.
+    fn render_no_access(&self, repo: &str, source: TokenSource, cx: &mut Context<Self>) -> Div {
+        let owner = repo.split('/').next().unwrap_or_default();
+        let hint = match source {
+            TokenSource::Keychain => format!(
+                "GitHub answers 404 for {repo} with the saved personal access token: the repository is private \
+                 and the token cannot see it. For a fine-grained token, set Resource owner to {owner} and add \
+                 {repo} under Repository access, with Actions: read & write, Contents: read and Metadata: read. \
+                 Or save another token, or log in with gh (gh is used first when logged in)."
+            ),
+            TokenSource::GhCli => format!(
+                "GitHub answers 404 for {repo} with your gh login: the repository is private and this account \
+                 cannot see it (or an organization requires SSO authorization). Log in with an account that has \
+                 access: gh auth login."
+            ),
+        };
+        let mut actions = Vec::new();
+        if source == TokenSource::Keychain {
+            actions.push(
+                Button::new("ci-edit-tokens")
+                    .small()
+                    .primary()
+                    .icon(style::lucide("external-link"))
+                    .label("Edit tokens on GitHub")
+                    .on_click(|_, _, cx| cx.open_url("https://github.com/settings/personal-access-tokens"))
+                    .into_any_element(),
+            );
+            actions.push(
+                Button::new("ci-replace-token")
+                    .small()
+                    .label("Use another token")
+                    .on_click(cx.listener(|view, _, _, cx| view.forget_pat(cx)))
+                    .into_any_element(),
+            );
+        }
+        actions.push(
+            Button::new("ci-no-access-gh")
+                .small()
+                .label("Log in with gh")
+                .on_click(cx.listener(|view, _, window, cx| {
+                    view.run_in_terminal("gh auth login --hostname github.com --web", window, cx);
+                }))
+                .into_any_element(),
+        );
+        actions.push(self.retry_button(cx));
+        self.render_message("lock", &format!("No access to {repo}"), hint, actions, cx)
     }
 
     pub(super) fn retry_button(&self, cx: &mut Context<Self>) -> AnyElement {

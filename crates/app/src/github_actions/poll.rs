@@ -13,6 +13,21 @@ use super::fetch::Setup;
 use super::{CiEvent, CiView, notify};
 
 impl CiView {
+    /// Stops polling and explains that the token cannot see the repository.
+    pub(super) fn no_access(&mut self, cx: &mut Context<Self>) {
+        let repo = self.client.as_ref().map_or_default(|c| c.repo().to_string());
+        self.setup = Setup::NoAccess {
+            repo,
+            source: self.token_source.unwrap_or(TokenSource::Keychain),
+        };
+        self.client = None;
+        self.error = None;
+        self.timer_task = None;
+        self.set_head_state(None, cx);
+        self.sync_ticker(cx);
+        cx.notify();
+    }
+
     pub(super) fn poll_failed(&mut self, err: &ApiError, cx: &mut Context<Self>) {
         self.failures = self.failures.saturating_add(1);
         match err {

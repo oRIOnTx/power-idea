@@ -343,6 +343,10 @@ is in the working tree only.
       `ci_list_runs(branch?, limit?)`, `ci_get_run(run_id)` (jobs, steps, failed jobs' annotations),
       `ci_get_failed_logs(run_id)` (the same blocks per failed job); they work without opening the tab (gh / Keychain
       token). No tool starts, re-runs or cancels runs
+- [x] GitHub Actions: a 404 for the run list (private repository the token cannot see) stops polling and shows
+      "No access to owner/repo" with the fix for the token source (fine-grained PAT: resource owner + repository
+      access + permissions; gh: account access / SSO) and Edit tokens on GitHub, Use another token, Log in with gh,
+      Check again — instead of an error bar over an empty list
 ## Backlog
 - GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted
 

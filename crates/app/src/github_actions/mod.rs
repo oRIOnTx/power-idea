@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use ci::time::{Millis, now_millis};
-use ci::{GitHub, Run, State, TokenSource, watch};
+use ci::{ApiError, GitHub, Run, State, TokenSource, watch};
 use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::*;
 
@@ -389,6 +389,13 @@ impl CiView {
         let branch_changed = self.branch != snapshot.branch;
         self.branch = snapshot.branch;
         self.head_sha = snapshot.head_sha;
+        // A 404 for the run list is about the repository, not a run: the token cannot see it.
+        let no_access = [&snapshot.branch_runs, &snapshot.all_runs]
+            .iter()
+            .any(|list| matches!(list, Some(Err(ApiError::NotFound))));
+        if no_access {
+            return self.no_access(cx);
+        }
         let mut error = None;
         match snapshot.branch_runs {
             Some(Ok(fetched)) => {
