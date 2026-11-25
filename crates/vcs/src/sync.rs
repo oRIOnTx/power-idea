@@ -153,12 +153,8 @@ impl Repo {
     pub fn push_with_summary(&self) -> Result<PushSummary> {
         let before = self.status()?;
         let new_branch = before.upstream.is_none();
-        let commits = if new_branch {
-            // Commits no remote has yet.
-            self.count(&["rev-list", "--count", "HEAD", "--not", "--remotes"])
-        } else {
-            before.ahead
-        };
+        // Without an upstream, `ahead` already counts the commits no remote has yet.
+        let commits = before.ahead;
         if !new_branch && commits == 0 {
             return Ok(PushSummary::UpToDate);
         }
@@ -339,7 +335,11 @@ mod tests {
         assert_eq!(local.0.pull_with_summary().unwrap(), PullSummary::UpToDate);
 
         local.git(&["checkout", "-q", "-b", "feature"]);
+        assert_eq!(local.0.status().unwrap().ahead, 0);
         local.commit_file("d.txt", "d\n", "feature work");
+        // A branch made outside the IDE has no upstream, yet its commits still need pushing.
+        let status = local.0.status().unwrap();
+        assert_eq!((status.upstream, status.ahead), (None, 1));
         assert_eq!(
             local.0.push_with_summary().unwrap(),
             PushSummary::Pushed {

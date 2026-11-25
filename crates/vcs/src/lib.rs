@@ -133,7 +133,24 @@ impl Repo {
             "-z",
             "--untracked-files=all",
         ])?;
-        Ok(parse_status(&out))
+        let mut status = parse_status(&out);
+        if status.branch.is_some() && status.upstream.is_none() {
+            status.ahead = self.unpushed_count();
+        }
+        Ok(status)
+    }
+
+    /// Commits on HEAD that no remote has yet: what pushing a branch without an
+    /// upstream (e.g. one created and committed from the terminal) would send.
+    fn unpushed_count(&self) -> u32 {
+        let has_remote = self.run(&["remote"]).is_ok_and(|out| !out.trim().is_empty());
+        if !has_remote || !self.has_head() {
+            return 0;
+        }
+        self.run(&["rev-list", "--count", "HEAD", "--not", "--remotes"])
+            .ok()
+            .and_then(|s| s.trim().parse().ok())
+            .unwrap_or(0)
     }
 
     /// Unified diff of `path` between HEAD and the working tree.
@@ -293,7 +310,15 @@ impl Repo {
             "refs/heads",
             "refs/remotes",
         ])?;
-        Ok(out.lines().filter_map(parse_branch_line).collect())
+        let mut branches: Vec<Branch> = out.lines().filter_map(parse_branch_line).collect();
+        // The current branch without an upstream still shows what a push would send.
+        if let Some(current) = branches
+            .iter_mut()
+            .find(|b| b.is_current && !b.is_remote && b.upstream.is_none())
+        {
+            current.ahead = self.unpushed_count();
+        }
+        Ok(branches)
     }
 
     /// Switches to `branch`; a remote branch gets a local tracking branch.
