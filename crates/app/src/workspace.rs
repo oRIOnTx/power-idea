@@ -111,6 +111,8 @@ enum Notice {
         server_id: String,
     },
     Error(String),
+    /// Any other notification (e.g. a GitHub Actions run finished).
+    Plain(Box<Notification>),
 }
 
 impl Notice {
@@ -127,6 +129,7 @@ impl Notice {
                 window.remove_notification1::<ServerFailureNotice>(server_id, cx);
             }
             Self::Error(message) => window.push_notification(Notification::error(message), cx),
+            Self::Plain(notification) => window.push_notification(*notification, cx),
         }
     }
 }

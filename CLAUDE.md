@@ -48,7 +48,8 @@ crates/
   extensions/ extension manifests, protocol and processes: JSON-RPC over stdio (docs/extensions.md)
   claude_integration/ Claude Code settings: rules, skills, resolver, launcher, installer, hook bridge
                       (docs/claude-code-integration.md)
-  ci/      GitHub Actions: remote → repo, token (gh / Keychain), REST client (ureq, ETag), poller, log parser
+  ci/      GitHub Actions: remote → repo, token (gh / Keychain), REST client (ureq, ETag), poller, log parser,
+           workflow_dispatch inputs (tree-sitter-yaml), finished-run watching
   error_journal/ recent errors (panics, log::error!, report()) → errors.json; badge on the settings gear
   app/     the gpui application; the only crate that depends on gpui-kit
     workspace.rs        Workspace entity: state + layout composition only

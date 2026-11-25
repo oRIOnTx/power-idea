@@ -8,7 +8,8 @@ use gpui_kit::*;
 
 use super::Workspace;
 use crate::editor::CenterTab;
-use crate::github_actions::{CiView, HeadChanged};
+use crate::github_actions::{CiEvent, CiView};
+use gpui_kit::component::notification::Notification;
 
 pub(super) struct CiHandle {
     pub(super) view: Entity<CiView>,
@@ -33,8 +34,19 @@ impl Workspace {
         }
         let (workspace, root) = (cx.entity().downgrade(), self.root.clone());
         let view = cx.new(|cx| CiView::new(workspace, root, window, cx));
-        // Only the badge depends on the tab: repaint the workspace when HEAD's status changes.
-        let head = cx.subscribe(&view, |_, _, _: &HeadChanged, cx| cx.notify());
+        // Only the badge and notifications reach the workspace; the rest stays in the tab.
+        let head = cx.subscribe(&view, |ws, _, event: &CiEvent, cx| {
+            if let CiEvent::Notify { title, body, failed } = event {
+                let notification = if *failed {
+                    Notification::error(body.clone())
+                } else {
+                    Notification::success(body.clone())
+                };
+                ws.pending_notices
+                    .push(super::Notice::Plain(Box::new(notification.title(title.clone()))));
+            }
+            cx.notify();
+        });
         self.ci = Some(CiHandle {
             view: view.clone(),
             _head: head,

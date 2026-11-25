@@ -4,17 +4,20 @@
 mod detail;
 mod fetch;
 mod keys;
+mod notify;
+mod poll;
 mod rows;
+mod run_actions;
+mod run_dialog;
 mod view;
 mod view_detail;
 mod view_setup;
 
+use std::collections::HashSet;
 use std::path::PathBuf;
-use std::time::Duration;
 
-use ci::poller::{Poll, PollInput, next_poll};
 use ci::time::{Millis, now_millis};
-use ci::{ApiError, GitHub, Run, State, TokenSource};
+use ci::{GitHub, Run, State, TokenSource, watch};
 use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::*;
 
@@ -32,13 +35,26 @@ actions!(
         Back,
         OpenSelected,
         FindInLog,
-        CopySelection
+        CopySelection,
+        RerunFailed,
+        RunWorkflow
     ]
 );
 
-/// The HEAD status changed (the activity bar badge follows it).
-#[derive(Debug, Clone, Copy)]
-pub struct HeadChanged;
+pub use self::run_actions::WorkflowEntry;
+
+/// What the tab tells the workspace.
+#[derive(Debug, Clone)]
+pub enum CiEvent {
+    /// The HEAD status changed (the activity bar badge follows it).
+    HeadChanged,
+    /// A watched run finished, or a run action needs reporting: shown as a notification.
+    Notify {
+        title: String,
+        body: String,
+        failed: bool,
+    },
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scope {
@@ -93,10 +109,24 @@ pub struct CiView {
     timer_task: Option<Task<()>>,
     jobs_task: Option<Task<()>>,
     ticker: Option<Task<()>>,
+    /// Workflows with what `workflow_dispatch` they accept (loaded on connect).
+    workflows: Vec<WorkflowEntry>,
+    deploy_patterns: Vec<String>,
+    /// Runs started or re-run from the IDE: watched for a "finished" notification.
+    triggered: HashSet<u64>,
+    /// Triggered runs not on the listed page (another branch), fetched one by one.
+    tracked_runs: Vec<Run>,
+    /// States at the previous poll, to see which watched runs just finished.
+    previous: watch::States,
+    /// (run id, attempt) already notified about.
+    notified: HashSet<(u64, u64)>,
+    /// A run action (re-run, cancel) or dispatch in flight.
+    busy: Option<run_actions::Busy>,
+    actions_task: Option<Task<()>>,
     _subscriptions: Vec<Subscription>,
 }
 
-impl EventEmitter<HeadChanged> for CiView {}
+impl EventEmitter<CiEvent> for CiView {}
 
 /// Refresh right away when the tab comes back after this long.
 const STALE_AFTER: Millis = 10_000;
@@ -173,6 +203,14 @@ impl CiView {
             timer_task: None,
             jobs_task: None,
             ticker: None,
+            workflows: Vec::new(),
+            deploy_patterns: Vec::new(),
+            triggered: HashSet::new(),
+            tracked_runs: Vec::new(),
+            previous: watch::States::new(),
+            notified: HashSet::new(),
+            busy: None,
+            actions_task: None,
             _subscriptions: subscriptions,
         };
         view.start(cx);
@@ -214,6 +252,7 @@ impl CiView {
                 self.error = None;
                 self.failures = 0;
                 self.refresh(cx);
+                self.load_workflows(cx);
             }
             SetupResult::Unavailable(setup) => {
                 self.client = None;
@@ -317,9 +356,18 @@ impl CiView {
                 self.visible && (!d.loaded || active)
             })
             .map(|d| d.run_id);
+        let tracked: Vec<u64> = self
+            .triggered
+            .iter()
+            .copied()
+            // Not on a page this poll fetches anyway, and not known to be finished.
+            .filter(|id| !self.branch_runs.iter().any(|r| r.id == *id))
+            .filter(|id| !(want_all && self.all_runs.iter().any(|r| r.id == *id)))
+            .filter(|id| self.find_run(*id).is_none_or(|r| r.state().is_active()))
+            .collect();
         self.fetch_task = Some(cx.spawn(async move |this, cx| {
             let snapshot = cx
-                .background_spawn(async move { fetch::snapshot(&client, &root, want_all, jobs_of) })
+                .background_spawn(async move { fetch::snapshot(&client, &root, want_all, jobs_of, &tracked) })
                 .await;
             this.update(cx, |view, cx| view.apply_snapshot(snapshot, cx)).ok();
         }));
@@ -346,6 +394,12 @@ impl CiView {
             Some(Err(err)) if error.is_none() => error = Some(err),
             _ => {}
         }
+        for run in snapshot.tracked.into_iter().flatten() {
+            match self.tracked_runs.iter_mut().find(|r| r.id == run.id) {
+                Some(slot) => *slot = run,
+                None => self.tracked_runs.push(run),
+            }
+        }
         if let Some((run_id, result)) = snapshot.jobs {
             match result {
                 Ok(fetched) => self.jobs_loaded(run_id, fetched.value, cx),
@@ -366,6 +420,7 @@ impl CiView {
             .as_deref()
             .and_then(|sha| rows::head_state(&self.branch_runs, sha));
         self.set_head_state(head, cx);
+        self.notify_finished(cx);
         self.auto_select(cx);
         if std::mem::take(&mut self.refresh_queued) {
             self.refresh(cx);
@@ -374,87 +429,6 @@ impl CiView {
         }
         self.sync_ticker(cx);
         cx.notify();
-    }
-
-    fn poll_failed(&mut self, err: &ApiError, cx: &mut Context<Self>) {
-        self.failures = self.failures.saturating_add(1);
-        match err {
-            ApiError::Unauthorized => {
-                self.client = None;
-                self.setup = Setup::NotConnected {
-                    gh_installed: self.setup.gh_installed() || self.token_source == Some(TokenSource::GhCli),
-                    error: Some(err.to_string()),
-                };
-                self.set_head_state(None, cx);
-            }
-            ApiError::RateLimited { reset_at } => {
-                self.blocked_until = Some(reset_at.unwrap_or(now_millis() / 1000 + 60));
-            }
-            _ => {}
-        }
-        if err.is_unexpected() {
-            error_journal::report_message(&err.to_string(), "GitHub Actions");
-        }
-        self.error = Some(err.to_string());
-    }
-
-    fn set_head_state(&mut self, state: Option<State>, cx: &mut Context<Self>) {
-        if self.head_state != state {
-            self.head_state = state;
-            cx.emit(HeadChanged);
-        }
-    }
-
-    /// Schedules the next poll (or none while paused).
-    fn schedule(&mut self, cx: &mut Context<Self>) {
-        if self.fetching || self.setup != Setup::Ready {
-            self.timer_task = None;
-            return;
-        }
-        let input = PollInput {
-            window_active: self.window_active,
-            panel_visible: self.visible,
-            any_active: self.any_active(),
-            failures: self.failures,
-            rate: self.client.as_ref().and_then(GitHub::rate_limit),
-            blocked_until: self.blocked_until,
-            now_secs: now_millis() / 1000,
-        };
-        self.timer_task = match next_poll(&input) {
-            Poll::Paused => None,
-            Poll::After(wait) => Some(cx.spawn(async move |this, cx| {
-                cx.background_executor().timer(wait).await;
-                this.update(cx, CiView::refresh).ok();
-            })),
-        };
-    }
-
-    /// Repaints every second while the tab is on screen (ticking timers, "updated Xs ago").
-    fn sync_ticker(&mut self, cx: &mut Context<Self>) {
-        let wanted = self.visible && self.window_active && self.setup == Setup::Ready;
-        if !wanted {
-            self.ticker = None;
-            return;
-        }
-        if self.ticker.is_some() {
-            return;
-        }
-        self.ticker = Some(cx.spawn(async move |this, cx| {
-            loop {
-                cx.background_executor().timer(Duration::from_secs(1)).await;
-                if this.update(cx, |_, cx| cx.notify()).is_err() {
-                    break;
-                }
-            }
-        }));
-    }
-
-    fn any_active(&self) -> bool {
-        self.shown_runs().iter().any(|r| r.state().is_active())
-            || self
-                .detail
-                .as_ref()
-                .is_some_and(|d| d.jobs.iter().any(|j| j.state().is_active()))
     }
 
     fn run_is_active(&self, run_id: u64) -> bool {
@@ -472,6 +446,7 @@ impl CiView {
         self.branch_runs
             .iter()
             .chain(&self.all_runs)
+            .chain(&self.tracked_runs)
             .find(|r| r.id == run_id)
     }
 

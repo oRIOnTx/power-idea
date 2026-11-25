@@ -35,6 +35,16 @@ impl Request {
         }
     }
 
+    /// A POST with a JSON body.
+    pub fn post_json(url: impl Into<String>, body: &serde_json::Value) -> Self {
+        Self {
+            method: "POST",
+            url: url.into(),
+            headers: vec![("Content-Type".into(), "application/json".into())],
+            body: Some(body.to_string().into_bytes()),
+        }
+    }
+
     pub fn header(mut self, name: &str, value: impl Into<String>) -> Self {
         self.headers.push((name.to_string(), value.into()));
         self

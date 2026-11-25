@@ -81,9 +81,17 @@ pub struct Snapshot {
     pub branch_runs: Option<ApiResult<Fetched<Vec<Run>>>>,
     pub all_runs: Option<ApiResult<Fetched<Vec<Run>>>>,
     pub jobs: Option<(u64, ApiResult<Fetched<Vec<Job>>>)>,
+    /// Runs started from the IDE that are on no listed page (errors are skipped).
+    pub tracked: Vec<Option<Run>>,
 }
 
-pub fn snapshot(client: &GitHub, root: &Path, want_all: bool, jobs_of: Option<u64>) -> Snapshot {
+pub fn snapshot(
+    client: &GitHub,
+    root: &Path,
+    want_all: bool,
+    jobs_of: Option<u64>,
+    tracked: &[u64],
+) -> Snapshot {
     let repo = vcs::Repo::discover(root);
     let branch = repo.as_ref().and_then(vcs::Repo::current_branch);
     let head_sha = repo.as_ref().and_then(vcs::Repo::head_sha);
@@ -95,11 +103,34 @@ pub fn snapshot(client: &GitHub, root: &Path, want_all: bool, jobs_of: Option<u6
     });
     let all_runs = want_all.then(|| client.runs(&RunFilter::default()));
     let jobs = jobs_of.map(|run_id| (run_id, client.jobs(run_id)));
+    let tracked = tracked
+        .iter()
+        .map(|id| client.run(*id).ok().map(|f| f.value))
+        .collect();
     Snapshot {
         branch,
         head_sha,
         branch_runs,
         all_runs,
         jobs,
+        tracked,
     }
+}
+
+/// The project's workflows and what `workflow_dispatch` each accepts: from the checked-out file,
+/// else from the default branch on GitHub.
+pub fn workflows(client: &GitHub, root: &Path) -> ApiResult<Vec<super::WorkflowEntry>> {
+    let workflows = client.workflows()?.value;
+    Ok(workflows
+        .into_iter()
+        .filter(|w| w.state == "active")
+        .map(|workflow| {
+            let local = std::fs::read_to_string(root.join(&workflow.path)).ok();
+            // Dynamic workflows (Pages, Dependabot) have no file to read.
+            let in_repo = workflow.path.starts_with(".github/workflows/");
+            let yaml = local.or_else(|| in_repo.then(|| client.file(&workflow.path, "").ok()).flatten());
+            let dispatch = yaml.as_deref().and_then(ci::dispatch::dispatch_inputs);
+            super::WorkflowEntry { workflow, dispatch }
+        })
+        .collect())
 }

@@ -4,6 +4,7 @@ use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::diff::DiffMode;
 use gpui_kit::component::input::Textarea;
+use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, Icon, IconName, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
@@ -69,7 +70,22 @@ impl Workspace {
                     })
                     .when(status.behind > 0, |el| {
                         el.child(badge(format!("↓ {}", status.behind), theme.yellow))
-                    }),
+                    })
+                    .children(self.ci_head_state(cx).map(|state| {
+                        let (text, color) = match state {
+                            ci::State::Success => ("CI ✓", theme.green),
+                            ci::State::Failure => ("CI ✗", theme.danger),
+                            ci::State::Running | ci::State::Queued => ("CI ●", theme.warning),
+                            _ => ("CI ·", theme.muted_foreground),
+                        };
+                        badge(text.to_string(), color)
+                            .id("branch-ci")
+                            .cursor_pointer()
+                            .tooltip(|window, cx| {
+                                Tooltip::new("GitHub Actions for HEAD (⌘8)").build(window, cx)
+                            })
+                            .on_click(cx.listener(|ws, _, window, cx| ws.open_ci(window, cx)))
+                    })),
             )
             .child(
                 div()

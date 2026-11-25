@@ -7,12 +7,15 @@ use std::rc::Rc;
 
 use ci::time::{format_ago, format_duration, now_millis};
 use ci::{LineKind, Run, State};
+use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::spinner::Spinner;
-use gpui_kit::component::{ActiveTheme as _, IconName, Sizable as _, h_flex, v_flex};
+use gpui_kit::component::tooltip::Tooltip;
+use gpui_kit::component::{ActiveTheme as _, Disableable as _, IconName, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use super::rows::{self, DetailRow, LogState, Note};
+use super::run_actions::RunAction;
 use super::view::{state_color, state_icon};
 use super::{CiView, Detail, Pane};
 use crate::style;
@@ -67,7 +70,90 @@ impl CiView {
             .into_any_element()
     }
 
+    /// Contextual run actions, each one click (deploys confirm): the keys are in the tooltips.
+    fn render_run_actions(&self, run: &Run, cx: &mut Context<Self>) -> Div {
+        let action =
+            |id: &'static str, icon: &str, label: &'static str, tooltip: &'static str, act: RunAction| {
+                Button::new(id)
+                    .xsmall()
+                    .icon(style::lucide(icon))
+                    .label(label)
+                    .tooltip(tooltip)
+                    .loading(self.is_busy(run.id, act))
+                    .disabled(self.busy.is_some())
+                    .on_click(cx.listener(move |view, _, window, cx| view.run_action(act, window, cx)))
+            };
+        let dispatch = self.workflow_entry(run.workflow_id).map(|w| w.dispatch.is_some());
+        let run_workflow = Button::new("ci-run-this-workflow")
+            .xsmall()
+            .ghost()
+            .icon(style::lucide("play"))
+            .label("Run workflow")
+            .disabled(dispatch != Some(true))
+            .on_click(cx.listener(|view, _, window, cx| view.open_run_dialog(window, cx)));
+        let run_workflow = match dispatch {
+            Some(true) => run_workflow
+                .tooltip("Run this workflow by hand (D)")
+                .into_any_element(),
+            Some(false) => div()
+                .id("ci-run-this-workflow-off")
+                .tooltip(|window, cx| {
+                    Tooltip::new(
+                        "This workflow has no workflow_dispatch trigger, so it cannot be started by hand",
+                    )
+                    .build(window, cx)
+                })
+                .child(run_workflow)
+                .into_any_element(),
+            None => run_workflow
+                .tooltip("Workflows are still loading")
+                .into_any_element(),
+        };
+        h_flex()
+            .gap_1()
+            .pt_1()
+            .when(self.action_available(run, RunAction::RerunFailed), |el| {
+                el.child(action(
+                    "ci-rerun-failed",
+                    "rotate-ccw",
+                    "Re-run failed jobs",
+                    "Re-run failed jobs (R)",
+                    RunAction::RerunFailed,
+                ))
+            })
+            .when(self.action_available(run, RunAction::Rerun), |el| {
+                el.child(action(
+                    "ci-rerun",
+                    "refresh-cw",
+                    "Re-run all jobs",
+                    "Re-run every job of this run",
+                    RunAction::Rerun,
+                ))
+            })
+            .when(self.action_available(run, RunAction::Cancel), |el| {
+                el.child(action(
+                    "ci-cancel",
+                    "circle-stop",
+                    "Cancel",
+                    "Cancel this run",
+                    RunAction::Cancel,
+                ))
+            })
+            .child(run_workflow)
+            .child(div().flex_1())
+            .child(
+                Button::new("ci-run-github")
+                    .xsmall()
+                    .ghost()
+                    .icon(style::lucide("external-link"))
+                    .label("GitHub")
+                    .tooltip("Open on GitHub (O)")
+                    .on_click(cx.listener(|view, _, _, cx| view.open_on_github(cx))),
+            )
+    }
+
     fn render_run_header(&self, run: &Run, cx: &mut Context<Self>) -> Div {
+        let actions = self.render_run_actions(run, cx);
         let theme = cx.theme();
         let now = now_millis();
         let state = run.state();
@@ -126,6 +212,7 @@ impl CiView {
                     .child("·")
                     .child(duration),
             )
+            .child(actions)
     }
 
     fn render_detail_rows(&self, detail: &Detail, cx: &mut Context<Self>) -> AnyElement {

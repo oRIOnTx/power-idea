@@ -40,6 +40,9 @@ dirs = "7"
 log = "=0.4.35"
 # GitHub Actions panel: HTTPS to api.github.com (blocking, rustls + ring already in the tree).
 ureq = { version = "=3.5.2", default-features = false, features = ["rustls", "gzip"] }
+# GitHub Actions panel: `workflow_dispatch` inputs from workflow YAML (both already built for gpui-kit).
+tree-sitter = "=0.26.13"
+tree-sitter-yaml = "=0.7.2"
 
 [workspace.lints.rust]
 # `deny`, not `forbid`: main.rs has one documented exception (`set_var` at startup).

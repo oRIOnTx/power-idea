@@ -14,8 +14,10 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use super::fetch::Setup;
+use super::run_actions::RunAction;
 use super::{
-    Back, CI_CONTEXT, CiView, CopySelection, FindInLog, OpenOnGitHub, OpenSelected, Pane, Refresh, Scope,
+    Back, CI_CONTEXT, CiView, CopySelection, FindInLog, OpenOnGitHub, OpenSelected, Pane, Refresh,
+    RerunFailed, RunWorkflow, Scope,
 };
 use crate::actions::{SelectNext, SelectPrev};
 use crate::style;
@@ -124,6 +126,16 @@ impl CiView {
                         .gap_0p5()
                         .child(scope_button("ci-scope-branch", "This branch", Scope::Branch, cx))
                         .child(scope_button("ci-scope-all", "All", Scope::All, cx)),
+                )
+                .child(
+                    Button::new("ci-run-workflow")
+                        .xsmall()
+                        .ghost()
+                        .icon(style::lucide("play"))
+                        .label("Run workflow…")
+                        .tooltip("Run workflow (D)")
+                        .loading(self.busy == Some(super::run_actions::Busy::Dispatch))
+                        .on_click(cx.listener(|view, _, window, cx| view.open_run_dialog(window, cx))),
                 )
             })
             .child(div().flex_1())
@@ -390,6 +402,10 @@ impl Render for CiView {
             .on_action(cx.listener(|view, _: &Refresh, _, cx| view.refresh(cx)))
             .on_action(cx.listener(|view, _: &OpenOnGitHub, _, cx| view.open_on_github(cx)))
             .on_action(cx.listener(|view, _: &CopySelection, _, cx| view.copy_selection(cx)))
+            .on_action(cx.listener(|view, _: &RerunFailed, window, cx| {
+                view.run_action(RunAction::RerunFailed, window, cx);
+            }))
+            .on_action(cx.listener(|view, _: &RunWorkflow, window, cx| view.open_run_dialog(window, cx)))
             .on_action(cx.listener(|view, _: &FindInLog, window, cx| {
                 view.search.update(cx, |input, cx| input.focus(window, cx));
             }))

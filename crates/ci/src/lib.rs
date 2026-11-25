@@ -2,6 +2,7 @@
 //! conditional requests, poll scheduling and job-log parsing.
 
 pub mod auth;
+pub mod dispatch;
 pub mod github;
 pub mod log_parser;
 pub mod models;
@@ -9,6 +10,8 @@ pub mod poller;
 pub mod remote;
 pub mod time;
 pub mod transport;
+pub mod watch;
+pub mod yaml;
 
 pub use auth::{Token, TokenSource};
 pub use github::{ApiError, Fetched, GitHub, RateLimit, RunFilter};

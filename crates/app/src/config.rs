@@ -339,6 +339,34 @@ pub struct ProjectSettings {
     pub tab_size: Option<usize>,
     /// Paths relative to the project root hidden from search and Go to File.
     pub exclude: Vec<String>,
+    #[serde(skip_serializing_if = "CiSettings::is_default")]
+    pub ci: CiSettings,
+}
+
+/// `[ci]` in the project settings: GitHub Actions.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CiSettings {
+    /// Workflows whose name or file name contains one of these (case-insensitive) ask before
+    /// they are started or re-run. Empty: `deploy`, `release`, `publish`, `prod`.
+    pub deploy_patterns: Vec<String>,
+}
+
+impl CiSettings {
+    fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+
+    pub fn deploy_patterns(&self) -> Vec<String> {
+        if self.deploy_patterns.is_empty() {
+            ci::dispatch::DEFAULT_DEPLOY_PATTERNS
+                .iter()
+                .map(|p| (*p).to_string())
+                .collect()
+        } else {
+            self.deploy_patterns.clone()
+        }
+    }
 }
 
 impl ProjectSettings {
@@ -370,6 +398,18 @@ impl gpui_kit::Global for AppConfig {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ci_deploy_patterns_default_and_stay_out_of_saved_files() {
+        let settings = ProjectSettings::default();
+        assert_eq!(
+            settings.ci.deploy_patterns(),
+            ["deploy", "release", "publish", "prod"]
+        );
+        assert!(!toml::to_string(&settings).unwrap().contains("[ci]"));
+        let custom: ProjectSettings = toml::from_str("[ci]\ndeploy_patterns = [\"ship\"]\n").unwrap();
+        assert_eq!(custom.ci.deploy_patterns(), ["ship"]);
+    }
 
     #[test]
     fn recent_projects_are_deduplicated_and_ordered() {

@@ -321,10 +321,18 @@ is in the working tree only.
       numbers per step; lines matched to steps by time). Keys: ↑/↓, Enter (open / fold), Esc (back, clear search),
       O (GitHub, at the step), ⌘R, ⌘F/⌃F (Enter / ⇧Enter next/previous match), click / ⇧click + ⌘C copies lines.
       Activity bar dot: red when HEAD fails, amber while it runs
+- [x] **GitHub Actions tab, phase 2** (2026-11-25): Run workflow… (D, header and run detail): workflows with
+      `workflow_dispatch` (parsed from the checked-out YAML via tree-sitter-yaml, else the default branch's file through
+      the contents API; `ci::yaml`, `ci::dispatch`), others disabled with the reason; ref (current branch by default)
+      and inputs (string / number / environment fields, boolean checkbox, choice buttons; required and type checks).
+      After the dispatch the new run is found (`event=workflow_dispatch`, created since the dispatch) and opened.
+      Run actions in the detail header: Re-run failed jobs (R), Re-run all, Cancel (each one click, contextual).
+      Deploy workflows (name / file contains `deploy`, `release`, `publish`, `prod`, or `[ci] deploy_patterns` in
+      `.power-idea/settings.toml`) ask before a dispatch or re-run. Runs on HEAD and runs started from the IDE are
+      watched: when one finishes, an in-app notification (red on failure), plus a macOS notification via `osascript`
+      while the IDE is in the background (polling continues at 60 s for them). CI chip (✓ ✗ ●) next to the branch
+      in the Commit panel opens the tab
 ## Backlog
-- GitHub Actions phase 2: run workflow (workflow_dispatch form from the YAML via tree-sitter-yaml), re-run
-  all / failed, cancel, deploy confirmation (name heuristic + `.power-idea/settings.toml`), macOS
-  notifications (osascript) for runs on HEAD / started from the IDE, R / D shortcuts, HEAD chip in Commit panel
 - GitHub Actions phase 3: "Send to Claude" (trimmed, redacted Markdown context), Copy, MCP tools
   `ci_list_runs` / `ci_get_run` / `ci_get_failed_logs` (read-only)
 
@@ -333,7 +341,10 @@ Other candidates: Database gaps below.
 ## Known gaps
 - GitHub Actions: UI not clicked through by hand; live API checked only by ignored tests
   (`cargo test -p ci -- --ignored`); logs exist only after a job finishes (no live streaming); log search covers
-  unfolded steps only; ANSI colors are stripped, not rendered; github.com only (no Enterprise hosts)
+  unfolded steps only; ANSI colors are stripped, not rendered; github.com only (no Enterprise hosts); the HEAD
+  badge and Commit-panel chip appear once the tab has been opened in the window (lazy, like Docker); dispatch
+  inputs come from the local / default-branch YAML even when another ref is chosen; macOS notifications come from
+  `osascript` (shown as Script Editor, clicking does not open the IDE)
 - Error journal: UI not clicked through by hand; native crashes (SIGSEGV, aborts in foreign code) are not
   captured (TODO in the crate docs); release builds are stripped, so their backtraces have no symbols and the
   fingerprint falls back to the message

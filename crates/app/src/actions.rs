@@ -498,6 +498,8 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("escape", gha::Back, Some(CI_LIST)),
         KeyBinding::new("escape", gha::Back, Some("CiSearch > Input")),
         KeyBinding::new("o", gha::OpenOnGitHub, Some(CI_LIST)),
+        KeyBinding::new("r", gha::RerunFailed, Some(CI_LIST)),
+        KeyBinding::new("d", gha::RunWorkflow, Some(CI_LIST)),
         KeyBinding::new("cmd-r", gha::Refresh, Some(gha::CI_CONTEXT)),
         KeyBinding::new("cmd-f", gha::FindInLog, Some(gha::CI_CONTEXT)),
         KeyBinding::new("ctrl-f", gha::FindInLog, Some(gha::CI_CONTEXT)),

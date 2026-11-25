@@ -6,14 +6,18 @@ use std::fmt::{self, Write as _};
 use std::sync::{Arc, Mutex};
 
 use serde::de::DeserializeOwned;
+use serde_json::json;
 
 use crate::auth::Token;
 use crate::models::{Annotation, Job, JobList, Run, RunList, Workflow, WorkflowList};
 use crate::remote::RepoId;
+use crate::time::Millis;
 use crate::transport::{Request, Response, Transport};
 
 pub const API: &str = "https://api.github.com";
 const API_VERSION: &str = "2022-11-28";
+/// The local clock and GitHub's may disagree by a few seconds.
+const CLOCK_SLACK: Millis = 30_000;
 
 /// What `x-ratelimit-*` said on the latest response.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,6 +184,11 @@ impl GitHub {
         })
     }
 
+    /// One run (for runs started from the IDE that are not in the listed page).
+    pub fn run(&self, run_id: u64) -> ApiResult<Fetched<Run>> {
+        self.get_json::<Run>(&format!("{}/actions/runs/{run_id}", self.base()))
+    }
+
     pub fn jobs(&self, run_id: u64) -> ApiResult<Fetched<Vec<Job>>> {
         let url = format!("{}/actions/runs/{run_id}/jobs?per_page=100", self.base());
         let fetched = self.get_json::<JobList>(&url)?;
@@ -222,6 +231,97 @@ impl GitHub {
         Ok(String::from_utf8_lossy(&response.body).into_owned())
     }
 
+    /// Re-runs every job of a finished run.
+    pub fn rerun(&self, run_id: u64) -> ApiResult<()> {
+        self.post(
+            &format!("{}/actions/runs/{run_id}/rerun", self.base()),
+            &json!({}),
+        )
+        .map(drop)
+    }
+
+    /// Re-runs the failed jobs of a run (and the jobs that depend on them).
+    pub fn rerun_failed(&self, run_id: u64) -> ApiResult<()> {
+        self.post(
+            &format!("{}/actions/runs/{run_id}/rerun-failed-jobs", self.base()),
+            &json!({}),
+        )
+        .map(drop)
+    }
+
+    pub fn cancel(&self, run_id: u64) -> ApiResult<()> {
+        self.post(
+            &format!("{}/actions/runs/{run_id}/cancel", self.base()),
+            &json!({}),
+        )
+        .map(drop)
+    }
+
+    /// Starts a `workflow_dispatch` run on `git_ref`. Returns the run id when GitHub says it.
+    pub fn dispatch(
+        &self,
+        workflow_id: u64,
+        git_ref: &str,
+        inputs: serde_json::Map<String, serde_json::Value>,
+    ) -> ApiResult<Option<u64>> {
+        let url = format!("{}/actions/workflows/{workflow_id}/dispatches", self.base());
+        let response = self.post(&url, &json!({ "ref": git_ref, "inputs": inputs }))?;
+        Ok(serde_json::from_slice::<serde_json::Value>(&response.body)
+            .ok()
+            .and_then(|v| v.get("workflow_run_id")?.as_u64()))
+    }
+
+    /// The run a dispatch created: the newest `workflow_dispatch` run of the workflow on `branch`
+    /// created at or after `since` (Unix millis, with some slack for clock skew).
+    pub fn find_dispatched_run(
+        &self,
+        workflow_id: u64,
+        branch: &str,
+        since: Millis,
+    ) -> ApiResult<Option<Run>> {
+        let url = format!(
+            "{}/actions/workflows/{workflow_id}/runs?event=workflow_dispatch&per_page=5&branch={}",
+            self.base(),
+            encode_query_value(branch)
+        );
+        let runs = self.get_json::<RunList>(&url)?.value.workflow_runs;
+        Ok(runs
+            .into_iter()
+            .filter(|r| r.created_millis().is_some_and(|t| t >= since - CLOCK_SLACK))
+            .max_by_key(|r| r.id))
+    }
+
+    /// A file of the repository at `git_ref` (empty: the default branch), for workflow YAML
+    /// that is not checked out locally.
+    pub fn file(&self, path: &str, git_ref: &str) -> ApiResult<String> {
+        let mut url = format!(
+            "{}/contents/{}",
+            self.base(),
+            path.split('/')
+                .map(encode_query_value)
+                .collect::<Vec<_>>()
+                .join("/"),
+        );
+        if !git_ref.is_empty() {
+            url.push_str("?ref=");
+            url.push_str(&encode_query_value(git_ref));
+        }
+        let request = self.authorized(Request::get(url).header("Accept", "application/vnd.github.raw+json"));
+        let response = self.send(request)?;
+        if response.status != 200 {
+            return Err(status_error(&response));
+        }
+        Ok(String::from_utf8_lossy(&response.body).into_owned())
+    }
+
+    fn post(&self, url: &str, body: &serde_json::Value) -> ApiResult<Response> {
+        let response = self.send(self.authorized(Request::post_json(url, body)))?;
+        match response.status {
+            200..=299 => Ok(response),
+            _ => Err(status_error(&response)),
+        }
+    }
+
     fn base(&self) -> String {
         format!("{}/repos/{}", self.inner.api, self.inner.repo)
     }
@@ -249,9 +349,13 @@ impl GitHub {
     }
 
     fn authorized(&self, request: Request) -> Request {
+        let request = if request.has_header("Accept") {
+            request
+        } else {
+            request.header("Accept", "application/vnd.github+json")
+        };
         request
             .header("Authorization", format!("Bearer {}", self.inner.token.expose()))
-            .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", API_VERSION)
     }
 
@@ -344,129 +448,4 @@ fn encode_query_value(value: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::transport::FakeTransport;
-
-    fn client(fake: &Arc<FakeTransport>) -> GitHub {
-        GitHub::new(
-            fake.clone(),
-            Token::new("ghp_secret"),
-            RepoId {
-                owner: "o".into(),
-                name: "r".into(),
-            },
-        )
-    }
-
-    const RUNS: &str = r#"{"total_count": 1, "workflow_runs": [{"id": 1, "name": "CI", "head_sha": "abc",
-        "event": "push", "status": "in_progress", "conclusion": null, "workflow_id": 9,
-        "html_url": "u", "created_at": "2026-11-25T10:00:00Z", "updated_at": "2026-11-25T10:00:00Z"}]}"#;
-
-    #[test]
-    fn sends_auth_and_version_headers_and_filters() {
-        let fake = Arc::new(FakeTransport::default());
-        fake.push(200, &[], RUNS);
-        let github = client(&fake);
-        let runs = github
-            .runs(&RunFilter {
-                branch: Some("feature/a b".into()),
-                ..RunFilter::default()
-            })
-            .unwrap();
-        assert_eq!(runs.value.len(), 1);
-        let request = &fake.requests()[0];
-        assert_eq!(
-            request.url,
-            "https://api.github.com/repos/o/r/actions/runs?per_page=20&branch=feature/a%20b"
-        );
-        assert!(
-            request
-                .headers
-                .contains(&("Authorization".into(), "Bearer ghp_secret".into()))
-        );
-        assert!(
-            request
-                .headers
-                .contains(&("X-GitHub-Api-Version".into(), "2022-11-28".into()))
-        );
-    }
-
-    #[test]
-    fn revalidates_with_etag_and_reuses_the_body_on_304() {
-        let fake = Arc::new(FakeTransport::default());
-        fake.push(
-            200,
-            &[("ETag", "W/\"1\""), ("x-ratelimit-remaining", "4999")],
-            RUNS,
-        );
-        fake.push(304, &[("x-ratelimit-remaining", "4999")], "");
-        let github = client(&fake);
-        let first = github.runs(&RunFilter::default()).unwrap();
-        let second = github.runs(&RunFilter::default()).unwrap();
-        assert!(first.changed);
-        assert!(!second.changed);
-        assert_eq!(first.value, second.value);
-        let requests = fake.requests();
-        assert!(!requests[0].has_header("If-None-Match"));
-        assert!(
-            requests[1]
-                .headers
-                .contains(&("If-None-Match".into(), "W/\"1\"".into()))
-        );
-        assert_eq!(github.rate_limit().map(|r| r.remaining), Some(4999));
-    }
-
-    #[test]
-    fn follows_the_log_redirect_without_the_token() {
-        let fake = Arc::new(FakeTransport::default());
-        fake.push(302, &[("Location", "https://logs.example/job?sig=1")], "");
-        fake.push(200, &[], "2026-11-25T10:00:00.0000000Z hello\n");
-        let log = client(&fake).job_log(5).unwrap();
-        assert!(log.contains("hello"));
-        let requests = fake.requests();
-        assert!(requests[0].has_header("Authorization"));
-        assert_eq!(requests[1].url, "https://logs.example/job?sig=1");
-        assert!(!requests[1].has_header("Authorization"));
-    }
-
-    #[test]
-    fn maps_statuses_to_friendly_errors() {
-        let fake = Arc::new(FakeTransport::default());
-        fake.push(401, &[], r#"{"message": "Bad credentials"}"#);
-        fake.push(
-            403,
-            &[("x-ratelimit-remaining", "0"), ("x-ratelimit-reset", "100")],
-            "{}",
-        );
-        fake.push(
-            403,
-            &[],
-            r#"{"message": "Resource not accessible by integration"}"#,
-        );
-        fake.push(404, &[], r#"{"message": "Not Found"}"#);
-        fake.push(500, &[], "oops");
-        let github = client(&fake);
-        let filter = RunFilter::default();
-        assert!(matches!(github.runs(&filter), Err(ApiError::Unauthorized)));
-        assert!(matches!(
-            github.runs(&filter),
-            Err(ApiError::RateLimited { reset_at: Some(100) })
-        ));
-        let forbidden = github.runs(&filter).unwrap_err();
-        assert!(forbidden.to_string().contains("Resource not accessible"));
-        assert!(matches!(github.runs(&filter), Err(ApiError::NotFound)));
-        let server = github.runs(&filter).unwrap_err();
-        assert!(server.is_unexpected());
-        assert!(!server.to_string().contains("ghp_secret"));
-    }
-
-    #[test]
-    fn debug_output_never_shows_the_token() {
-        let fake = Arc::new(FakeTransport::default());
-        let github = client(&fake);
-        assert!(!format!("{github:?}").contains("ghp_secret"));
-        let request = github.authorized(Request::get("u"));
-        assert!(!format!("{request:?}").contains("ghp_secret"));
-    }
-}
+mod tests;

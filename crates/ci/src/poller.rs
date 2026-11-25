@@ -19,6 +19,9 @@ pub struct PollInput {
     pub panel_visible: bool,
     /// Some run or job shown is queued or in progress.
     pub any_active: bool,
+    /// A run on HEAD or one started from the IDE is in progress: keep polling (slowly) even
+    /// in the background, so its "finished" notification arrives.
+    pub watching: bool,
     /// Failed polls in a row.
     pub failures: u32,
     pub rate: Option<RateLimit>,
@@ -35,13 +38,12 @@ pub enum Poll {
 }
 
 pub fn next_poll(input: &PollInput) -> Poll {
-    if !input.window_active {
-        return Poll::Paused;
-    }
-    let mut wait = match (input.panel_visible, input.any_active) {
-        (true, true) => ACTIVE,
-        (true, false) => IDLE,
-        (false, _) => HIDDEN,
+    let mut wait = match (input.window_active, input.panel_visible, input.any_active) {
+        (false, ..) if input.watching => HIDDEN,
+        (false, ..) => return Poll::Paused,
+        (true, true, true) => ACTIVE,
+        (true, true, false) => IDLE,
+        (true, false, _) => HIDDEN,
     };
     if input.failures > 0 {
         let factor = 1u32 << input.failures.min(8);
@@ -77,6 +79,7 @@ mod tests {
             window_active: true,
             panel_visible: true,
             any_active: false,
+            watching: false,
             failures: 0,
             rate: None,
             blocked_until: None,
@@ -108,6 +111,14 @@ mod tests {
                 ..input()
             }),
             Poll::Paused
+        );
+        assert_eq!(
+            next_poll(&PollInput {
+                window_active: false,
+                watching: true,
+                ..input()
+            }),
+            Poll::After(HIDDEN)
         );
     }
 
