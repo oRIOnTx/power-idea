@@ -33,8 +33,20 @@ fn copy_name(name: &str, n: usize) -> String {
     }
 }
 
-/// Where `source` lands when pasted into `dir`.
-pub fn destination(source: &Path, dir: &Path, mode: ClipMode) -> Result<PathBuf> {
+/// Where `source` goes when pasted into a folder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Placement {
+    /// The name is free: paste right away.
+    Free(PathBuf),
+    /// The folder already has `name`; ask for another, starting from `suggested`.
+    Taken { name: String, suggested: String },
+}
+
+/// Decides where `source` lands when pasted into `dir`.
+pub fn placement(source: &Path, dir: &Path, mode: ClipMode) -> Result<Placement> {
+    if !source.exists() {
+        bail!("{} no longer exists", source.display());
+    }
     let name = source
         .file_name()
         .context("invalid path")?
@@ -45,18 +57,16 @@ pub fn destination(source: &Path, dir: &Path, mode: ClipMode) -> Result<PathBuf>
     }
     let target = dir.join(&name);
     if !target.exists() {
-        return Ok(target);
+        return Ok(Placement::Free(target));
     }
-    if mode == ClipMode::Cut {
-        if target == source {
-            bail!("{name} is already in this folder");
-        }
-        bail!("{name} already exists in the target folder");
+    if mode == ClipMode::Cut && target == source {
+        bail!("{name} is already in this folder");
     }
-    (1..usize::MAX)
-        .map(|n| dir.join(copy_name(&name, n)))
-        .find(|candidate| !candidate.exists())
-        .context("no free name")
+    let suggested = (1..usize::MAX)
+        .map(|n| copy_name(&name, n))
+        .find(|candidate| !dir.join(candidate).exists())
+        .context("no free name")?;
+    Ok(Placement::Taken { name, suggested })
 }
 
 fn copy_recursive(from: &Path, to: &Path) -> Result<()> {
@@ -92,18 +102,23 @@ pub fn save_image(dir: &Path, ext: &str, bytes: &[u8]) -> Result<PathBuf> {
     Ok(target)
 }
 
-/// Pastes `source` into `dir`; returns where it ended up.
-pub fn paste(source: &Path, dir: &Path, mode: ClipMode) -> Result<PathBuf> {
+/// Copies or moves `source` to `target`, which must not exist yet.
+pub fn paste_to(source: &Path, target: &Path, mode: ClipMode) -> Result<()> {
     if !source.exists() {
         bail!("{} no longer exists", source.display());
     }
-    let target = destination(source, dir, mode)?;
+    if target.exists() {
+        bail!("{} already exists", target.display());
+    }
+    if source.is_dir() && target.starts_with(source) {
+        bail!("cannot paste {} into itself", source.display());
+    }
     match mode {
-        ClipMode::Copy => copy_recursive(source, &target)?,
+        ClipMode::Copy => copy_recursive(source, target)?,
         // A plain rename fails across volumes; copy and remove then.
         ClipMode::Cut => {
-            if fs::rename(source, &target).is_err() {
-                copy_recursive(source, &target)?;
+            if fs::rename(source, target).is_err() {
+                copy_recursive(source, target)?;
                 if source.is_dir() {
                     fs::remove_dir_all(source)?;
                 } else {
@@ -112,7 +127,7 @@ pub fn paste(source: &Path, dir: &Path, mode: ClipMode) -> Result<PathBuf> {
             }
         }
     }
-    Ok(target)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -120,7 +135,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use super::{ClipMode, copy_name, destination, paste, save_image};
+    use super::{ClipMode, Placement, copy_name, paste_to, placement, save_image};
 
     #[test]
     fn names_copies_like_finder() {
@@ -138,30 +153,55 @@ mod tests {
         fs::create_dir_all(root.join("app/models")).unwrap();
         fs::create_dir_all(root.join("lib")).unwrap();
         fs::write(root.join("app/models/user.rb"), "class User; end").unwrap();
-
-        // Copy into the same folder gets a new name; again gets "copy 2".
         let models = root.join("app/models");
-        let first = paste(&models.join("user.rb"), &models, ClipMode::Copy).unwrap();
-        assert_eq!(first, models.join("user copy.rb"));
-        let second = paste(&models.join("user.rb"), &models, ClipMode::Copy).unwrap();
-        assert_eq!(second, models.join("user copy 2.rb"));
+        let user = models.join("user.rb");
+
+        // Same folder: the name is taken; the suggestion skips names already used.
+        let taken = |n: &str| Placement::Taken {
+            name: "user.rb".into(),
+            suggested: n.into(),
+        };
+        assert_eq!(
+            placement(&user, &models, ClipMode::Copy).unwrap(),
+            taken("user copy.rb")
+        );
+        paste_to(&user, &models.join("user copy.rb"), ClipMode::Copy).unwrap();
+        assert_eq!(
+            placement(&user, &models, ClipMode::Copy).unwrap(),
+            taken("user copy 2.rb")
+        );
 
         // A folder is copied with its contents.
-        let copied = paste(&models, &root.join("lib"), ClipMode::Copy).unwrap();
+        let lib = root.join("lib");
         assert_eq!(
-            fs::read_to_string(copied.join("user.rb")).unwrap(),
+            placement(&models, &lib, ClipMode::Copy).unwrap(),
+            Placement::Free(lib.join("models"))
+        );
+        paste_to(&models, &lib.join("models"), ClipMode::Copy).unwrap();
+        assert_eq!(
+            fs::read_to_string(lib.join("models/user.rb")).unwrap(),
             "class User; end"
         );
 
-        // Cut moves; the source is gone.
-        let moved = paste(&models.join("user copy.rb"), &root.join("lib"), ClipMode::Cut).unwrap();
-        assert!(moved.exists() && !models.join("user copy.rb").exists());
+        // Cut moves; the source is gone. A taken name in another folder asks for a new one.
+        paste_to(
+            &models.join("user copy.rb"),
+            &lib.join("user copy.rb"),
+            ClipMode::Cut,
+        )
+        .unwrap();
+        assert!(lib.join("user copy.rb").exists() && !models.join("user copy.rb").exists());
+        assert!(matches!(
+            placement(&user, &lib.join("models"), ClipMode::Cut).unwrap(),
+            Placement::Taken { .. }
+        ));
 
-        // Guards: into itself, onto an existing name, into the same folder.
-        assert!(paste(&root.join("app"), &models, ClipMode::Copy).is_err());
-        assert!(destination(&models.join("user.rb"), &root.join("lib/models"), ClipMode::Cut).is_err());
-        assert!(destination(&models.join("user.rb"), &models, ClipMode::Cut).is_err());
-        assert!(paste(Path::new("/nonexistent/x"), &models, ClipMode::Copy).is_err());
+        // Guards: into itself, cut into the same folder, onto an existing file, a missing source.
+        assert!(placement(&root.join("app"), &models, ClipMode::Copy).is_err());
+        assert!(paste_to(&root.join("app"), &models.join("app"), ClipMode::Copy).is_err());
+        assert!(placement(&user, &models, ClipMode::Cut).is_err());
+        assert!(paste_to(&user, &lib.join("models/user.rb"), ClipMode::Copy).is_err());
+        assert!(placement(Path::new("/nonexistent/x"), &models, ClipMode::Copy).is_err());
         let _ = fs::remove_dir_all(&root);
     }
 

@@ -359,6 +359,11 @@ is in the working tree only.
       a non-dismissable "Saving files…" dialog with a progress bar (file name, N of M, shown ≥ 350 ms); a failed
       write keeps the project open and reports it (`workspace/save_on_close.rs`). ⌘Q and "open project in this
       window" still use the Save / Don't Save / Cancel dialog
+- [x] Paste onto a taken name asks for a new one (JetBrains style): copying or moving a file/folder into a folder
+      that already has that name opens "“name” already exists here — paste as" prefilled with the free Finder-style
+      name (`user copy.rb`, `user copy 2.rb`); several conflicts are asked one after another, Cancel skips the rest;
+      free names still paste right away. Cut into the same folder still reports "already in this folder"
+      (`file_ops::placement` / `paste_to`, `workspace/file_clipboard.rs`)
 ## Backlog
 - GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted
 

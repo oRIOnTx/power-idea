@@ -1,14 +1,14 @@
 //! Copy / Cut / Paste in the project tree: the clipboard of files waiting to
 //! be pasted, and pasting them (or an image from the system clipboard) into a folder.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 
 use super::Workspace;
-use crate::file_ops::{self, ClipMode, FileClipboard};
+use crate::file_ops::{self, ClipMode, FileClipboard, Placement};
 use crate::tree_selection::outermost;
 
 impl Workspace {
@@ -102,77 +102,202 @@ impl Workspace {
         })
     }
 
-    /// Pastes into `dir` (relative to the root, `""` for the root).
+    /// Pastes into `dir` (relative to the root, `""` for the root). Names already taken
+    /// in `dir` are asked for afterwards, one file at a time.
     pub(super) fn paste_files(&mut self, dir: String, window: &mut Window, cx: &mut Context<Self>) {
         let Some(source) = self.paste_source(cx) else {
             return;
         };
-        let mode = match &source {
-            PasteSource::Files { mode, .. } => *mode,
-            PasteSource::Image { .. } => ClipMode::Copy,
+        let jobs = match source {
+            PasteSource::Image { ext, bytes } => return self.paste_image(dir, ext, bytes, window, cx),
+            PasteSource::Files { sources, mode } => PasteJobs {
+                files: sources.into_iter().map(|from| (from, None)).collect(),
+                mode,
+            },
         };
+        self.run_paste(dir, jobs, window, cx);
+    }
+
+    fn paste_image(
+        &mut self,
+        dir: String,
+        ext: &'static str,
+        bytes: Vec<u8>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let root = self.root.clone();
         cx.spawn_in(window, async move |this, cx| {
             let target_dir = root.join(&dir);
-            let results = cx
-                .background_spawn({
-                    let root = root.clone();
-                    async move {
-                        let rel = |path: &std::path::Path| {
-                            path.strip_prefix(&root)
-                                .unwrap_or(path)
-                                .to_string_lossy()
-                                .into_owned()
-                        };
-                        match source {
-                            PasteSource::Image { ext, bytes } => {
-                                vec![
-                                    file_ops::save_image(&target_dir, ext, &bytes).map(|to| (None, rel(&to))),
-                                ]
-                            }
-                            PasteSource::Files { sources, mode } => sources
-                                .iter()
-                                .map(|from| {
-                                    let to = file_ops::paste(from, &target_dir, mode)?;
-                                    anyhow::Ok((Some(rel(from)), rel(&to)))
-                                })
-                                .collect::<Vec<_>>(),
-                        }
-                    }
-                })
-                .await;
+            let saved = cx
+                .background_spawn(async move { file_ops::save_image(&target_dir, ext, &bytes) })
+                .await
+                .map(|to| (None, rel_to(&root, &to)));
             this.update_in(cx, |ws, window, cx| {
-                let mut pasted = Vec::new();
-                for result in results {
-                    match result {
-                        Ok((from, to)) => {
-                            if let (ClipMode::Cut, Some(from)) = (mode, from) {
-                                ws.retarget_tabs(&from, &to);
-                            }
-                            pasted.push(to);
-                        }
-                        Err(err) => window.push_notification(
-                            Notification::error(format!("{err:#}")).title("Paste failed"),
-                            cx,
-                        ),
-                    }
-                }
-                // A cut is pasted once; copies can be pasted again.
-                if mode == ClipMode::Cut && !pasted.is_empty() {
-                    ws.file_clipboard = None;
-                }
-                if !pasted.is_empty() {
-                    ws.tree_selection.set(pasted);
-                }
-                if !dir.is_empty() {
-                    ws.expanded.insert(dir.clone());
-                }
-                ws.after_fs_change(cx);
+                ws.finish_paste(&dir, ClipMode::Copy, vec![saved], window, cx);
             })
             .ok();
         })
         .detach();
     }
+
+    /// Copies or moves files off the UI thread, then asks for new names of the taken ones.
+    fn run_paste(&mut self, dir: String, jobs: PasteJobs, window: &mut Window, cx: &mut Context<Self>) {
+        let root = self.root.clone();
+        let mode = jobs.mode;
+        cx.spawn_in(window, async move |this, cx| {
+            let target_dir = root.join(&dir);
+            let (results, conflicts) = cx
+                .background_spawn({
+                    let root = root.clone();
+                    async move { paste_jobs(&root, &target_dir, jobs) }
+                })
+                .await;
+            this.update_in(cx, |ws, window, cx| {
+                ws.finish_paste(&dir, mode, results, window, cx);
+                ws.ask_paste_names(dir, mode, conflicts, window, cx);
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// Asks for a new name for the first taken one; the next is asked once this one is answered.
+    /// Cancel skips the remaining files.
+    fn ask_paste_names(
+        &mut self,
+        dir: String,
+        mode: ClipMode,
+        mut conflicts: Vec<Conflict>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if conflicts.is_empty() {
+            return;
+        }
+        let conflict = conflicts.remove(0);
+        let title = format!("“{}” already exists here — paste as", conflict.name);
+        self.prompt_name(
+            title,
+            &conflict.suggested,
+            window,
+            cx,
+            move |ws, name, window, cx| {
+                super::files::validate_name(&name, false)?;
+                let target = ws.root.join(&dir).join(name.trim());
+                if target.exists() {
+                    anyhow::bail!("{} already exists", name.trim());
+                }
+                let jobs = PasteJobs {
+                    files: vec![(conflict.source.clone(), Some(target))],
+                    mode,
+                };
+                let (dir, rest) = (dir.clone(), conflicts.clone());
+                // The name dialog closes after this returns; paste and ask about the rest then.
+                let workspace = cx.entity().downgrade();
+                window.defer(cx, move |window, cx| {
+                    workspace
+                        .update(cx, |ws, cx| {
+                            ws.run_paste(dir.clone(), jobs, window, cx);
+                            ws.ask_paste_names(dir, mode, rest, window, cx);
+                        })
+                        .ok();
+                });
+                Ok(())
+            },
+        );
+    }
+
+    /// Reports failures, selects what was pasted and refreshes the tree.
+    fn finish_paste(
+        &mut self,
+        dir: &str,
+        mode: ClipMode,
+        results: PasteResults,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if results.is_empty() {
+            return;
+        }
+        let mut pasted = Vec::new();
+        for result in results {
+            match result {
+                Ok((from, to)) => {
+                    if let (ClipMode::Cut, Some(from)) = (mode, from) {
+                        self.retarget_tabs(&from, &to);
+                    }
+                    pasted.push(to);
+                }
+                Err(err) => window
+                    .push_notification(Notification::error(format!("{err:#}")).title("Paste failed"), cx),
+            }
+        }
+        // A cut is pasted once; copies can be pasted again.
+        if mode == ClipMode::Cut && !pasted.is_empty() {
+            self.file_clipboard = None;
+        }
+        if !pasted.is_empty() {
+            self.tree_selection.set(pasted);
+        }
+        if !dir.is_empty() {
+            self.expanded.insert(dir.to_string());
+        }
+        self.after_fs_change(cx);
+    }
+}
+
+/// Files to paste: each with the target the user chose, or `None` to keep its name.
+struct PasteJobs {
+    files: Vec<(PathBuf, Option<PathBuf>)>,
+    mode: ClipMode,
+}
+
+/// A file whose name is already taken in the target folder.
+#[derive(Clone)]
+struct Conflict {
+    source: PathBuf,
+    name: String,
+    suggested: String,
+}
+
+type PasteResults = Vec<Result<(Option<String>, String)>>;
+
+/// Runs off the UI thread: pastes what can be pasted, returns the taken names.
+fn paste_jobs(root: &Path, target_dir: &Path, jobs: PasteJobs) -> (PasteResults, Vec<Conflict>) {
+    let mut results = Vec::new();
+    let mut conflicts = Vec::new();
+    for (from, chosen) in jobs.files {
+        let target = match chosen {
+            Some(target) => Ok(target),
+            None => match file_ops::placement(&from, target_dir, jobs.mode) {
+                Ok(Placement::Free(target)) => Ok(target),
+                Ok(Placement::Taken { name, suggested }) => {
+                    conflicts.push(Conflict {
+                        source: from,
+                        name,
+                        suggested,
+                    });
+                    continue;
+                }
+                Err(err) => Err(err),
+            },
+        };
+        let pasted = target.and_then(|to| {
+            file_ops::paste_to(&from, &to, jobs.mode)?;
+            Ok((Some(rel_to(root, &from)), rel_to(root, &to)))
+        });
+        results.push(pasted);
+    }
+    (results, conflicts)
+}
+
+/// `path` relative to the project root (files from Finder stay absolute).
+fn rel_to(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .into_owned()
 }
 
 enum PasteSource {

@@ -38,7 +38,7 @@ fn move_to_trash(path: &Path) -> Result<()> {
 }
 
 /// Validates a user-entered name; nested paths are allowed only when creating.
-fn validate_name(name: &str, allow_nested: bool) -> Result<()> {
+pub(super) fn validate_name(name: &str, allow_nested: bool) -> Result<()> {
     let name = name.trim();
     if name.is_empty() {
         bail!("name is empty");
