@@ -353,6 +353,27 @@ fn tools() -> Vec<Tool> {
             input_schema: schema(json!({ "path": path }), &["path"]),
         },
         Tool {
+            name: ci::tools::LIST_RUNS,
+            description: "Recent GitHub Actions runs of the project's repository, newest first: id, workflow, commit title, branch, sha, event, status, url. Read-only.",
+            input_schema: schema(
+                json!({
+                    "branch": { "type": "string", "description": "Only runs of this branch; all branches when omitted." },
+                    "limit": { "type": "integer", "default": 10, "maximum": 50 },
+                }),
+                &[],
+            ),
+        },
+        Tool {
+            name: ci::tools::GET_RUN,
+            description: "One GitHub Actions run: its jobs and steps with statuses, and error annotations (file:line) of failed jobs. Read-only.",
+            input_schema: schema(json!({ "run_id": { "type": "integer" } }), &["run_id"]),
+        },
+        Tool {
+            name: ci::tools::FAILED_LOGS,
+            description: "Why a GitHub Actions run failed, as Markdown per failed job: annotations and the failed step's log around its error lines, trimmed, secrets redacted. Read-only.",
+            input_schema: schema(json!({ "run_id": { "type": "integer" } }), &["run_id"]),
+        },
+        Tool {
             name: "open_file",
             description: "Open a file in the IDE editor, optionally at a 1-based line and column, and focus the window.",
             input_schema: schema(

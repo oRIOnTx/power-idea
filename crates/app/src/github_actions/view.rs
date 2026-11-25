@@ -13,11 +13,12 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
+use super::claude::Deliver;
 use super::fetch::Setup;
 use super::run_actions::RunAction;
 use super::{
     Back, CI_CONTEXT, CiView, CopySelection, FindInLog, OpenOnGitHub, OpenSelected, Pane, Refresh,
-    RerunFailed, RunWorkflow, Scope,
+    RerunFailed, RunWorkflow, Scope, SendToClaude,
 };
 use crate::actions::{SelectNext, SelectPrev};
 use crate::style;
@@ -406,6 +407,9 @@ impl Render for CiView {
                 view.run_action(RunAction::RerunFailed, window, cx);
             }))
             .on_action(cx.listener(|view, _: &RunWorkflow, window, cx| view.open_run_dialog(window, cx)))
+            .on_action(cx.listener(|view, _: &SendToClaude, window, cx| {
+                view.send_failure(None, Deliver::Claude, window, cx);
+            }))
             .on_action(cx.listener(|view, _: &FindInLog, window, cx| {
                 view.search.update(cx, |input, cx| input.focus(window, cx));
             }))

@@ -1,8 +1,9 @@
 //! GitHub Actions tab (one per window): the project's workflow runs with HEAD's status on
 //! top, a run's jobs → steps → log, polled with ETags at an adaptive pace.
 
+mod claude;
 mod detail;
-mod fetch;
+pub(crate) mod fetch;
 mod keys;
 mod notify;
 mod poll;
@@ -37,7 +38,8 @@ actions!(
         FindInLog,
         CopySelection,
         RerunFailed,
-        RunWorkflow
+        RunWorkflow,
+        SendToClaude
     ]
 );
 
@@ -112,6 +114,8 @@ pub struct CiView {
     /// Workflows with what `workflow_dispatch` they accept (loaded on connect).
     workflows: Vec<WorkflowEntry>,
     deploy_patterns: Vec<String>,
+    /// Size limit of the "Send to Claude" block (`[ci] claude_context_chars`).
+    context_limit: usize,
     /// Runs started or re-run from the IDE: watched for a "finished" notification.
     triggered: HashSet<u64>,
     /// Triggered runs not on the listed page (another branch), fetched one by one.
@@ -205,6 +209,7 @@ impl CiView {
             ticker: None,
             workflows: Vec::new(),
             deploy_patterns: Vec::new(),
+            context_limit: ci::context::DEFAULT_LIMIT,
             triggered: HashSet::new(),
             tracked_runs: Vec::new(),
             previous: watch::States::new(),
@@ -215,6 +220,11 @@ impl CiView {
         };
         view.start(cx);
         view
+    }
+
+    /// The connected GitHub client (shared with the MCP tools).
+    pub fn client(&self) -> Option<&GitHub> {
+        self.client.as_ref()
     }
 
     pub fn focus_handle(&self) -> &FocusHandle {

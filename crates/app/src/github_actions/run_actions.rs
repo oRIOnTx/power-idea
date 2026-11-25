@@ -54,14 +54,16 @@ impl CiView {
         let Some(client) = self.client.clone() else { return };
         let root = self.root.clone();
         cx.spawn(async move |this, cx| {
-            let (workflows, patterns) = cx
+            let (workflows, (patterns, context_limit)) = cx
                 .background_spawn(async move {
-                    let patterns = ProjectSettings::load(&root).ci.deploy_patterns();
-                    (fetch::workflows(&client, &root), patterns)
+                    let settings = ProjectSettings::load(&root).ci;
+                    let config = (settings.deploy_patterns(), settings.claude_context_chars());
+                    (fetch::workflows(&client, &root), config)
                 })
                 .await;
             this.update(cx, |view, cx| {
                 view.deploy_patterns = patterns;
+                view.context_limit = context_limit;
                 match workflows {
                     Ok(workflows) => view.workflows = workflows,
                     Err(err) => {

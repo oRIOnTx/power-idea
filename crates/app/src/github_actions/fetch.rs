@@ -134,3 +134,20 @@ pub fn workflows(client: &GitHub, root: &Path) -> ApiResult<Vec<super::WorkflowE
         })
         .collect())
 }
+
+/// A client for the project's GitHub repository, or why there is none (for MCP tools when the
+/// tab was never opened). Blocks: run it off the UI thread.
+pub fn connect(root: &Path) -> Result<GitHub, String> {
+    match check_setup(root) {
+        SetupResult::Connected { client, .. } => Ok(client),
+        SetupResult::Unavailable(setup) => Err(match setup {
+            Setup::NoRepo => "the project is not a git repository".into(),
+            Setup::NoRemote => "the repository has no remote".into(),
+            Setup::NotGitHub(url) => format!("the remote {url} is not on GitHub"),
+            Setup::NotConnected { .. } => {
+                "not connected to GitHub: run `gh auth login` or save a token in the IDE's GitHub Actions tab (⌘8)".into()
+            }
+            Setup::Checking | Setup::Ready => "GitHub is not available".into(),
+        }),
+    }
+}

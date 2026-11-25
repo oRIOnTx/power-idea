@@ -14,6 +14,7 @@ use gpui_kit::component::{ActiveTheme as _, Disableable as _, IconName, Sizable 
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
+use super::claude::{Deliver, Target};
 use super::rows::{self, DetailRow, LogState, Note};
 use super::run_actions::RunAction;
 use super::view::{state_color, state_icon};
@@ -83,6 +84,10 @@ impl CiView {
                     .disabled(self.busy.is_some())
                     .on_click(cx.listener(move |view, _, window, cx| view.run_action(act, window, cx)))
             };
+        let any_failed = self
+            .detail
+            .as_ref()
+            .is_some_and(|d| d.jobs.iter().any(|j| j.state() == State::Failure));
         let dispatch = self.workflow_entry(run.workflow_id).map(|w| w.dispatch.is_some());
         let run_workflow = Button::new("ci-run-this-workflow")
             .xsmall()
@@ -141,6 +146,30 @@ impl CiView {
             })
             .child(run_workflow)
             .child(div().flex_1())
+            .when(any_failed, |el| {
+                el.child(
+                    Button::new("ci-send-claude")
+                        .xsmall()
+                        .primary()
+                        .icon(style::lucide("bot"))
+                        .label("Send to Claude")
+                        .tooltip("Paste the failure into the Claude tab (C)")
+                        .on_click(cx.listener(|view, _, window, cx| {
+                            view.send_failure(None, Deliver::Claude, window, cx);
+                        })),
+                )
+                .child(
+                    Button::new("ci-copy-claude")
+                        .xsmall()
+                        .ghost()
+                        .icon(IconName::Copy)
+                        .label("Copy")
+                        .tooltip("Copy the failure as Markdown for Claude")
+                        .on_click(cx.listener(|view, _, window, cx| {
+                            view.send_failure(None, Deliver::Copy, window, cx);
+                        })),
+                )
+            })
             .child(
                 Button::new("ci-run-github")
                     .xsmall()
@@ -354,6 +383,24 @@ impl CiView {
                     .child(state_icon(state, cx))
                     .child(div().min_w_0().truncate().child(s.name.clone()))
                     .child(div().flex_1())
+                    .when(state == State::Failure, |el| {
+                        el.child(
+                            style::icon_button_sized(
+                                ("ci-claude-step", ix),
+                                style::lucide("bot"),
+                                "Send this step to Claude (C)",
+                                style::BUTTON_SMALL,
+                            )
+                            .on_click(cx.listener(move |view, _, window, cx| {
+                                cx.stop_propagation();
+                                let target = Target {
+                                    job,
+                                    step: Some(step),
+                                };
+                                view.send_failure(Some(target), Deliver::Claude, window, cx);
+                            })),
+                        )
+                    })
                     .when(has_log, |el| {
                         el.child(
                             div().invisible().group_hover("ci-step", Styled::visible).child(

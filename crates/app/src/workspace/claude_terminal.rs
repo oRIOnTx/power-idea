@@ -35,7 +35,7 @@ impl Workspace {
     }
 
     /// The Claude tab ⌘Esc and the session actions act on (see `pick_claude_tab`).
-    fn current_claude_tab(&self, cx: &App) -> Option<usize> {
+    pub(super) fn current_claude_tab(&self, cx: &App) -> Option<usize> {
         let claude: Vec<bool> = self.terminals.iter().map(|t| t.read(cx).is_claude()).collect();
         pick_claude_tab(self.active_terminal, &claude)
     }

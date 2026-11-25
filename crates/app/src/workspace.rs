@@ -50,6 +50,7 @@ mod insights_advice;
 mod insights_panel;
 mod insights_parts;
 mod insights_view;
+mod mcp_ci_tools;
 mod mcp_code_tools;
 mod mcp_tools;
 mod navigation;

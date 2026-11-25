@@ -350,11 +350,19 @@ pub struct CiSettings {
     /// Workflows whose name or file name contains one of these (case-insensitive) ask before
     /// they are started or re-run. Empty: `deploy`, `release`, `publish`, `prod`.
     pub deploy_patterns: Vec<String>,
+    /// Size limit of the "Send to Claude" block, in characters (default 12 000).
+    pub claude_context_chars: Option<usize>,
 }
 
 impl CiSettings {
     fn is_default(&self) -> bool {
         *self == Self::default()
+    }
+
+    pub fn claude_context_chars(&self) -> usize {
+        self.claude_context_chars
+            .unwrap_or(ci::context::DEFAULT_LIMIT)
+            .clamp(2_000, 100_000)
     }
 
     pub fn deploy_patterns(&self) -> Vec<String> {

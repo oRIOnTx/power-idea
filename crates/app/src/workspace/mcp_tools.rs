@@ -243,6 +243,9 @@ impl Workspace {
                     None => Err(format!("{rel} has no local changes")),
                 }
             }
+            ci::tools::LIST_RUNS | ci::tools::GET_RUN | ci::tools::FAILED_LOGS => {
+                return Ok(self.mcp_ci_call(name, args, reply, cx));
+            }
             _ => return self.mcp_code_call(name, args, reply, cx),
         };
         Ok(Some((reply, result)))

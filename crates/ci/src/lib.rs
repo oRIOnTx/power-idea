@@ -2,13 +2,16 @@
 //! conditional requests, poll scheduling and job-log parsing.
 
 pub mod auth;
+pub mod context;
 pub mod dispatch;
 pub mod github;
 pub mod log_parser;
 pub mod models;
 pub mod poller;
+pub mod redact;
 pub mod remote;
 pub mod time;
+pub mod tools;
 pub mod transport;
 pub mod watch;
 pub mod yaml;

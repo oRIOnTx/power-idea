@@ -2,8 +2,10 @@
 //! the tab asks the workspace to do (open a file at an annotation, run a command in a terminal).
 
 use std::path::Path;
+use std::time::Duration;
 
 use ci::State;
+use claude_integration::launcher::Start;
 use gpui_kit::*;
 
 use super::Workspace;
@@ -95,4 +97,64 @@ impl Workspace {
     pub(crate) fn ci_run_in_terminal(&mut self, command: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.open_terminal_with_input(command, window, cx);
     }
+
+    /// Puts `prompt` into the project's Claude tab (starting one if needed) without sending it,
+    /// once Claude's input is ready; falls back to the clipboard.
+    pub(crate) fn ci_send_to_claude(&mut self, prompt: String, window: &mut Window, cx: &mut Context<Self>) {
+        if self.light {
+            return;
+        }
+        match self.current_claude_tab(cx) {
+            Some(ix) => {
+                self.active_terminal = ix;
+                self.show_terminal_panel();
+                self.focus_terminal(window, cx);
+            }
+            None => self.start_claude_tab(None, Start::New, window, cx),
+        }
+        cx.spawn_in(window, async move |this, cx| {
+            for _ in 0..CLAUDE_READY_POLLS {
+                let pasted = this
+                    .update_in(cx, |ws, window, cx| ws.paste_into_claude(&prompt, window, cx))
+                    .unwrap_or(true);
+                if pasted {
+                    return;
+                }
+                cx.background_executor().timer(CLAUDE_READY_EVERY).await;
+            }
+            this.update_in(cx, |ws, window, cx| {
+                cx.write_to_clipboard(ClipboardItem::new_string(prompt.clone()));
+                ws.notify_error(
+                    "Claude is not ready yet; the CI context is on the clipboard, paste it with ⌘V".into(),
+                    window,
+                    cx,
+                );
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// Pastes into the Claude tab if its prompt takes pasted text yet.
+    fn paste_into_claude(&mut self, prompt: &str, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let Some(ix) = self.current_claude_tab(cx) else {
+            return false;
+        };
+        let Some(terminal) = self.terminals.get(ix).cloned() else {
+            return false;
+        };
+        if !terminal.read(cx).accepts_paste() {
+            return false;
+        }
+        terminal.read(cx).paste_prompt(prompt);
+        self.active_terminal = ix;
+        self.show_terminal_panel();
+        self.focus_terminal(window, cx);
+        cx.notify();
+        true
+    }
 }
+
+/// A new Claude session takes a few seconds to show its prompt.
+const CLAUDE_READY_POLLS: u32 = 80;
+const CLAUDE_READY_EVERY: Duration = Duration::from_millis(250);

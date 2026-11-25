@@ -347,6 +347,17 @@ impl TerminalView {
         .detach();
     }
 
+    /// Pastes `text` as typed input (bracketed when the program asked), without pressing Enter.
+    pub fn paste_prompt(&self, text: &str) {
+        self.paste_text(text);
+    }
+
+    /// The program reads pasted text as one block (it turned on bracketed paste): Claude Code's
+    /// prompt is ready.
+    pub fn accepts_paste(&self) -> bool {
+        self.term.lock().mode().contains(TermMode::BRACKETED_PASTE)
+    }
+
     fn paste_text(&self, text: &str) {
         let bracketed = self.term.lock().mode().contains(TermMode::BRACKETED_PASTE);
         self.write(paste::pty_bytes(text, bracketed));

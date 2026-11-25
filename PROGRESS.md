@@ -26,7 +26,7 @@ is in the working tree only.
       language servers or saved state, nothing written next to the file). The bundle registers ~190 text
       extensions (`crates/app/text-extensions.txt`) plus folders; more extensions map to highlighters (ini/cfg → TOML, xml/plist → HTML, …)
 - [x] Git: status colors, Commit tool window (⌘0), side-by-side diffs, push/pull/fetch, branches, rollback
-- [x] MCP server for Claude Code (17 tools, token in Keychain-like file, localhost only)
+- [x] MCP server for Claude Code (17 tools, +3 read-only CI tools later, token in Keychain-like file, localhost only)
 - [x] Neo theme (dark/light), app icon, `scripts/bundle-macos.sh`
 - [x] Settings tab (⌘,): appearance, editor, terminal, languages, MCP, keymap, project (`.power-idea/settings.toml`)
 - [x] Activity bar, file/tab context menus, unsaved-changes guard on tab/window close
@@ -332,9 +332,19 @@ is in the working tree only.
       watched: when one finishes, an in-app notification (red on failure), plus a macOS notification via `osascript`
       while the IDE is in the background (polling continues at 60 s for them). CI chip (✓ ✗ ●) next to the branch
       in the Commit panel opens the tab
+- [x] **GitHub Actions tab, phase 3** (2026-11-25): Send to Claude (C; run header, bot icon on a failed step)
+      builds a Markdown block (`ci::context`): workflow / job / step, repo, branch, commit, run URL, annotations, the
+      failed step's log around its error lines (±20, merged, ≤ 150 lines, omitted stretches marked; the last lines when
+      nothing looks like an error) and the task; trimmed to `[ci] claude_context_chars` (default 12 000) and redacted
+      (`ci::redact`: GitHub/AWS/Slack/Stripe/OpenAI-style keys, JWTs, PEM keys, `Authorization:` and
+      `password=`/`token:`-like values, URL credentials). It is pasted (bracketed, not sent) into the project's Claude
+      tab once Claude's prompt is ready (a new tab is started when needed; clipboard fallback after 20 s); Copy puts it
+      on the clipboard. The job log is fetched if it was not loaded. MCP tools (read-only, `ci::tools`):
+      `ci_list_runs(branch?, limit?)`, `ci_get_run(run_id)` (jobs, steps, failed jobs' annotations),
+      `ci_get_failed_logs(run_id)` (the same blocks per failed job); they work without opening the tab (gh / Keychain
+      token). No tool starts, re-runs or cancels runs
 ## Backlog
-- GitHub Actions phase 3: "Send to Claude" (trimmed, redacted Markdown context), Copy, MCP tools
-  `ci_list_runs` / `ci_get_run` / `ci_get_failed_logs` (read-only)
+- GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted
 
 Other candidates: Database gaps below.
 
