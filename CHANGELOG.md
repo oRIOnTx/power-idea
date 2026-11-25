@@ -5,6 +5,46 @@ All notable changes to Power IDEA. Generated from the git history by
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org).
 
+## [0.3.0] - 2026-11-25
+
+### Breaking
+- **claude:** Drop settings that duplicate Claude Code ([1890d00](https://github.com/oRIOnTx/power-idea/commit/1890d008c56bdf4be0540f67eb83580b7b4d2a3c))
+- **claude:** Remove the live status gauges ([15e9820](https://github.com/oRIOnTx/power-idea/commit/15e9820def985c4a7ab02baaccea08c4277c1253))
+
+### Added
+- **claude:** Add settings, rules and their JSON schemas ([a0f84b4](https://github.com/oRIOnTx/power-idea/commit/a0f84b42e6dda018c9c3bc9b1f1af69efa484049))
+- **claude:** Resolve rules and skills for a project and plan the launch ([fce2e69](https://github.com/oRIOnTx/power-idea/commit/fce2e691b842cb0be3582f5f0ff0c352dfc79aa3))
+- **claude:** Install rules and skills globally, reversibly ([8a6886f](https://github.com/oRIOnTx/power-idea/commit/8a6886f5d16a27b8ff1ceac774f88ac6c85e9ff5))
+- **claude:** Add the Settings → Claude Code page ([ba5ee69](https://github.com/oRIOnTx/power-idea/commit/ba5ee695d885da80afcff888f0119671fecee28e))
+- **claude:** Add the pinned Claude terminal tab ([ccac61c](https://github.com/oRIOnTx/power-idea/commit/ccac61c3ffa92bc0e34e8f719e9060cdd7717fe4))
+- **claude:** Forward hooks and the status line into live gauges ([946f88c](https://github.com/oRIOnTx/power-idea/commit/946f88c7ccf1249f235a548d7dfc2ab6b0d2394d))
+- **claude:** Add skills from a folder or a Git URL ([088eb5b](https://github.com/oRIOnTx/power-idea/commit/088eb5bc18442c830079c4748e2e1fc96de2dd1a))
+- **claude:** Track code quality with the project's linters ([a3e929d](https://github.com/oRIOnTx/power-idea/commit/a3e929d025a34f916cb0901f6c51f4829c96c51a))
+- **errors:** Add an error journal with a badge on the settings gear ([5ec2023](https://github.com/oRIOnTx/power-idea/commit/5ec2023f995afdcd44a44881a45e2e6bf7a82036))
+- **claude:** Open Claude in new terminal tabs by default ([afe5978](https://github.com/oRIOnTx/power-idea/commit/afe597800a441da825a41712e2a01924c8948131))
+- **terminal:** Rename and pin terminal tabs ([95628ae](https://github.com/oRIOnTx/power-idea/commit/95628ae9635348c27fba1640418063c06d9d8e67))
+- **claude:** Open Claude from the activity bar with Cmd+Esc ([8293417](https://github.com/oRIOnTx/power-idea/commit/829341796eafd06b60118416c1e3fbe590d08edf))
+- **claude:** Open Claude Code's own files from settings ([18f6ead](https://github.com/oRIOnTx/power-idea/commit/18f6ead9a610a06ae27bbddf512d4952a5724674))
+- **claude:** Remove the Claude icon from the activity bar ([bf90a6d](https://github.com/oRIOnTx/power-idea/commit/bf90a6d81f87e1980fa2effdfa3418d1476c6d05))
+- **database:** Discover and pick databases of a data source ([17b42aa](https://github.com/oRIOnTx/power-idea/commit/17b42aa3d8e075af8e5d604b4e48fe7aa1103cab))
+- **ci:** Add a read-only GitHub Actions tab ([2dead20](https://github.com/oRIOnTx/power-idea/commit/2dead20e7a79af8292f2b8203c8592e780712a1e))
+- **ci:** Run workflows and act on runs from the GitHub Actions tab ([93a71e7](https://github.com/oRIOnTx/power-idea/commit/93a71e7e616c28d9685cdb321940532b9ceeb5c7))
+- **ci:** Send CI failures to Claude and expose CI over MCP ([09cb0cc](https://github.com/oRIOnTx/power-idea/commit/09cb0cc8c18020d849a4f4cc8f58a28bc75497b4))
+- **app:** Ask before quitting from the Dock, App Switcher or logout ([acea969](https://github.com/oRIOnTx/power-idea/commit/acea9696f9d6c611e3a2fed6ea07bd9c1d617cc7))
+- **app:** Save modified files with a progress bar when closing a project ([cc3e0be](https://github.com/oRIOnTx/power-idea/commit/cc3e0be5dfd73d8123d7884eb7a6db3ade27ac6f))
+
+### Changed
+- **claude:** Show only the name in the Claude terminal tab ([cebc28d](https://github.com/oRIOnTx/power-idea/commit/cebc28ddf0013867dd6de8d9b3eeee0ce7a30be8))
+- **claude:** Widen the Claude terminal tab and show only its name ([988b70a](https://github.com/oRIOnTx/power-idea/commit/988b70aed01e7951dc7c1583532226d1c832ac36))
+
+### Fixed
+- Enlarge the remaining dialog buttons ([d596fe7](https://github.com/oRIOnTx/power-idea/commit/d596fe70ce1360b2ea8d97fa4a917dd737de9592))
+- **run:** Keep the Claude tab out of the Run widget's Stop ([37d7710](https://github.com/oRIOnTx/power-idea/commit/37d7710dfe418f6acfd76e7b0bbf781446ea732b))
+- **terminal:** Drop the login banner and Terminal.app session restore ([d11e163](https://github.com/oRIOnTx/power-idea/commit/d11e16363fcee1ca97255278d13bb4af2180bcd4))
+- **ci:** Explain a repository the token cannot see instead of a bare 404 ([04925c4](https://github.com/oRIOnTx/power-idea/commit/04925c453fc04fefb5ed429fc525e0de1e9dcfd1))
+- **ci:** Align run and step rows in the GitHub Actions tab ([05f2cd1](https://github.com/oRIOnTx/power-idea/commit/05f2cd128d2f56d2c44de50bb9b6428a5dcc33e9))
+- **ci:** Stretch run rows to the pane width and keep the header in view ([e02f117](https://github.com/oRIOnTx/power-idea/commit/e02f1171d94aba8e29e08323574ecad2b07a50d2))
+- Open About and New Project from the menu bar and Find Action ([f5013c4](https://github.com/oRIOnTx/power-idea/commit/f5013c48b271d9690433df253d7362d2aaf1251f))
 ## [0.2.0] - 2026-11-23
 
 ### Added
