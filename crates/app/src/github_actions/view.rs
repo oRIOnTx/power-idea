@@ -34,15 +34,29 @@ pub(super) fn state_color(state: State, theme: &Theme) -> Hsla {
     }
 }
 
+/// Every status icon sits in the same box, so a spinner and a static icon line text up alike.
+pub(super) const STATE_ICON_BOX: Pixels = px(16.);
+
 /// A run, job or step status: a spinner while running, else a colored icon.
 pub(super) fn state_icon(state: State, cx: &App) -> AnyElement {
     let color = state_color(state, cx.theme());
+    let slot = || {
+        div()
+            .flex_none()
+            .size(STATE_ICON_BOX)
+            .flex()
+            .items_center()
+            .justify_center()
+    };
     let name = match state {
         State::Running => {
-            return Spinner::new()
-                .icon(style::lucide("loader-circle"))
-                .xsmall()
-                .color(color)
+            return slot()
+                .child(
+                    Spinner::new()
+                        .icon(style::lucide("loader-circle"))
+                        .xsmall()
+                        .color(color),
+                )
                 .into_any_element();
         }
         State::Success => "circle-check",
@@ -52,7 +66,9 @@ pub(super) fn state_icon(state: State, cx: &App) -> AnyElement {
         State::Skipped => "circle-minus",
         State::Neutral => "circle",
     };
-    style::lucide(name).xsmall().text_color(color).into_any_element()
+    slot()
+        .child(style::lucide(name).xsmall().text_color(color))
+        .into_any_element()
 }
 
 impl CiView {
@@ -284,7 +300,7 @@ impl CiView {
                 view.focus.focus(window, cx);
                 view.select_run(id, true, cx);
             }))
-            .child(div().flex_none().child(state_icon(state, cx)))
+            .child(state_icon(state, cx))
             .child(
                 v_flex()
                     .flex_1()
@@ -304,44 +320,52 @@ impl CiView {
                             .child(div().flex_1())
                             .child(div().flex_none().text_xs().text_color(muted).child(age)),
                     )
-                    .child(
-                        h_flex()
-                            .gap_1p5()
-                            .text_xs()
-                            .text_color(muted)
-                            .child(div().flex_none().font_weight(FontWeight::MEDIUM).child(format!(
-                                "{} #{}",
-                                run.workflow_name(),
-                                run.run_number
-                            )))
-                            .child("·")
-                            .child(div().flex_none().child(run.event.clone()))
-                            .when(self.scope == Scope::All, |el| {
-                                el.child("·").child(
-                                    div()
-                                        .min_w_0()
-                                        .truncate()
-                                        .child(run.head_branch.clone().unwrap_or_default()),
-                                )
-                            })
-                            .child("·")
-                            .child(
-                                div()
-                                    .flex_none()
-                                    .font_family(theme.mono_font_family.clone())
-                                    .when(is_head, |el| el.text_color(theme.primary))
-                                    .child(run.short_sha().to_string()),
-                            )
-                            .children(
-                                run.actor
-                                    .as_ref()
-                                    .map(|a| div().min_w_0().truncate().child(a.login.clone())),
-                            )
-                            .child(div().flex_1())
-                            .child(div().flex_none().child(duration)),
-                    ),
+                    .child(self.render_run_meta(run, is_head, duration, cx)),
             )
             .into_any_element()
+    }
+}
+
+impl CiView {
+    /// Second line of a run row: `workflow #n · event · [branch ·] sha · actor` and the duration
+    /// on the right. Names shrink (ellipsis) so the duration never leaves the row; one font and
+    /// one line height keep every part on the same baseline.
+    fn render_run_meta(&self, run: &Run, is_head: bool, duration: String, cx: &App) -> Div {
+        let theme = cx.theme();
+        let fixed = |text: String| div().flex_none().child(text);
+        let shrinking = |text: String| div().min_w_0().flex_shrink(1.).truncate().child(text);
+        let dot = || div().flex_none().opacity(0.6).child("·");
+        let mut parts: Vec<Div> = vec![
+            shrinking(format!("{} #{}", run.workflow_name(), run.run_number)).font_weight(FontWeight::MEDIUM),
+            fixed(run.event.clone()),
+        ];
+        if self.scope == Scope::All {
+            parts.push(shrinking(run.head_branch.clone().unwrap_or_default()));
+        }
+        parts.push(fixed(run.short_sha().to_string()).when(is_head, |el| el.text_color(theme.primary)));
+        if let Some(actor) = &run.actor {
+            parts.push(shrinking(actor.login.clone()));
+        }
+        let mut line = h_flex()
+            .min_w_0()
+            .flex_1()
+            .gap_1()
+            .overflow_hidden()
+            .whitespace_nowrap();
+        for (ix, part) in parts.into_iter().enumerate() {
+            if ix > 0 {
+                line = line.child(dot());
+            }
+            line = line.child(part);
+        }
+        h_flex()
+            .w_full()
+            .gap_2()
+            .text_xs()
+            .line_height(px(16.))
+            .text_color(theme.muted_foreground)
+            .child(line)
+            .child(div().flex_none().child(duration))
     }
 }
 

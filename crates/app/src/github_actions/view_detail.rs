@@ -348,7 +348,17 @@ impl CiView {
                         view.set_cursor(ix, cx);
                         view.open_annotation(job, a, window, cx);
                     }))
-                    .child(style::lucide("circle-alert").xsmall().text_color(color))
+                    // Under the chevron column of steps, so the icon lines up with theirs.
+                    .child(div().flex_none().w(style::TREE_CHEVRON))
+                    .child(
+                        div()
+                            .flex_none()
+                            .size(super::view::STATE_ICON_BOX)
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(style::lucide("circle-alert").xsmall().text_color(color)),
+                    )
                     .child(
                         div()
                             .flex_none()
