@@ -134,20 +134,34 @@ pub enum DatabaseOp {
     Edit,
     Refresh,
     Disconnect,
+    DiscoverDatabases,
     Remove,
 }
 
-/// Runs `op` on the data source `id`.
+/// Runs `op` on the data source `id`, or on its `database` when that is not empty.
 #[derive(Clone, Debug, PartialEq, Eq, Action)]
 #[action(namespace = database, no_json)]
 pub struct DatabaseAction {
     pub op: DatabaseOp,
     pub id: SharedString,
+    pub database: SharedString,
 }
 
 impl DatabaseAction {
     pub fn boxed(op: DatabaseOp, id: impl Into<SharedString>) -> Box<dyn Action> {
-        Box::new(Self { op, id: id.into() })
+        Self::boxed_for(op, id, "")
+    }
+
+    pub fn boxed_for(
+        op: DatabaseOp,
+        id: impl Into<SharedString>,
+        database: impl Into<SharedString>,
+    ) -> Box<dyn Action> {
+        Box::new(Self {
+            op,
+            id: id.into(),
+            database: database.into(),
+        })
     }
 }
 

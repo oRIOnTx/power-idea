@@ -20,6 +20,8 @@ pub struct ConnectionForm {
     id: String,
     kind: DbKind,
     tls: bool,
+    /// Kept as is: chosen with Discover Databases, not in this form.
+    databases: Vec<String>,
     is_new: bool,
     name: Entity<InputState>,
     host: Entity<InputState>,
@@ -96,6 +98,7 @@ impl ConnectionForm {
             id: config.id,
             kind: config.kind,
             tls: config.tls,
+            databases: config.databases,
             is_new,
             name,
             host,
@@ -142,6 +145,11 @@ impl ConnectionForm {
             database: Self::value(&self.database, cx),
             file: Self::value(&self.file, cx),
             tls: self.tls,
+            databases: if self.kind.lists_databases() {
+                self.databases.clone()
+            } else {
+                Vec::new()
+            },
         }
     }
 

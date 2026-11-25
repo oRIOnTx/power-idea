@@ -31,6 +31,7 @@ mod code_nav;
 mod conflicts;
 mod conflicts_view;
 mod database_panel;
+mod database_tree;
 mod debug;
 mod docker_panel;
 mod docker_view;
@@ -212,7 +213,7 @@ pub struct Workspace {
     /// Notifications raised outside of a window context, shown on next render.
     pending_notices: Vec<Notice>,
     /// Console to open once its data source finishes connecting.
-    pending_console: Option<(String, String, bool)>,
+    pending_console: Option<database_panel::PendingConsole>,
     /// Watches the project folder for changes made outside the IDE.
     watcher: Option<notify::RecommendedWatcher>,
     terminals: Vec<Entity<TerminalView>>,

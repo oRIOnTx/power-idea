@@ -87,6 +87,11 @@ is in the working tree only.
 - [x] Database: add rows (+ Row, filled via the cell editor) and delete rows (− Row toggles); Submit runs
       DELETE → UPDATE → INSERT; completion resolves table aliases (`FROM users u` → `u.` lists users' columns)
 - [x] Database Submit runs in one transaction (all or nothing)
+- [x] **Discover Databases…** (data source menu, PostgreSQL / MySQL): lists the databases the user may use
+      over the open connection (PG: `has_database_privilege(…, 'CONNECT')`, MySQL: `SHOW DATABASES`), searchable
+      multi-select dialog, shown ones preselected (missing ones kept and marked). Picked databases become tree
+      nodes (`databases` in `databases.toml`) that connect lazily, one pool each (the data source's own database
+      reuses its connection); their menu: Open Console, Refresh. Not clicked through by hand yet.
 - [x] Quit that cannot be cancelled (Dock → Quit, logout) keeps unsaved editor text in
       `~/Library/Application Support/power-idea/recovery/` and restores it as unsaved edits on next open
       ("Don't Save" on ⌘Q skips this)

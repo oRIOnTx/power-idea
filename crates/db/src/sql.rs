@@ -211,6 +211,31 @@ impl SqlDatabase {
         }))
     }
 
+    /// Databases the current user may use: PostgreSQL checks the CONNECT privilege; MySQL's
+    /// `SHOW DATABASES` lists only databases the user has some privilege on.
+    pub fn databases(&self) -> Result<Vec<String>> {
+        let query = match self {
+            Self::Postgres(_) => {
+                "SELECT datname FROM pg_database \
+                 WHERE datallowconn AND NOT datistemplate AND has_database_privilege(datname, 'CONNECT') \
+                 ORDER BY datname"
+            }
+            Self::MySql(_) => "SHOW DATABASES",
+            Self::Sqlite(_) => anyhow::bail!("SQLite has one database per file"),
+        };
+        let outcome = self.execute(query, usize::MAX).context("listing databases")?;
+        let mut names: Vec<String> = outcome
+            .sets
+            .into_iter()
+            .next()
+            .map_or_default(|set| set.rows)
+            .into_iter()
+            .filter_map(|row| row.into_iter().next().flatten())
+            .collect();
+        names.sort();
+        Ok(names)
+    }
+
     pub fn schema(&self) -> Result<Vec<SchemaNode>> {
         let query = match self {
             Self::Postgres(_) => {
@@ -487,6 +512,13 @@ mod tests {
             rows.sets[0].rows,
             [[Some("a".to_string())], [Some("b".to_string())]]
         );
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn sqlite_does_not_list_databases() {
+        let (db, path) = sqlite_db();
+        assert!(db.databases().is_err());
         let _ = std::fs::remove_file(path);
     }
 
