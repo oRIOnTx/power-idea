@@ -570,15 +570,30 @@ impl Render for Workspace {
                 )
                 .into_any_element()
         };
+        // The right sidebar is a column beside the left sidebar + editor row, so a full-width
+        // bottom panel runs under both sidebars (and a narrow one stays under the editor).
+        let right = self
+            .right_panel
+            .map(|panel| self.render_right_column(panel, cx).into_any_element());
+        let with_right = move |main: AnyElement| match right {
+            Some(right) => h_flex()
+                .size_full()
+                // `min_w_0`: the editor shrinks for the right sidebar instead of pushing it out.
+                .child(div().flex_1().min_w_0().h_full().overflow_hidden().child(main))
+                .child(right)
+                .into_any_element(),
+            None => main,
+        };
         let body = match bottom {
             Some(bottom) if cx.global::<AppConfig>().0.bottom_panel_full_width => with_bottom(
-                body.child(resizable_panel().child(center)).into_any_element(),
+                with_right(body.child(resizable_panel().child(center)).into_any_element()),
                 bottom,
             ),
-            Some(bottom) => body
-                .child(resizable_panel().child(with_bottom(center, bottom)))
-                .into_any_element(),
-            None => body.child(resizable_panel().child(center)).into_any_element(),
+            Some(bottom) => with_right(
+                body.child(resizable_panel().child(with_bottom(center, bottom)))
+                    .into_any_element(),
+            ),
+            None => with_right(body.child(resizable_panel().child(center)).into_any_element()),
         };
 
         let root = v_flex()
@@ -594,10 +609,7 @@ impl Render for Workspace {
                     .flex_1()
                     .overflow_hidden()
                     .child(self.render_activity_bar(cx))
-                    // `min_w_0`: the editor area shrinks for the right sidebar instead of
-                    // pushing it out of the window.
                     .child(div().flex_1().min_w_0().h_full().overflow_hidden().child(body))
-                    .children(self.right_panel.map(|panel| self.render_right_column(panel, cx)))
                     .child(self.render_right_activity_bar(cx)),
             )
             .child(self.render_status_bar(cx));
