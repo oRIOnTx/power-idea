@@ -536,7 +536,22 @@ impl Render for Workspace {
             None => self.render_empty_state(window, cx).into_any_element(),
         };
 
-        let mut body = h_resizable("workspace");
+        // Left sidebar | editor | right sidebar, all in one row. Panel sizes are kept by
+        // position, so each combination of open sidebars has its own group (ids stay stable).
+        let group = match (self.show_project_view, self.right_panel.is_some()) {
+            (true, true) => "workspace-both",
+            (true, false) => "workspace",
+            (false, true) => "workspace-right",
+            (false, false) => "workspace-center",
+        };
+        let right = self.right_panel.map(|panel| {
+            resizable_panel()
+                .size(px(300.))
+                .size_range(px(200.)..px(700.))
+                .fixed()
+                .child(self.render_right_sidebar(panel, cx))
+        });
+        let mut body = h_resizable(group);
         if self.show_project_view {
             body = body.child(
                 resizable_panel()
@@ -569,28 +584,19 @@ impl Render for Workspace {
         };
         let body = match bottom {
             Some(bottom) if cx.global::<AppConfig>().0.bottom_panel_full_width => with_bottom(
-                body.child(resizable_panel().child(center)).into_any_element(),
+                body.child(resizable_panel().child(center))
+                    .children(right)
+                    .into_any_element(),
                 bottom,
             ),
             Some(bottom) => body
                 .child(resizable_panel().child(with_bottom(center, bottom)))
+                .children(right)
                 .into_any_element(),
-            None => body.child(resizable_panel().child(center)).into_any_element(),
-        };
-        // The right tool window gets its own resizable group: panel sizes are kept by
-        // position, so sharing the left group would shift them whenever a side opens or closes.
-        let body = match self.right_panel {
-            Some(panel) => h_resizable("workspace-right")
-                .child(resizable_panel().child(body))
-                .child(
-                    resizable_panel()
-                        .size(px(300.))
-                        .size_range(px(200.)..px(700.))
-                        .fixed()
-                        .child(self.render_right_sidebar(panel, cx)),
-                )
+            None => body
+                .child(resizable_panel().child(center))
+                .children(right)
                 .into_any_element(),
-            None => body,
         };
 
         let root = v_flex()
