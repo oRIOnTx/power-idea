@@ -284,6 +284,18 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Search Everywhere", Box::new(SearchEverywhere)),
         ("Go to File…", Box::new(GotoFile)),
         ("Recent Files", Box::new(RecentFiles)),
+        (
+            "Increase Font Size",
+            Box::new(crate::editor_zoom::IncreaseEditorFontSize),
+        ),
+        (
+            "Decrease Font Size",
+            Box::new(crate::editor_zoom::DecreaseEditorFontSize),
+        ),
+        (
+            "Reset Font Size",
+            Box::new(crate::editor_zoom::ResetEditorFontSize),
+        ),
         ("Find in Files…", Box::new(FindInFiles)),
         ("Replace in Files…", Box::new(ReplaceInFiles)),
         ("Run", Box::new(RunConfiguration)),

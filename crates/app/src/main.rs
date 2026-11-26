@@ -5,6 +5,7 @@ mod claude;
 mod config;
 mod database;
 mod editor;
+mod editor_zoom;
 mod errors;
 mod extension_registry;
 mod file_icons;
@@ -263,6 +264,7 @@ fn main() {
     app.run(move |cx| {
         init(cx);
         language_rules::register(cx);
+        editor_zoom::register(cx);
         cx.set_global(AppConfig(config));
         errors::init(cx);
         apply_theme(None, cx);

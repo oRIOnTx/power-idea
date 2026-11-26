@@ -16,6 +16,7 @@ use gpui_kit::*;
 use super::Workspace;
 use crate::actions::CODE_EDITOR_CONTEXT;
 use crate::editor::{CenterTab, EditorTab, ImageTab};
+use crate::editor_zoom;
 use crate::preview::{self, PreviewKind, PreviewMode};
 use crate::style;
 
@@ -104,13 +105,16 @@ impl Workspace {
             .key_context(CODE_EDITOR_CONTEXT)
             .size_full()
             .overflow_hidden()
+            .relative()
             .child(
                 Editor::new(&tab.state)
                     .bordered(false)
                     .size_full()
+                    .text_size(editor_zoom::font_size(cx))
                     // Code shows `!=`, `<=`, `>=` as typed, not as `≠`, `≤`, `≥` ligatures.
                     .font_features(FontFeatures::disable_ligatures()),
             )
+            .child(editor_zoom::gesture_layer())
             .into_any_element();
         let Some(preview) = &tab.preview else {
             return editor;
