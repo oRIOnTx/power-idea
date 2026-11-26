@@ -108,8 +108,8 @@ impl Workspace {
         .on_action(cx.listener(|this, _: &ToggleRemoteView, w, cx| this.toggle_remote(w, cx)))
         .on_action(cx.listener(|this, _: &NewRemoteSite, w, cx| this.new_remote_site(w, cx)))
         .on_action(cx.listener(|this, action: &RemoteAction, w, cx| this.handle_remote_action(action, w, cx)))
-        .on_action(cx.listener(|this, _: &ToggleDatabaseView, _, cx| {
-            this.toggle_left_panel(LeftPanel::Database, cx);
+        .on_action(cx.listener(|this, _: &ToggleDatabaseView, w, cx| {
+            this.toggle_right_panel(super::right_sidebar::RightPanel::Database, w, cx);
         }))
         .on_action(cx.listener(|this, _: &NavigateForward, w, cx| this.navigate(true, w, cx)))
         .on_action(cx.listener(|this, _: &TogglePreview, w, cx| this.toggle_preview(w, cx)))

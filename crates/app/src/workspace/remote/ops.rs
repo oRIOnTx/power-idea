@@ -77,8 +77,7 @@ impl Workspace {
 
     /// Shows `target` in the Remote Files panel: its folder becomes the root.
     fn reveal_remote(&mut self, site: &str, target: &str, window: &mut Window, cx: &mut Context<Self>) {
-        self.show_project_view = true;
-        self.left_panel = super::LeftPanel::Remote;
+        self.show_right_panel(super::RightPanel::Remote, window, cx);
         self.select_remote_site(site, window, cx);
         let site_id = site.to_string();
         let (dir, target) = (path::parent(target), target.to_string());

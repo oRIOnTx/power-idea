@@ -69,8 +69,7 @@ impl Workspace {
     /// New Remote Site…: an empty form (the project folder as local folder).
     pub(in crate::workspace) fn new_remote_site(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.ensure_remote(window, cx);
-        self.show_project_view = true;
-        self.left_panel = super::super::LeftPanel::Remote;
+        self.right_panel = Some(super::super::right_sidebar::RightPanel::Remote);
         let mut site = Site::new("", Protocol::Sftp, "", "");
         site.local_path = (!self.light).then(|| self.root.clone());
         self.open_site_form(site, true, window, cx);

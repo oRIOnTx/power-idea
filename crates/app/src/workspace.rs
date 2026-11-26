@@ -59,6 +59,7 @@ mod preview_view;
 mod push_dialog;
 mod remote;
 mod replace_in_files;
+mod right_sidebar;
 mod run_configs;
 mod save_on_close;
 mod session_state;
@@ -151,9 +152,6 @@ enum BottomPanel {
 enum LeftPanel {
     Project,
     Commit,
-    Database,
-    Docker,
-    Remote,
     Insights,
 }
 
@@ -204,6 +202,8 @@ pub struct Workspace {
     docker: Option<docker_panel::DockerState>,
     /// Claude Session Insights; created the first time the panel opens.
     insights: Option<insights_panel::InsightsState>,
+    /// The open right-sidebar tool window (Database, Docker, Remote Files), if any.
+    right_panel: Option<right_sidebar::RightPanel>,
     /// Remote Files tool window; created when first opened.
     remote: Option<remote::RemoteState>,
     /// GitHub Actions tab; created the first time it opens, kept (and polling slowly for the
@@ -343,6 +343,7 @@ impl Workspace {
             docker: None,
             insights: None,
             remote: None,
+            right_panel: None,
             ci: None,
             usages: None,
             watcher: None,
@@ -566,15 +567,29 @@ impl Render for Workspace {
                 )
                 .into_any_element()
         };
+        // The right tool window sits right of the editor (and of a bottom panel beside it).
+        let right = self.right_panel.map(|panel| {
+            resizable_panel()
+                .size(px(300.))
+                .size_range(px(200.)..px(700.))
+                .fixed()
+                .child(self.render_right_sidebar(panel, cx))
+        });
         let body = match bottom {
             Some(bottom) if cx.global::<AppConfig>().0.bottom_panel_full_width => with_bottom(
-                body.child(resizable_panel().child(center)).into_any_element(),
+                body.child(resizable_panel().child(center))
+                    .children(right)
+                    .into_any_element(),
                 bottom,
             ),
             Some(bottom) => body
                 .child(resizable_panel().child(with_bottom(center, bottom)))
+                .children(right)
                 .into_any_element(),
-            None => body.child(resizable_panel().child(center)).into_any_element(),
+            None => body
+                .child(resizable_panel().child(center))
+                .children(right)
+                .into_any_element(),
         };
 
         let root = v_flex()
@@ -590,7 +605,8 @@ impl Render for Workspace {
                     .flex_1()
                     .overflow_hidden()
                     .child(self.render_activity_bar(cx))
-                    .child(div().flex_1().h_full().overflow_hidden().child(body)),
+                    .child(div().flex_1().h_full().overflow_hidden().child(body))
+                    .child(self.render_right_activity_bar(cx)),
             )
             .child(self.render_status_bar(cx));
         self.register_actions(root, cx)

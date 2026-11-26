@@ -9,6 +9,7 @@ use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Selectable as _, Siz
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
+use super::right_sidebar::RightPanel;
 use super::{LeftPanel, Workspace, git, remote};
 use crate::actions::{OpenSettings, PROJECT_TREE_CONTEXT, ShowErrors};
 use crate::file_ops::ClipMode;
@@ -29,12 +30,9 @@ impl Workspace {
         cx.notify();
     }
 
-    /// Shows the Docker panel (connecting on first use) or hides the sidebar.
+    /// Shows the Docker panel on the right (connecting on first use) or hides it.
     pub(super) fn toggle_docker(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.toggle_left_panel(LeftPanel::Docker, cx);
-        if self.show_project_view && self.left_panel == LeftPanel::Docker {
-            self.ensure_docker(window, cx);
-        }
+        self.toggle_right_panel(RightPanel::Docker, window, cx);
     }
 
     /// Vertical tool window stripe at the far left, JetBrains new-UI style.
@@ -43,14 +41,6 @@ impl Workspace {
         let changes = self.git.as_ref().map_or(0, |g| g.status.changes.len());
         let project_open = self.show_project_view && self.left_panel == LeftPanel::Project;
         let commit_open = self.show_project_view && self.left_panel == LeftPanel::Commit;
-        let database_open = self.show_project_view && self.left_panel == LeftPanel::Database;
-        let docker_open = self.show_project_view && self.left_panel == LeftPanel::Docker;
-        let docker_running = self.docker.as_ref().map_or(0, |d| d.counts(&self.root).0);
-        let remote_open = self.show_project_view && self.left_panel == LeftPanel::Remote;
-        let remote_connected = self
-            .remote
-            .as_ref()
-            .map_or(0, remote::RemoteState::connected_count);
         let insights_open = self.show_project_view && self.left_panel == LeftPanel::Insights;
         let insights_enabled = Self::insights_enabled(cx);
         let ci_open = self.ci_tab_active();
@@ -155,30 +145,6 @@ impl Workspace {
                 changes,
                 Box::new(cx.listener(|this, _, _, cx| this.toggle_left_panel(LeftPanel::Commit, cx))),
             ))
-            .child(slot(
-                "bar-database",
-                Icon::empty().path("icons/database.svg"),
-                "Database",
-                database_open,
-                0,
-                Box::new(cx.listener(|this, _, _, cx| this.toggle_left_panel(LeftPanel::Database, cx))),
-            ))
-            .child(slot(
-                "bar-docker",
-                style::app_icon("docker"),
-                "Docker",
-                docker_open,
-                docker_running,
-                Box::new(cx.listener(|this, _, window, cx| this.toggle_docker(window, cx))),
-            ))
-            .child(slot(
-                "bar-remote",
-                style::lucide("server"),
-                "Remote Files (⌘7)",
-                remote_open,
-                remote_connected,
-                Box::new(cx.listener(|this, _, window, cx| this.toggle_remote(window, cx))),
-            ))
             .child(
                 slot(
                     "bar-ci",
@@ -273,9 +239,6 @@ impl Workspace {
         let title = match self.left_panel {
             LeftPanel::Project => self.project_name(),
             LeftPanel::Commit => "Commit".to_string(),
-            LeftPanel::Database => "Database".to_string(),
-            LeftPanel::Docker => "Docker".to_string(),
-            LeftPanel::Remote => "Remote Files".to_string(),
             LeftPanel::Insights => "Claude Insights".to_string(),
         };
         let header = h_flex()
@@ -290,9 +253,6 @@ impl Workspace {
         let body = match self.left_panel {
             LeftPanel::Project => self.render_project_view(cx).into_any_element(),
             LeftPanel::Commit => self.render_commit_panel(cx),
-            LeftPanel::Database => self.render_database_panel(cx),
-            LeftPanel::Docker => self.render_docker_panel(cx),
-            LeftPanel::Remote => self.render_remote_panel(cx),
             LeftPanel::Insights => self.render_insights_panel(cx),
         };
         v_flex()

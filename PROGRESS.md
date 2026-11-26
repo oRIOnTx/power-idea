@@ -405,6 +405,10 @@ is in the working tree only.
 - [ ] Remote Files UI not clicked through by hand (no UI automation here); FTPS not live-tested (the
       FTP container has no certificate); Keychain may ask to allow access after a rebuild (new signature)
 
+- [x] Right sidebar: Database, Docker and Remote Files moved from the left activity bar to their own
+      activity bar at the window's right edge (`workspace/right_sidebar.rs`); the open right panel is resizable
+      and saved per project (`right_sidebar` in workspace.toml; old `sidebar = "docker"` etc. migrate)
+
 ## Backlog
 - GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted
 

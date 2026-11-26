@@ -8,6 +8,7 @@ use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 
+use super::right_sidebar::RightPanel;
 use super::{LeftPanel, Workspace};
 use crate::editor::CenterTab;
 use crate::preview::PreviewMode;
@@ -20,9 +21,6 @@ fn panel_name(panel: LeftPanel) -> &'static str {
     match panel {
         LeftPanel::Project => "project",
         LeftPanel::Commit => "commit",
-        LeftPanel::Database => "database",
-        LeftPanel::Docker => "docker",
-        LeftPanel::Remote => "remote",
         LeftPanel::Insights => "insights",
     }
 }
@@ -30,9 +28,6 @@ fn panel_name(panel: LeftPanel) -> &'static str {
 fn panel_from_name(name: &str) -> LeftPanel {
     match name {
         "commit" => LeftPanel::Commit,
-        "database" => LeftPanel::Database,
-        "docker" => LeftPanel::Docker,
-        "remote" => LeftPanel::Remote,
         "insights" => LeftPanel::Insights,
         _ => LeftPanel::Project,
     }
@@ -107,6 +102,7 @@ impl Workspace {
             recent_files: self.recent_files.clone(),
             show_sidebar: self.show_project_view,
             sidebar: panel_name(self.left_panel).into(),
+            right_sidebar: self.right_panel.map_or_default(|p| p.name().to_string()),
             git_log_open: self.git_log_visible(),
             breakpoints,
         }
@@ -122,13 +118,13 @@ impl Workspace {
         self.refresh_tree(cx);
         self.show_project_view = session.show_sidebar;
         self.left_panel = panel_from_name(&session.sidebar);
+        // Database, Docker and Remote Files used to live on the left.
+        let right = RightPanel::from_name(&session.right_sidebar)
+            .or_else(|| RightPanel::from_name(&session.sidebar).filter(|_| session.show_sidebar));
+        if let Some(panel) = right {
+            self.show_right_panel(panel, window, cx);
+        }
         // The Docker panel connects lazily; reopened, it should connect right away.
-        if self.show_project_view && self.left_panel == LeftPanel::Docker {
-            self.ensure_docker(window, cx);
-        }
-        if self.show_project_view && self.left_panel == LeftPanel::Remote {
-            self.ensure_remote(window, cx);
-        }
         if self.show_project_view && self.left_panel == LeftPanel::Insights {
             if Self::insights_enabled(cx) {
                 self.ensure_insights(window, cx);
@@ -257,14 +253,7 @@ mod tests {
 
     #[test]
     fn names_round_trip() {
-        for panel in [
-            LeftPanel::Project,
-            LeftPanel::Commit,
-            LeftPanel::Database,
-            LeftPanel::Docker,
-            LeftPanel::Remote,
-            LeftPanel::Insights,
-        ] {
+        for panel in [LeftPanel::Project, LeftPanel::Commit, LeftPanel::Insights] {
             assert!(panel_from_name(panel_name(panel)) == panel);
         }
         for mode in [PreviewMode::Editor, PreviewMode::Split, PreviewMode::Preview] {

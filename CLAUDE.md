@@ -60,7 +60,8 @@ crates/
     workspace/*.rs      one concern per module (editors, files, git, git_panel,
                         sidebar, chrome, terminal_panel, unsaved, mcp_tools,
                         navigation, code_nav, preview_view, run_configs, debug/,
-                        session_state, action_handlers, git_log/, remote/ = Remote Files ⌘7)
+                        session_state, action_handlers, git_log/, remote/ = Remote Files ⌘7,
+                        right_sidebar = right activity bar: Database, Docker, Remote Files)
     language.rs         language servers per project + editor LSP providers
     database/           Database tool window: data sources, consoles, results grid
     github_actions/     GitHub Actions tab (⌘8): runs, jobs → steps → log, polling

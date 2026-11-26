@@ -20,8 +20,10 @@ pub struct Session {
     pub expanded: Vec<String>,
     pub recent_files: Vec<String>,
     pub show_sidebar: bool,
-    /// `project`, `commit` or `database`.
+    /// `project`, `commit` or `insights` (older files may name a right-sidebar panel).
     pub sidebar: String,
+    /// The open right tool window: `database`, `docker`, `remote`, or empty.
+    pub right_sidebar: String,
     pub git_log_open: bool,
     /// 1-based breakpoint lines per file relative to the project root. Last, because
     /// TOML writes tables after plain values.
@@ -38,6 +40,7 @@ impl Default for Session {
             recent_files: Vec::new(),
             show_sidebar: true,
             sidebar: "project".into(),
+            right_sidebar: String::new(),
             git_log_open: false,
             breakpoints: BTreeMap::new(),
         }

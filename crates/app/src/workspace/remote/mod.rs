@@ -30,7 +30,8 @@ use remote::{ConnectOptions, Connection, Credentials, Entry, ErrorKind, RemoteEr
 pub(super) use drag::{DragLabel, ProjectDrag, RemoteDrag};
 pub(super) use edit::RemoteUpload;
 
-use super::{LeftPanel, Workspace};
+use super::Workspace;
+use super::right_sidebar::RightPanel;
 use crate::config::Config;
 
 /// How often live connections are checked (no network: the SSH keepalive does that).
@@ -136,10 +137,7 @@ pub(super) fn journal(err: &RemoteError, context: &str) {
 impl Workspace {
     /// ⌘7: shows the Remote Files panel or hides the sidebar.
     pub(super) fn toggle_remote(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.toggle_left_panel(LeftPanel::Remote, cx);
-        if self.show_project_view && self.left_panel == LeftPanel::Remote {
-            self.ensure_remote(window, cx);
-        }
+        self.toggle_right_panel(RightPanel::Remote, window, cx);
     }
 
     pub(super) fn ensure_remote(&mut self, window: &mut Window, cx: &mut Context<Self>) {
