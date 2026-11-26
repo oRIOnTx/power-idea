@@ -18,8 +18,46 @@ fn outdent_keywords(language: &str) -> &'static [&'static str] {
         "lua" => &["end", "else", "elseif"],
         "elixir" => &["end", "else", "rescue", "catch", "after"],
         "sh" => &["fi", "done", "esac", "else", "elif"],
+        "python" => &["elif", "else", "except", "finally"],
         _ => &[],
     }
+}
+
+/// Python: the statements a continuation keyword can follow at the same indentation.
+fn python_openers(keyword: &str) -> &'static [&'static str] {
+    match keyword {
+        "elif" => &["if", "elif"],
+        "else" => &["if", "elif", "for", "while", "try", "except"],
+        "except" => &["try", "except"],
+        "finally" => &["try", "except", "else"],
+        _ => &[],
+    }
+}
+
+/// Python has no closing keyword, so the open block is the nearest statement above that
+/// the keyword can continue and that is not deeper than the typed line (`indent`).
+/// The keyword never moves right.
+fn python_opener_indent<'a>(keyword: &str, indent: &str, before: &'a str) -> Option<&'a str> {
+    let openers = python_openers(keyword);
+    let mut limit = indent.len() + 1;
+    for line in before.lines().rev() {
+        let code = line.trim_start();
+        if code.is_empty() || code.starts_with('#') {
+            continue;
+        }
+        let line_indent = indent_of(line);
+        if line_indent.len() >= limit {
+            continue;
+        }
+        if openers.contains(&first_word(code)) {
+            return Some(line_indent);
+        }
+        if line_indent.is_empty() {
+            return None;
+        }
+        limit = line_indent.len();
+    }
+    None
 }
 
 fn first_word(code: &str) -> &str {
@@ -179,7 +217,12 @@ pub fn reindent_after_typing(
     let keywords = outdent_keywords(language);
     let target = if keywords.contains(&word) {
         let above = text.slice(..line_start).to_string();
-        opener_indent(language, &above)
+        let opener = if language == "python" {
+            python_opener_indent(word, &indent, &above)
+        } else {
+            opener_indent(language, &above)
+        };
+        opener
             .filter(|target| *target != indent)
             .map(str::to_string)
             .inspect(|_| {
@@ -189,7 +232,8 @@ pub fn reindent_after_typing(
                 }));
             })
     } else {
-        let grown = !keywords.iter().any(|k| k.starts_with(word));
+        // `else:` / `elif x` keep the keyword; `endpoint` / `elsewhere` do not.
+        let grown = !keywords.iter().any(|k| k.starts_with(first_word(word)));
         match pending.borrow().as_ref() {
             Some(p) if p.line_start == line_start && grown && p.original != indent => {
                 Some(p.original.clone())
@@ -206,7 +250,7 @@ pub fn reindent_after_typing(
 
 #[cfg(test)]
 mod tests {
-    use super::{backspace_counts, opener_indent, smart_enter_edit};
+    use super::{backspace_counts, opener_indent, python_opener_indent, smart_enter_edit};
     use crate::indentation::IndentStyle;
 
     const TWO: IndentStyle = IndentStyle {
@@ -242,6 +286,27 @@ mod tests {
             Some("")
         );
         assert_eq!(opener_indent("ruby", "puts 1\n"), None);
+    }
+
+    #[test]
+    fn python_keywords_find_their_statement() {
+        let text = "def go():\n    if a:\n        x\n";
+        assert_eq!(python_opener_indent("elif", "        ", text), Some("    "));
+        assert_eq!(python_opener_indent("else", "        ", text), Some("    "));
+        let nested = "if a:\n    if b:\n        c\n";
+        assert_eq!(
+            python_opener_indent("else", "", nested),
+            Some(""),
+            "never moves right"
+        );
+        assert_eq!(python_opener_indent("else", "        ", nested), Some("    "));
+        let tried = "try:\n    x\nexcept E:\n    y\n    # note\n";
+        assert_eq!(python_opener_indent("finally", "    ", tried), Some(""));
+        assert_eq!(python_opener_indent("except", "    ", "x = 1\n    y\n"), None);
+        assert_eq!(
+            python_opener_indent("else", "    ", "for i in r:\n    y\n"),
+            Some("")
+        );
     }
 
     #[test]

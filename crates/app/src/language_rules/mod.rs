@@ -164,7 +164,8 @@ pub fn closing_insert(language: &str, before: &str, after: &str) -> Option<Strin
     Some(format!("\n{indent}{keyword}"))
 }
 
-/// The block language of an editor language, for languages whose blocks end in keywords.
+/// The block language of an editor language, for languages whose blocks end or continue
+/// with keywords.
 /// ERB is Ruby inside HTML, where a closing `end` needs its own `<% %>`.
 pub fn block_language(editor_language: &str) -> Option<&'static str> {
     match editor_language {
@@ -172,6 +173,8 @@ pub fn block_language(editor_language: &str) -> Option<&'static str> {
         "lua" => Some("lua"),
         "ex" | "exs" | "elixir" => Some("elixir"),
         "sh" | "bash" => Some("sh"),
+        // No closing keyword, but `elif` / `else` / `except` / `finally` line up as typed.
+        "py" | "python" => Some("python"),
         _ => None,
     }
 }
