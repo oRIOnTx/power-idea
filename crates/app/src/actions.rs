@@ -486,6 +486,10 @@ fn default_keymap() -> Vec<KeyBinding> {
         // As in Claude Code's own JetBrains plugin.
         KeyBinding::new("cmd-escape", ToggleClaude, ws),
         KeyBinding::new("cmd-0", ToggleCommitView, ws),
+        // Code zoom; `cmd-+` is the same key with Shift on layouts that need it.
+        KeyBinding::new("cmd-=", crate::editor_zoom::IncreaseEditorFontSize, ws),
+        KeyBinding::new("cmd-+", crate::editor_zoom::IncreaseEditorFontSize, ws),
+        KeyBinding::new("cmd--", crate::editor_zoom::DecreaseEditorFontSize, ws),
         KeyBinding::new("cmd-,", OpenSettings, ws),
         KeyBinding::new("cmd-k", CommitChanges, ws),
         KeyBinding::new("cmd-shift-k", Push, ws),
