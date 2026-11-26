@@ -27,6 +27,7 @@ mod quit_guard;
 mod recovery;
 mod session;
 mod settings;
+mod single_instance;
 mod style;
 mod terminal;
 mod tree_selection;
@@ -243,16 +244,24 @@ fn main() {
     ) {
         return;
     }
-    install_panic_log();
-    let config = Config::load();
-    start_error_journal(&config);
-    inherit_login_shell_path();
     // `power-idea <folder or files…>`; Finder may add its own `-psn_…` argument.
     let arg_paths: Vec<PathBuf> = std::env::args()
         .skip(1)
         .map(PathBuf::from)
         .filter(|p| p.exists())
         .collect();
+    // Only one copy runs: a later launch hands its paths to it and exits.
+    let instance =
+        single_instance::socket_path().and_then(|socket| single_instance::acquire(&socket, &arg_paths));
+    let instance = match instance {
+        Some(single_instance::Launch::Forwarded) => return,
+        Some(single_instance::Launch::First(listener)) => Some(listener),
+        None => None,
+    };
+    install_panic_log();
+    let config = Config::load();
+    start_error_journal(&config);
+    inherit_login_shell_path();
     let open_requests = open_files::OpenRequests::default();
 
     let app = application().with_assets(assets::Assets);
@@ -272,6 +281,9 @@ fn main() {
         claude::init(cx);
         actions::bind_keys(cx);
         mcp_bridge::start(cx);
+        if let Some(listener) = instance {
+            single_instance::listen(listener, cx);
+        }
         menus::install(cx);
 
         cx.on_action(|_: &Quit, cx| workspace::request_quit(cx));
@@ -280,6 +292,7 @@ fn main() {
             projects::remember_open_projects(cx);
             workspace::store_recovery(cx);
             error_journal::shutdown();
+            single_instance::release();
             async {}
         })
         .detach();

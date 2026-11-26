@@ -409,6 +409,10 @@ is in the working tree only.
       activity bar at the window's right edge (`workspace/right_sidebar.rs`); the open right panel is resizable
       and saved per project (`right_sidebar` in workspace.toml; old `sidebar = "docker"` etc. migrate)
 
+- [x] Single instance (`single_instance.rs`): the first copy listens on `<config>/instance.sock` (0600);
+      a later launch (`power-idea <paths>`, `open -n`, a second click) hands its folders / files to it, brings
+      it to the front and exits. Stale sockets are taken over; debug builds use `instance-dev.sock`
+
 ## Backlog
 - GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted
 
