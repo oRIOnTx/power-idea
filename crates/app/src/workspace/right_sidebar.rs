@@ -8,6 +8,24 @@ use gpui_kit::*;
 use super::{Workspace, remote};
 use crate::style;
 
+pub(super) const DEFAULT_WIDTH: Pixels = px(300.);
+const WIDTH_RANGE: (f32, f32) = (200., 700.);
+
+/// Dragging the right sidebar's left edge.
+#[derive(Clone)]
+struct ResizeRight;
+
+impl Render for ResizeRight {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div()
+    }
+}
+
+/// The new width when the left edge of a sidebar ending at `right` is dragged to `x`.
+fn dragged_width(right: f32, x: f32) -> f32 {
+    (right - x).clamp(WIDTH_RANGE.0, WIDTH_RANGE.1)
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum RightPanel {
     Database,
@@ -169,6 +187,38 @@ impl Workspace {
             ))
     }
 
+    /// The right sidebar as a column of its own beside the editor (like the left one),
+    /// resizable by dragging its left edge.
+    pub(super) fn render_right_column(&self, panel: RightPanel, cx: &mut Context<Self>) -> impl IntoElement {
+        let (border, accent) = (cx.theme().border, cx.theme().primary);
+        div()
+            .id("right-sidebar")
+            .relative()
+            .flex_none()
+            .h_full()
+            .w(self.right_width)
+            .border_l_1()
+            .border_color(border)
+            .on_drag_move(cx.listener(|ws, event: &DragMoveEvent<ResizeRight>, _, cx| {
+                let width = dragged_width(f32::from(event.bounds.right()), f32::from(event.event.position.x));
+                ws.right_width = px(width);
+                cx.notify();
+            }))
+            .child(self.render_right_sidebar(panel, cx))
+            .child(
+                div()
+                    .id("right-sidebar-handle")
+                    .absolute()
+                    .left(px(-3.))
+                    .top_0()
+                    .h_full()
+                    .w(px(6.))
+                    .cursor_col_resize()
+                    .hover(move |s| s.bg(accent.opacity(0.3)))
+                    .on_drag(ResizeRight, |_, _, _, cx| cx.new(|_| ResizeRight)),
+            )
+    }
+
     /// The open right tool window: header and body.
     pub(super) fn render_right_sidebar(&self, panel: RightPanel, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
@@ -198,6 +248,13 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::RightPanel;
+
+    #[test]
+    fn drag_width_is_clamped() {
+        assert_eq!(super::dragged_width(1000., 700.), 300.);
+        assert_eq!(super::dragged_width(1000., 950.), 200.);
+        assert_eq!(super::dragged_width(1000., 100.), 700.);
+    }
 
     #[test]
     fn names_round_trip() {

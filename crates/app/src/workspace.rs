@@ -204,6 +204,8 @@ pub struct Workspace {
     insights: Option<insights_panel::InsightsState>,
     /// The open right-sidebar tool window (Database, Docker, Remote Files), if any.
     right_panel: Option<right_sidebar::RightPanel>,
+    /// Width of the right sidebar (dragged at its left edge).
+    right_width: Pixels,
     /// Remote Files tool window; created when first opened.
     remote: Option<remote::RemoteState>,
     /// GitHub Actions tab; created the first time it opens, kept (and polling slowly for the
@@ -344,6 +346,7 @@ impl Workspace {
             insights: None,
             remote: None,
             right_panel: None,
+            right_width: right_sidebar::DEFAULT_WIDTH,
             ci: None,
             usages: None,
             watcher: None,
@@ -536,22 +539,7 @@ impl Render for Workspace {
             None => self.render_empty_state(window, cx).into_any_element(),
         };
 
-        // Left sidebar | editor | right sidebar, all in one row. Panel sizes are kept by
-        // position, so each combination of open sidebars has its own group (ids stay stable).
-        let group = match (self.show_project_view, self.right_panel.is_some()) {
-            (true, true) => "workspace-both",
-            (true, false) => "workspace",
-            (false, true) => "workspace-right",
-            (false, false) => "workspace-center",
-        };
-        let right = self.right_panel.map(|panel| {
-            resizable_panel()
-                .size(px(300.))
-                .size_range(px(200.)..px(700.))
-                .fixed()
-                .child(self.render_right_sidebar(panel, cx))
-        });
-        let mut body = h_resizable(group);
+        let mut body = h_resizable("workspace");
         if self.show_project_view {
             body = body.child(
                 resizable_panel()
@@ -584,19 +572,13 @@ impl Render for Workspace {
         };
         let body = match bottom {
             Some(bottom) if cx.global::<AppConfig>().0.bottom_panel_full_width => with_bottom(
-                body.child(resizable_panel().child(center))
-                    .children(right)
-                    .into_any_element(),
+                body.child(resizable_panel().child(center)).into_any_element(),
                 bottom,
             ),
             Some(bottom) => body
                 .child(resizable_panel().child(with_bottom(center, bottom)))
-                .children(right)
                 .into_any_element(),
-            None => body
-                .child(resizable_panel().child(center))
-                .children(right)
-                .into_any_element(),
+            None => body.child(resizable_panel().child(center)).into_any_element(),
         };
 
         let root = v_flex()
@@ -612,7 +594,10 @@ impl Render for Workspace {
                     .flex_1()
                     .overflow_hidden()
                     .child(self.render_activity_bar(cx))
-                    .child(div().flex_1().h_full().overflow_hidden().child(body))
+                    // `min_w_0`: the editor area shrinks for the right sidebar instead of
+                    // pushing it out of the window.
+                    .child(div().flex_1().min_w_0().h_full().overflow_hidden().child(body))
+                    .children(self.right_panel.map(|panel| self.render_right_column(panel, cx)))
                     .child(self.render_right_activity_bar(cx)),
             )
             .child(self.render_status_bar(cx));
