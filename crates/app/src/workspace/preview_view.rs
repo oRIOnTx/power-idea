@@ -104,7 +104,13 @@ impl Workspace {
             .key_context(CODE_EDITOR_CONTEXT)
             .size_full()
             .overflow_hidden()
-            .child(Editor::new(&tab.state).bordered(false).size_full())
+            .child(
+                Editor::new(&tab.state)
+                    .bordered(false)
+                    .size_full()
+                    // Code shows `!=`, `<=`, `>=` as typed, not as `≠`, `≤`, `≥` ligatures.
+                    .font_features(FontFeatures::disable_ligatures()),
+            )
             .into_any_element();
         let Some(preview) = &tab.preview else {
             return editor;

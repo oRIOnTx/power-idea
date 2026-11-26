@@ -254,7 +254,11 @@ impl TerminalView {
     fn font(cx: &App) -> (Font, Pixels) {
         let theme = cx.theme();
         let size = px(cx.global::<AppConfig>().0.editor_font_size);
-        (font(theme.mono_font_family.clone()), size)
+        let font = Font {
+            features: FontFeatures::disable_ligatures(),
+            ..font(theme.mono_font_family.clone())
+        };
+        (font, size)
     }
 
     fn measure(window: &Window, cx: &App) -> CellMetrics {

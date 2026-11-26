@@ -304,9 +304,12 @@ impl Render for QueryConsole {
             .child(
                 v_resizable("console")
                     .child(
-                        resizable_panel()
-                            .size(px(220.))
-                            .child(Editor::new(&self.editor).bordered(false).size_full()),
+                        resizable_panel().size(px(220.)).child(
+                            Editor::new(&self.editor)
+                                .bordered(false)
+                                .size_full()
+                                .font_features(FontFeatures::disable_ligatures()),
+                        ),
                     )
                     .child(
                         resizable_panel().child(
