@@ -107,6 +107,24 @@ fn smart_enter_edit(
     Some((caret..line_end, body + &closing, caret_after))
 }
 
+/// Python: Enter on a blank, indented line leaves the block. The blank line loses its
+/// whitespace and the new line starts one level out, so two Enters after a body end it.
+fn python_blank_enter_edit(text: &str, caret: usize, unit: &str) -> Option<(Range<usize>, String, usize)> {
+    let line_start = text[..caret].rfind('\n').map_or(0, |ix| ix + 1);
+    let line_end = text[caret..].find('\n').map_or(text.len(), |ix| caret + ix);
+    let line = &text[line_start..line_end];
+    if line.is_empty() || !line.chars().all(|c| c == ' ' || c == '\t') {
+        return None;
+    }
+    let indent = &text[line_start..caret];
+    let outer = indent
+        .strip_suffix(unit)
+        .or_else(|| indent.strip_suffix('\t'))
+        .unwrap_or_else(|| indent.trim_end_matches(' '));
+    let insert = format!("\n{outer}");
+    Some((line_start..line_end, insert.clone(), line_start + insert.len()))
+}
+
 /// Backspace in `line` with the caret at byte `column`: on a blank line, the characters to
 /// delete forward and backward to remove the line (the caret ends on the line above); in
 /// indentation before code, backward to the previous indent stop. `None` is a plain Backspace.
@@ -153,7 +171,12 @@ pub fn smart_enter(
         " ".repeat(indent.size)
     };
     let text = state.text().to_string();
-    let Some((range, insert, caret)) = smart_enter_edit(language, &text, selection.start, &unit) else {
+    let edit = if language == "python" {
+        python_blank_enter_edit(&text, selection.start, &unit)
+    } else {
+        smart_enter_edit(language, &text, selection.start, &unit)
+    };
+    let Some((range, insert, caret)) = edit else {
         return false;
     };
     // One replacement, so a single ⌘Z takes back the line break and the closing keyword.
@@ -250,7 +273,9 @@ pub fn reindent_after_typing(
 
 #[cfg(test)]
 mod tests {
-    use super::{backspace_counts, opener_indent, python_opener_indent, smart_enter_edit};
+    use super::{
+        backspace_counts, opener_indent, python_blank_enter_edit, python_opener_indent, smart_enter_edit,
+    };
     use crate::indentation::IndentStyle;
 
     const TWO: IndentStyle = IndentStyle {
@@ -307,6 +332,26 @@ mod tests {
             python_opener_indent("else", "    ", "for i in r:\n    y\n"),
             Some("")
         );
+    }
+
+    #[test]
+    fn python_enter_on_a_blank_line_leaves_the_block() {
+        let text = "if a:\n    x\n    ";
+        let caret = text.len();
+        let (range, insert, after) = python_blank_enter_edit(text, caret, "    ").unwrap();
+        assert_eq!(range, caret - 4..caret);
+        assert_eq!(insert, "\n");
+        assert_eq!(after, caret - 4 + 1);
+        let nested = "def f():\n    if a:\n        x\n        \ny = 1\n";
+        let caret = nested.find("x\n").unwrap() + 2 + 8;
+        let (_, insert, _) = python_blank_enter_edit(nested, caret, "    ").unwrap();
+        assert_eq!(insert, "\n    ");
+        assert_eq!(
+            python_blank_enter_edit("if a:\n    x", 11, "    "),
+            None,
+            "after code"
+        );
+        assert_eq!(python_blank_enter_edit("x\n", 2, "    "), None, "empty line");
     }
 
     #[test]
