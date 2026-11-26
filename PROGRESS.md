@@ -370,6 +370,15 @@ is in the working tree only.
 - [x] Copy Path From Project Root in the tab context menu; tree/tab "Copy Path" renamed Copy Absolute Path;
       actions Copy Absolute Path (⇧⌘C) and Copy Path From Project Root (Edit menu, Find Action) for the active file
 
+- [x] Remote Files core (`crates/remote`): `RemoteFs` trait (list, stat, streaming download/upload with
+      progress + cancel, rename, delete (recursive), mkdir, chmod); SFTP via russh + russh-sftp (password,
+      private key + passphrase, ssh-agent; host keys checked against known_hosts, unknown / changed keys are
+      errors carrying the fingerprint; keepalive 15 s × 3), FTP / FTPS (explicit TLS, rustls + system roots)
+      via suppaftp; self-healing `Connection` (3 reconnects with backoff, retries the operation once); sites in
+      `remote-sites.toml`, secrets in the Keychain (Security framework, never argv), `~/.ssh/config` import,
+      conflict check (size + mtime), cache paths, recursive transfer plans, speed meter. Live tests against
+      `atmoz/sftp` and `delfer/alpine-ftp-server`: `cargo test -p remote --test live -- --ignored`
+
 ## Backlog
 - GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted
 
