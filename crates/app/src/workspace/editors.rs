@@ -430,7 +430,11 @@ impl Workspace {
         let hint = server.install_hint.clone();
 
         Some(
+            // Wraps when the editor is narrow (e.g. beside the right sidebar), so the
+            // buttons move to the next line instead of being cut off at the edge.
             h_flex()
+                .w_full()
+                .flex_wrap()
                 .px_3()
                 .py_1p5()
                 .gap_2()
@@ -439,10 +443,10 @@ impl Workspace {
                 .border_b_1()
                 .border_color(theme.primary.opacity(0.25))
                 .child(style::signal_dot(theme.primary))
-                .child(format!(
+                .child(div().flex_1().min_w(px(160.)).child(format!(
                     "Code insight for {extension} files needs {}.",
                     server.command
-                ))
+                )))
                 .when(!hint.is_empty(), |el| {
                     el.child(
                         div()
@@ -454,7 +458,6 @@ impl Workspace {
                             .child(hint.clone()),
                     )
                 })
-                .child(div().flex_1())
                 .when(!hint.is_empty(), |el| {
                     let command = hint.clone();
                     el.child(
