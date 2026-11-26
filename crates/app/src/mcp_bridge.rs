@@ -374,6 +374,34 @@ fn tools() -> Vec<Tool> {
             input_schema: schema(json!({ "run_id": { "type": "integer" } }), &["run_id"]),
         },
         Tool {
+            name: crate::workspace::remote_mcp::LIST_SITES,
+            description: "Remote Files sites the user allowed AI read access to, with whether each is connected. Read-only.",
+            input_schema: schema(json!({}), &[]),
+        },
+        Tool {
+            name: crate::workspace::remote_mcp::LIST_DIR,
+            description: "List a folder on a connected remote site (SFTP/FTP): name, type, size, modified (Unix seconds), permissions. Read-only; only sites with AI read access.",
+            input_schema: schema(
+                json!({
+                    "site": { "type": "string", "description": "Site name from remote_list_sites." },
+                    "path": { "type": "string", "description": "Absolute path on the server." },
+                }),
+                &["site", "path"],
+            ),
+        },
+        Tool {
+            name: crate::workspace::remote_mcp::READ_FILE,
+            description: "Read a text file on a connected remote site (up to 512 KB; `truncated` says if it was cut). Read-only; only sites with AI read access.",
+            input_schema: schema(
+                json!({
+                    "site": { "type": "string" },
+                    "path": { "type": "string", "description": "Absolute path on the server." },
+                    "max_bytes": { "type": "integer", "maximum": 524_288 },
+                }),
+                &["site", "path"],
+            ),
+        },
+        Tool {
             name: "open_file",
             description: "Open a file in the IDE editor, optionally at a 1-based line and column, and focus the window.",
             input_schema: schema(

@@ -105,6 +105,9 @@ impl Workspace {
         }))
         .on_action(cx.listener(|this, _: &ClaudeRestartSession, w, cx| this.restart_current_claude(w, cx)))
         .on_action(cx.listener(|this, _: &ClaudeCloseSession, w, cx| this.close_current_claude(w, cx)))
+        .on_action(cx.listener(|this, _: &ToggleRemoteView, w, cx| this.toggle_remote(w, cx)))
+        .on_action(cx.listener(|this, _: &NewRemoteSite, w, cx| this.new_remote_site(w, cx)))
+        .on_action(cx.listener(|this, action: &RemoteAction, w, cx| this.handle_remote_action(action, w, cx)))
         .on_action(cx.listener(|this, _: &ToggleDatabaseView, _, cx| {
             this.toggle_left_panel(LeftPanel::Database, cx);
         }))

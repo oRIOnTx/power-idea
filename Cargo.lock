@@ -5804,6 +5804,7 @@ dependencies = [
  "notify",
  "objc2 0.6.5",
  "regex",
+ "remote",
  "run",
  "search",
  "serde",

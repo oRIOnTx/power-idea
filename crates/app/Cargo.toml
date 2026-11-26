@@ -20,6 +20,7 @@ extensions = { path = "../extensions" }
 claude_integration = { path = "../claude_integration" }
 ci = { path = "../ci" }
 error_journal = { path = "../error_journal" }
+remote = { path = "../remote" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 notify.workspace = true

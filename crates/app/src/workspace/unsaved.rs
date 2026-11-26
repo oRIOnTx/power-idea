@@ -30,7 +30,7 @@ pub(crate) fn store_recovery(cx: &mut App) {
                 .tabs
                 .iter()
                 .filter_map(|tab| tab.editor())
-                .filter(|tab| !discard && tab.is_dirty(cx))
+                .filter(|tab| tab.remote.is_none() && !discard && tab.is_dirty(cx))
                 .map(|tab| (tab.rel.clone(), tab.state.read(cx).value().to_string()))
                 .collect();
             (ws.root.clone(), files)

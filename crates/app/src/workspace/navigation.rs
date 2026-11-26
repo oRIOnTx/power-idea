@@ -242,7 +242,8 @@ impl Workspace {
         let Some(CenterTab::Editor(tab)) = self.tabs.get(ix) else {
             return;
         };
-        if tab.lsp.is_some() {
+        // Remote files are cached copies outside the project: no server knows them.
+        if tab.lsp.is_some() || tab.remote.is_some() {
             return;
         }
         let language = editor::canonical_language(&tab.language).to_string();

@@ -378,6 +378,32 @@ is in the working tree only.
       `remote-sites.toml`, secrets in the Keychain (Security framework, never argv), `~/.ssh/config` import,
       conflict check (size + mtime), cache paths, recursive transfer plans, speed meter. Live tests against
       `atmoz/sftp` and `delfer/alpine-ftp-server`: `cargo test -p remote --test live -- --ignored`
+- [x] **Remote Files tool window** (⌘7, activity bar "server" icon, View menu, Find Action; `workspace/remote/`):
+      site picker with connected / connecting / dropped / error dot and label color, New / Edit Site dialog
+      (SFTP: ssh-agent, private key + passphrase, password; FTP / FTPS: password; Test Connection; secrets to
+      the Keychain; two-step Delete Site), Import from ~/.ssh/config; lazily loaded tree (folders load on
+      expand), parent / breadcrumbs / editable path bar (Enter: folder → root, file → open), filter of the
+      current folder, hidden files toggle, sort by name / size / date, tooltip with size, date, permissions,
+      owner. Context menu: Open, Download to…, Upload Here…, New File / Folder, Rename, Delete (confirmed,
+      permanent), Copy Remote Path, Permissions (chmod dialog: 9 checkboxes + octal), Refresh, Open as Root,
+      Open Terminal Here and Tail Log (system `ssh` in a terminal tab, SFTP only)
+- [x] Remote files in editor tabs: downloaded to `~/Library/Caches/power-idea/remote/<site>/…`, tab shows
+      `site:` + server icon (site color), tooltip `site:/path`; ⌘S keeps the local copy and uploads in the
+      background after a size + mtime check; on a server-side change: Show Diff (side-by-side, `git diff
+      --no-index`) / Reload from Server / Overwrite / Cancel. The tab stays modified until the upload succeeds
+      (spinner while uploading, red mark + reason when not synced), so close / quit guards protect unsynced
+      work; closing the project uploads remote tabs too (a conflict stops the close). Back / Recent Files reopen
+      remote tabs; no LSP, extensions or session restore for them. Tab menu: Copy Remote Path, Show in Remote
+      Files, Reload from Server, Download to…; ⇧⌘C copies the server path
+- [x] Transfer queue under the tree: recursive upload / download, progress, speed, files done, cancel (no
+      partial `.part` files left), retry, clear finished. Drag and drop: Finder or project rows → remote folder
+      uploads; remote row → project folder downloads
+- [x] Errors: plain-language notifications; real errors (with context, never secrets) go to the error journal;
+      a dropped link marks the site and the next action reconnects (≤ 3 attempts)
+- [x] MCP (read-only): `remote_list_sites`, `remote_list_dir`, `remote_read_file` (≤ 512 KB) — only sites
+      with "AI read access" turned on in the site dialog and only while connected; no write tools
+- [ ] Remote Files UI not clicked through by hand (no UI automation here); FTPS not live-tested (the
+      FTP container has no certificate); Keychain may ask to allow access after a rebuild (new signature)
 
 ## Backlog
 - GitHub Actions: `ci_rerun_failed` MCP tool behind a setting (off by default), if ever wanted

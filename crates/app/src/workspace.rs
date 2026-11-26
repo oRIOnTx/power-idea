@@ -57,6 +57,7 @@ mod navigation;
 mod pinned_tabs;
 mod preview_view;
 mod push_dialog;
+mod remote;
 mod replace_in_files;
 mod run_configs;
 mod save_on_close;
@@ -70,6 +71,7 @@ mod usages_panel;
 mod window_tabs;
 
 pub(crate) use insights_panel::clear_insights;
+pub(crate) use remote::mcp as remote_mcp;
 pub(crate) use unsaved::{request_quit, store_recovery};
 
 const MAX_RECENT_FILES: usize = 50;
@@ -151,6 +153,7 @@ enum LeftPanel {
     Commit,
     Database,
     Docker,
+    Remote,
     Insights,
 }
 
@@ -201,6 +204,8 @@ pub struct Workspace {
     docker: Option<docker_panel::DockerState>,
     /// Claude Session Insights; created the first time the panel opens.
     insights: Option<insights_panel::InsightsState>,
+    /// Remote Files tool window; created when first opened.
+    remote: Option<remote::RemoteState>,
     /// GitHub Actions tab; created the first time it opens, kept (and polling slowly for the
     /// HEAD badge) after its tab closes.
     ci: Option<ci_tab::CiHandle>,
@@ -337,6 +342,7 @@ impl Workspace {
             debug: None,
             docker: None,
             insights: None,
+            remote: None,
             ci: None,
             usages: None,
             watcher: None,

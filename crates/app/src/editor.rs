@@ -24,7 +24,33 @@ pub struct EditorTab {
     /// Breakpoint marks in the gutter and the debugger's paused-line highlight.
     pub breakpoint_marks: Option<component::input::GutterDecorationCollection>,
     pub execution_mark: Option<component::input::RangeDecorationCollection>,
+    /// Set for a file opened from a server (Remote Files): `path` is then its local cache copy.
+    pub remote: Option<RemoteFile>,
     pub _subscriptions: Vec<Subscription>,
+}
+
+/// Where a remote editor tab's file lives and whether the server has our last save.
+pub struct RemoteFile {
+    pub site_id: String,
+    pub site_name: String,
+    /// Absolute path on the server.
+    pub path: String,
+    /// The server's size and mtime when opened or last uploaded (for the conflict check).
+    pub snapshot: Option<remote::conflict::Snapshot>,
+    pub sync: RemoteSync,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RemoteSync {
+    Synced,
+    Uploading,
+    /// The last upload failed; local changes are kept and the tab stays modified.
+    NotSynced(String),
+}
+
+/// The tab id of a remote file: `site name:/remote/path` (never a valid project path).
+pub fn remote_rel(site_name: &str, path: &str) -> String {
+    format!("{site_name}:{path}")
 }
 
 impl EditorTab {

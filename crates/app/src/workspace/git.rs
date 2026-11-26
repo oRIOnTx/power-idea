@@ -396,7 +396,7 @@ impl Workspace {
         .detach();
     }
 
-    fn show_diff_tab(
+    pub(super) fn show_diff_tab(
         &mut self,
         key: String,
         title: String,

@@ -8,6 +8,7 @@ use gpui_kit::component::kbd::Kbd;
 use gpui_kit::component::menu::ContextMenuExt as _;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::tab::{Tab, TabBar};
+use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{ActiveTheme as _, IconName, Sizable as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
@@ -39,6 +40,10 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // Back / Forward and Recent Files hand remote tabs back here by their `site:/path` id.
+        if self.open_remote_rel(rel, window, cx) {
+            return;
+        }
         let path = self.root.join(rel);
         if path.is_dir() {
             return;
@@ -65,49 +70,7 @@ impl Workspace {
                     return;
                 }
             };
-            let language = editor::language_for(&path);
-            let indent = self.indent_style(&path, &language, cx);
-            let state = editor::new_editor_state(text.clone(), &language, indent, window, cx);
-            self.open_buffers.borrow_mut().push(state.downgrade());
-            let (own, buffers) = (state.entity_id(), self.open_buffers.clone());
-            state.update(cx, |state, _| {
-                WordCompletion::install(state, &language, own, buffers);
-            });
-            let subscriptions = vec![
-                cx.subscribe(&state, |this, state, event: &InputEvent, cx| {
-                    if let InputEvent::Change = event {
-                        this.lsp_did_change(&state, cx);
-                        this.send_file_changed(&state, cx);
-                    }
-                    cx.notify();
-                }),
-                cx.observe(&state, |_, _, cx| cx.notify()),
-                cx.subscribe_in(&state, window, {
-                    let language = language.clone();
-                    let pending = std::cell::RefCell::new(None);
-                    move |_, state, event: &InputEditsEvent, window, cx| {
-                        state.update(cx, |state, cx| {
-                            language_rules::reindent_after_typing(
-                                state, &language, event, &pending, window, cx,
-                            );
-                        });
-                    }
-                }),
-            ];
-            let preview = preview::preview_kind(&path).map(Preview::new);
-            self.tabs.push(CenterTab::Editor(EditorTab {
-                path,
-                rel: rel.to_string(),
-                state,
-                language,
-                saved_text: text.into(),
-                lsp: None,
-                preview,
-                breakpoint_marks: None,
-                execution_mark: None,
-                _subscriptions: subscriptions,
-            }));
-            let ix = self.tabs.len() - 1;
+            let ix = self.push_editor_tab(path, rel.to_string(), text, None, window, cx);
             self.attach_language_server(ix, cx);
             self.send_extension_event("file_opened", rel, cx);
             let path = self.root.join(rel);
@@ -120,6 +83,61 @@ impl Workspace {
         if let Some((line, column)) = position {
             self.goto_line(line as u32, column as u32, window, cx);
         }
+    }
+
+    /// Adds an editor tab for `text` (read from `path`); returns its index. Language servers,
+    /// extensions and breakpoints are the caller's business (remote files get none of them).
+    pub(super) fn push_editor_tab(
+        &mut self,
+        path: std::path::PathBuf,
+        rel: String,
+        text: String,
+        remote: Option<editor::RemoteFile>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> usize {
+        let language = editor::language_for(&path);
+        let indent = self.indent_style(&path, &language, cx);
+        let state = editor::new_editor_state(text.clone(), &language, indent, window, cx);
+        self.open_buffers.borrow_mut().push(state.downgrade());
+        let (own, buffers) = (state.entity_id(), self.open_buffers.clone());
+        state.update(cx, |state, _| {
+            WordCompletion::install(state, &language, own, buffers);
+        });
+        let subscriptions = vec![
+            cx.subscribe(&state, |this, state, event: &InputEvent, cx| {
+                if let InputEvent::Change = event {
+                    this.lsp_did_change(&state, cx);
+                    this.send_file_changed(&state, cx);
+                }
+                cx.notify();
+            }),
+            cx.observe(&state, |_, _, cx| cx.notify()),
+            cx.subscribe_in(&state, window, {
+                let language = language.clone();
+                let pending = std::cell::RefCell::new(None);
+                move |_, state, event: &InputEditsEvent, window, cx| {
+                    state.update(cx, |state, cx| {
+                        language_rules::reindent_after_typing(state, &language, event, &pending, window, cx);
+                    });
+                }
+            }),
+        ];
+        let preview = preview::preview_kind(&path).map(Preview::new);
+        self.tabs.push(CenterTab::Editor(EditorTab {
+            path,
+            rel,
+            state,
+            language,
+            saved_text: text.into(),
+            lsp: None,
+            preview,
+            breakpoint_marks: None,
+            execution_mark: None,
+            remote,
+            _subscriptions: subscriptions,
+        }));
+        self.tabs.len() - 1
     }
 
     /// How `path` (an editor for `language`) is indented: `.editorconfig`, the project's
@@ -140,10 +158,13 @@ impl Workspace {
         match tab {
             CenterTab::Editor(tab) => {
                 let rel = tab.rel.clone();
+                let local = tab.remote.is_none();
                 tab.state.update(cx, |state, cx| state.focus(window, cx));
                 // A server installed since the file was opened starts once you come back to it.
                 self.attach_language_server(ix, cx);
-                self.send_extension_event("active_editor_changed", &rel, cx);
+                if local {
+                    self.send_extension_event("active_editor_changed", &rel, cx);
+                }
                 self.recent_files.retain(|r| *r != rel);
                 self.recent_files.insert(0, rel);
                 self.recent_files.truncate(MAX_RECENT_FILES);
@@ -214,6 +235,9 @@ impl Workspace {
             return true;
         };
         let text = tab.state.read(cx).value();
+        if tab.remote.is_some() {
+            return self.save_remote_tab(ix, window, cx);
+        }
         match fs::write(&tab.path, text.as_bytes()) {
             Ok(()) => {
                 tab.saved_text = text;
@@ -275,15 +299,32 @@ impl Workspace {
             let icon = tab
                 .file_rel()
                 .map(|_| file_icons::icon_for_file(&tab.title(), cx).with_size(px(14.)));
+            let remote = tab.editor().and_then(|t| t.remote.as_ref());
             let label = h_flex()
                 .id(("tab-label", ix))
                 .gap_1p5()
                 .pl_3()
                 .pr_1()
+                .children(remote.map(|file| self.remote_tab_prefix(file, cx)))
                 .children(icon)
-                .child(title);
-            let label = match tab.file_rel().map(str::to_string) {
-                Some(rel) => {
+                .child(title)
+                .children(remote.and_then(|file| Self::remote_sync_mark(ix, file, cx)));
+            let label = match (tab.file_rel().map(str::to_string), remote) {
+                (Some(rel), Some(file)) => {
+                    let workspace = cx.entity().downgrade();
+                    let (site, path) = (file.site_id.clone(), file.path.clone());
+                    label
+                        .tooltip({
+                            let rel = rel.clone();
+                            move |window, cx| Tooltip::new(rel.clone()).build(window, cx)
+                        })
+                        .context_menu(move |menu, _, cx| match workspace.upgrade() {
+                            Some(ws) => ws.read(cx).remote_tab_menu(menu, &rel, &site, &path),
+                            None => menu,
+                        })
+                        .into_any_element()
+                }
+                (Some(rel), None) => {
                     let workspace = cx.entity().downgrade();
                     label
                         .context_menu(move |menu, _, cx| match workspace.upgrade() {
@@ -292,7 +333,7 @@ impl Workspace {
                         })
                         .into_any_element()
                 }
-                None => label.into_any_element(),
+                (None, _) => label.into_any_element(),
             };
             Tab::new().child(label).suffix(div().pr_1p5().child(
                 style::icon_button(("close-tab", ix), IconName::Close, "Close (⌘W)").on_click(cx.listener(

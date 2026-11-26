@@ -83,6 +83,8 @@ actions!(
         NavigateBack,
         NavigateForward,
         ToggleDatabaseView,
+        ToggleRemoteView,
+        NewRemoteSite,
         TogglePreview,
         FindUsages,
         GotoClass,
@@ -253,6 +255,50 @@ impl FileAction {
     }
 }
 
+/// Operations from the Remote Files tree context menu.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RemoteOp {
+    Open,
+    DownloadTo,
+    UploadHere,
+    NewFile,
+    NewFolder,
+    Rename,
+    Delete,
+    CopyPath,
+    Permissions,
+    Refresh,
+    /// Makes the folder the tree's root (and the path bar's value).
+    GoInto,
+    OpenTerminal,
+    TailLog,
+    /// Shows a remote tab's file in the Remote Files panel.
+    Reveal,
+    /// Replaces a remote tab's text with the server copy.
+    Reload,
+}
+
+/// Runs `op` on `path` (absolute, on the server) of the site `site`.
+#[derive(Clone, Debug, PartialEq, Eq, Action)]
+#[action(namespace = remote, no_json)]
+pub struct RemoteAction {
+    pub op: RemoteOp,
+    pub site: SharedString,
+    pub path: SharedString,
+    pub is_dir: bool,
+}
+
+impl RemoteAction {
+    pub fn boxed(op: RemoteOp, site: &str, path: &str, is_dir: bool) -> Box<dyn Action> {
+        Box::new(Self {
+            op,
+            site: site.to_string().into(),
+            path: path.to_string().into(),
+            is_dir,
+        })
+    }
+}
+
 /// Operations from the terminal tab context menu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TerminalTabOp {
@@ -350,6 +396,8 @@ pub fn palette_actions() -> Vec<(&'static str, Box<dyn Action>)> {
         ("Toggle Commit View", Box::new(ToggleCommitView)),
         ("Settings…", Box::new(OpenSettings)),
         ("Database", Box::new(ToggleDatabaseView)),
+        ("Remote Files", Box::new(ToggleRemoteView)),
+        ("New Remote Site…", Box::new(NewRemoteSite)),
         ("Docker", Box::new(ToggleDockerView)),
         ("GitHub Actions", Box::new(ShowGitHubActions)),
         ("Claude Session Insights", Box::new(ToggleInsightsView)),
@@ -497,6 +545,7 @@ fn default_keymap() -> Vec<KeyBinding> {
         KeyBinding::new("alt-cmd-n", NewBranch, ws),
         KeyBinding::new("cmd-9", ShowGitLog, ws),
         KeyBinding::new("cmd-8", ShowGitHubActions, ws),
+        KeyBinding::new("cmd-7", ToggleRemoteView, ws),
         KeyBinding::new("cmd-t", NewTerminal, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-w", CloseTerminal, Some(TERMINAL_CONTEXT)),
         KeyBinding::new("cmd-c", crate::terminal::Copy, Some(TERMINAL_CONTEXT)),

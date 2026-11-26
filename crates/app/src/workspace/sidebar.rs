@@ -9,7 +9,7 @@ use gpui_kit::component::{ActiveTheme as _, Icon, IconName, Selectable as _, Siz
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
-use super::{LeftPanel, Workspace, git};
+use super::{LeftPanel, Workspace, git, remote};
 use crate::actions::{OpenSettings, PROJECT_TREE_CONTEXT, ShowErrors};
 use crate::file_ops::ClipMode;
 use crate::{file_icons, style};
@@ -46,6 +46,11 @@ impl Workspace {
         let database_open = self.show_project_view && self.left_panel == LeftPanel::Database;
         let docker_open = self.show_project_view && self.left_panel == LeftPanel::Docker;
         let docker_running = self.docker.as_ref().map_or(0, |d| d.counts(&self.root).0);
+        let remote_open = self.show_project_view && self.left_panel == LeftPanel::Remote;
+        let remote_connected = self
+            .remote
+            .as_ref()
+            .map_or(0, remote::RemoteState::connected_count);
         let insights_open = self.show_project_view && self.left_panel == LeftPanel::Insights;
         let insights_enabled = Self::insights_enabled(cx);
         let ci_open = self.ci_tab_active();
@@ -166,6 +171,14 @@ impl Workspace {
                 docker_running,
                 Box::new(cx.listener(|this, _, window, cx| this.toggle_docker(window, cx))),
             ))
+            .child(slot(
+                "bar-remote",
+                style::lucide("server"),
+                "Remote Files (⌘7)",
+                remote_open,
+                remote_connected,
+                Box::new(cx.listener(|this, _, window, cx| this.toggle_remote(window, cx))),
+            ))
             .child(
                 slot(
                     "bar-ci",
@@ -262,6 +275,7 @@ impl Workspace {
             LeftPanel::Commit => "Commit".to_string(),
             LeftPanel::Database => "Database".to_string(),
             LeftPanel::Docker => "Docker".to_string(),
+            LeftPanel::Remote => "Remote Files".to_string(),
             LeftPanel::Insights => "Claude Insights".to_string(),
         };
         let header = h_flex()
@@ -278,6 +292,7 @@ impl Workspace {
             LeftPanel::Commit => self.render_commit_panel(cx),
             LeftPanel::Database => self.render_database_panel(cx),
             LeftPanel::Docker => self.render_docker_panel(cx),
+            LeftPanel::Remote => self.render_remote_panel(cx),
             LeftPanel::Insights => self.render_insights_panel(cx),
         };
         v_flex()
@@ -354,7 +369,25 @@ impl Workspace {
                             // The Tree overrides `selected` with its single cursor row, so the
                             // rest of a multi-selection is painted here.
                             let selected_bg = cx.theme().list_active;
+                            let drag = remote::ProjectDrag { rel: id.clone() };
+                            let drop_workspace = workspace.clone();
+                            let drop_rel = id.clone();
                             ListItem::new(ix)
+                                .on_drag(drag, |drag, _, _, cx| {
+                                    let name = drag.rel.rsplit('/').next().unwrap_or(&drag.rel).to_string();
+                                    cx.new(|_| remote::DragLabel(name.into()))
+                                })
+                                // A remote row dropped here downloads into this folder (or the file's folder).
+                                .on_drop(move |drag: &remote::RemoteDrag, window, cx| {
+                                    drop_workspace
+                                        .update(cx, |ws, cx| {
+                                            ws.drop_remote_on_project(drag, &drop_rel, window, cx);
+                                        })
+                                        .ok();
+                                })
+                                .drag_over::<remote::RemoteDrag>(|style, _, _, cx| {
+                                    style.bg(cx.theme().drop_target)
+                                })
                                 .selected(is_selected)
                                 .when(is_selected, |item| item.bg(selected_bg))
                                 .py(px(1.))

@@ -180,6 +180,13 @@ impl Workspace {
     /// ⇧⌘C / Find Action: copies the active file's path, absolute or from the project root.
     pub(super) fn copy_active_path(&mut self, op: FileOp, window: &mut Window, cx: &mut Context<Self>) {
         let tab = self.active_tab.and_then(|ix| self.tabs.get(ix));
+        // A remote file has one meaningful path: the one on the server.
+        if let Some(file) = tab.and_then(CenterTab::editor).and_then(|t| t.remote.as_ref()) {
+            let path = file.path.clone();
+            cx.write_to_clipboard(ClipboardItem::new_string(path.clone()));
+            window.push_notification(Notification::info(path).title("Copied"), cx);
+            return;
+        }
         let Some(rel) = tab.and_then(CenterTab::file_rel).map(str::to_string) else {
             return;
         };

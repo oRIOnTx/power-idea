@@ -22,6 +22,7 @@ fn panel_name(panel: LeftPanel) -> &'static str {
         LeftPanel::Commit => "commit",
         LeftPanel::Database => "database",
         LeftPanel::Docker => "docker",
+        LeftPanel::Remote => "remote",
         LeftPanel::Insights => "insights",
     }
 }
@@ -31,6 +32,7 @@ fn panel_from_name(name: &str) -> LeftPanel {
         "commit" => LeftPanel::Commit,
         "database" => LeftPanel::Database,
         "docker" => LeftPanel::Docker,
+        "remote" => LeftPanel::Remote,
         "insights" => LeftPanel::Insights,
         _ => LeftPanel::Project,
     }
@@ -59,6 +61,8 @@ impl Workspace {
         let mut active = None;
         for (ix, tab) in self.tabs.iter().enumerate() {
             let entry = match tab {
+                // A remote file needs a live connection: it is not reopened on start.
+                CenterTab::Editor(tab) if tab.remote.is_some() => continue,
                 CenterTab::Editor(tab) => {
                     let cursor = tab.state.read(cx).cursor_position();
                     SessionTab {
@@ -121,6 +125,9 @@ impl Workspace {
         // The Docker panel connects lazily; reopened, it should connect right away.
         if self.show_project_view && self.left_panel == LeftPanel::Docker {
             self.ensure_docker(window, cx);
+        }
+        if self.show_project_view && self.left_panel == LeftPanel::Remote {
+            self.ensure_remote(window, cx);
         }
         if self.show_project_view && self.left_panel == LeftPanel::Insights {
             if Self::insights_enabled(cx) {
@@ -255,6 +262,7 @@ mod tests {
             LeftPanel::Commit,
             LeftPanel::Database,
             LeftPanel::Docker,
+            LeftPanel::Remote,
             LeftPanel::Insights,
         ] {
             assert!(panel_from_name(panel_name(panel)) == panel);

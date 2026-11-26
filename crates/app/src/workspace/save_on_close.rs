@@ -18,6 +18,8 @@ struct PendingFile {
     rel: String,
     path: PathBuf,
     text: SharedString,
+    /// Remote tabs also go to the server (after the conflict check).
+    upload: Option<super::remote::RemoteUpload>,
 }
 
 /// Content of the "Saving files" dialog.
@@ -78,6 +80,7 @@ impl Workspace {
                 rel: tab.rel.clone(),
                 path: tab.path.clone(),
                 text: tab.state.read(cx).value(),
+                upload: self.remote_upload_for(tab),
             })
             .collect();
         let Some(first) = files.first().map(|f| f.rel.clone()) else {
@@ -102,21 +105,27 @@ impl Workspace {
 
         cx.spawn_in(window, async move |this, cx| {
             let started = Instant::now();
-            for file in files {
+            for mut file in files {
                 progress.update(cx, |p, cx| {
                     p.current.clone_from(&file.rel);
                     cx.notify();
                 });
-                let (path, bytes) = (file.path.clone(), file.text.clone());
+                let (path, bytes, upload) = (file.path.clone(), file.text.clone(), file.upload.take());
                 let written = cx
-                    .background_spawn(async move { std::fs::write(&path, bytes.as_bytes()) })
+                    .background_spawn(async move {
+                        std::fs::write(&path, bytes.as_bytes())?;
+                        upload
+                            .map(|u| u.run(bytes.as_bytes()))
+                            .transpose()
+                            .map(Option::flatten)
+                    })
                     .await;
                 if let Err(err) = written {
                     this.update_in(cx, |ws, window, cx| {
                         ws.saving_on_close = false;
                         window.close_dialog(cx);
                         ws.refresh_git(cx);
-                        ws.notify_error(format!("Cannot save {}: {err}", file.rel), window, cx);
+                        ws.notify_error(format!("Cannot save {}: {err:#}", file.rel), window, cx);
                     })
                     .ok();
                     return;

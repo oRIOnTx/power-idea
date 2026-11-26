@@ -113,6 +113,7 @@ fn menus() -> Vec<Menu> {
             MenuItem::action("Commit", ToggleCommitView),
             MenuItem::action("Git Log", ShowGitLog),
             MenuItem::action("Database", ToggleDatabaseView),
+            MenuItem::action("Remote Files", ToggleRemoteView),
             MenuItem::action("Docker", ToggleDockerView),
             MenuItem::action("GitHub Actions", ShowGitHubActions),
             MenuItem::action("Claude Insights", ToggleInsightsView),

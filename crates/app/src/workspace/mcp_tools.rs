@@ -246,6 +246,9 @@ impl Workspace {
             ci::tools::LIST_RUNS | ci::tools::GET_RUN | ci::tools::FAILED_LOGS => {
                 return Ok(self.mcp_ci_call(name, args, reply, cx));
             }
+            super::remote::mcp::LIST_SITES | super::remote::mcp::LIST_DIR | super::remote::mcp::READ_FILE => {
+                return Ok(self.mcp_remote_call(name, args, reply, cx));
+            }
             _ => return self.mcp_code_call(name, args, reply, cx),
         };
         Ok(Some((reply, result)))

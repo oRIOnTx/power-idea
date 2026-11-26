@@ -52,13 +52,15 @@ crates/
   ci/      GitHub Actions: remote → repo, token (gh / Keychain), REST client (ureq, ETag), poller, log parser,
            workflow_dispatch inputs (tree-sitter-yaml), finished-run watching, Claude context + redaction,
            read-only MCP tool answers (ci::tools)
+  remote/  Remote Files: RemoteFs trait, SFTP (russh + russh-sftp), FTP/FTPS (suppaftp), sites, Keychain
+           secrets, known_hosts, reconnecting Connection, transfers (live test: cargo test -p remote --test live -- --ignored)
   error_journal/ recent errors (panics, log::error!, report()) → errors.json; badge on the settings gear
   app/     the gpui application; the only crate that depends on gpui-kit
     workspace.rs        Workspace entity: state + layout composition only
     workspace/*.rs      one concern per module (editors, files, git, git_panel,
                         sidebar, chrome, terminal_panel, unsaved, mcp_tools,
                         navigation, code_nav, preview_view, run_configs, debug/,
-                        session_state, action_handlers, git_log/)
+                        session_state, action_handlers, git_log/, remote/ = Remote Files ⌘7)
     language.rs         language servers per project + editor LSP providers
     database/           Database tool window: data sources, consoles, results grid
     github_actions/     GitHub Actions tab (⌘8): runs, jobs → steps → log, polling
