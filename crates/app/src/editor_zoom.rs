@@ -94,7 +94,11 @@ pub fn gesture_layer() -> impl IntoElement {
             });
         },
     )
+    // Pinned to the editor's corner: an absolute child without an inset is placed after the
+    // editor in the flow, below it, so no pointer over the code would ever hit it.
     .absolute()
+    .top_0()
+    .left_0()
     .size_full()
 }
 
